@@ -1,731 +1,598 @@
+```html
 <!DOCTYPE html>
 <html lang="id" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Rocky Admin</title>
+  
+  <!-- Font Awesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Modern Premium Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
   <style>
-    :root{--bg:#f4f8ff;--bg2:#fff;--line:rgba(15,23,42,.08);--text:#10203a;--soft:#64748b;--muted:#94a3b8;--blue:#4f8cff;--blue2:rgba(79,140,255,.12);--green:#16a34a;--green2:rgba(22,163,74,.10);--red:#ef4444;--red2:rgba(239,68,68,.10);--amber:#f59e0b;--amber2:rgba(245,158,11,.12);--shadow:0 18px 48px rgba(70,100,140,.14)}
-    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}body{font-size:12px;-webkit-font-smoothing:antialiased}.num{font-variant-numeric:tabular-nums lining-nums}.hide{display:none!important}
-    #app{width:min(430px,100%);margin:auto;min-height:100vh;position:relative;background:radial-gradient(circle at top left,rgba(79,140,255,.18),transparent 28%),linear-gradient(180deg,#f8fbff 0%,#eef4ff 100%);overflow:hidden}.wrap{padding:14px 12px 96px}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 12px}.brand{display:flex;align-items:center;gap:10px;min-width:0}.logo{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--blue),#8db0ff);box-shadow:0 12px 26px rgba(79,140,255,.24);font-weight:900;color:white}h1{font-size:18px;line-height:1;margin:0;font-weight:900;letter-spacing:-.04em}.sub{font-size:10px;color:var(--soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row{display:flex;align-items:center;gap:8px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.card{background:linear-gradient(180deg,#fff 0%,#f9fbff 100%);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.pad{padding:12px}.mb{margin-bottom:9px}.title{font-size:13px;font-weight:900;letter-spacing:-.02em}.tiny{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.hero{padding:14px;border-radius:20px;background:linear-gradient(135deg,#dbeafe 0%,#fff 100%);border:1px solid rgba(79,140,255,.18);position:relative;overflow:hidden}.hero .val{font-size:26px;font-weight:900;letter-spacing:-.05em;margin-top:4px;position:relative}.stat{padding:11px;border-radius:16px}.stat .val{font-size:18px;font-weight:900;letter-spacing:-.03em;margin-top:4px}.soft{color:var(--soft)}
-    button,input,select,textarea{font-family:inherit}.btn{border:0;border-radius:14px;min-height:38px;padding:9px 11px;font-weight:850;font-size:12px;color:var(--text);background:#fff;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}.btn:active{transform:scale(.98)}.btn.primary{background:var(--blue);border-color:transparent;color:#fff;box-shadow:0 12px 24px rgba(79,140,255,.22)}.btn.green{background:var(--green2);color:var(--green);border-color:rgba(22,163,74,.16)}.btn.red{background:var(--red2);color:var(--red);border-color:rgba(239,68,68,.16)}.btn.amber{background:var(--amber2);color:var(--amber);border-color:rgba(245,158,11,.18)}.btn.icon{width:38px;padding:0;flex:0 0 38px}.btn.full{width:100%}.btn:disabled{opacity:.45;pointer-events:none}.input{width:100%;min-height:40px;border:1px solid var(--line);border-radius:14px;background:#f8fbff;color:var(--text);padding:10px 11px;outline:none;font-size:12px}.input:focus{border-color:rgba(79,140,255,.5);background:#fff;box-shadow:0 0 0 3px rgba(79,140,255,.08)}.list{display:flex;flex-direction:column;gap:8px}.item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);background:#f8fbff;border-radius:15px}.ico{width:34px;height:34px;border-radius:13px;display:grid;place-items:center;background:var(--blue2);color:var(--blue);flex:0 0 34px}.grow{min-width:0;flex:1}.name{font-size:12px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{font-size:10px;color:var(--soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.amt{font-size:14px;font-weight:900}.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;font-size:9.5px;font-weight:850;border:1px solid var(--line);background:#fff;color:var(--soft)}.chip.ok{background:var(--green2);color:var(--green);border-color:rgba(22,163,74,.22)}.chip.bad{background:var(--red2);color:var(--red);border-color:rgba(239,68,68,.22)}.chip.warn{background:var(--amber2);color:var(--amber);border-color:rgba(245,158,11,.22)}
-    .tabs{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);width:min(412px,calc(100% - 18px));height:76px;border-radius:24px;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:8px;box-shadow:var(--shadow);z-index:50}.tab{border:0;background:transparent;color:var(--muted);border-radius:17px;font-weight:900;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.tab i{font-size:18px}.tab.active{background:var(--blue2);color:var(--blue)}.modal{position:fixed;inset:0;background:rgba(15,23,42,.18);backdrop-filter:blur(10px);z-index:90;display:none;align-items:center;justify-content:center;padding:16px}.modal.show{display:flex}.sheet{width:min(390px,100%);max-width:390px;background:var(--bg2);border:1px solid var(--line);border-radius:24px;padding:16px;box-shadow:var(--shadow)}.sheetHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.form{display:flex;flex-direction:column;gap:8px}.toast{position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-8px);z-index:120;background:#fff;border:1px solid var(--line);border-radius:999px;padding:10px 16px;font-size:12px;font-weight:800;opacity:0;transition:.18s;box-shadow:var(--shadow);max-width:calc(100% - 30px);text-align:center}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(255,255,255,.45);backdrop-filter:blur(6px);z-index:100}.loading.show{display:grid}.spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--blue);animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.login{min-height:100vh;display:flex;align-items:center;padding:16px}.loginBox{width:100%;padding:18px}.loginLogo{width:66px;height:66px;border-radius:24px;margin:0 auto 16px;background:linear-gradient(135deg,var(--blue),#8db0ff);display:grid;place-items:center;font-size:24px;box-shadow:0 16px 34px rgba(79,140,255,.24);color:#fff}.sep{height:1px;background:var(--line);margin:10px 0}.right{text-align:right}.empty{padding:22px 10px;text-align:center;color:var(--soft);font-size:11px}.fab{position:fixed;right:18px;bottom:94px;width:56px;height:56px;border-radius:20px;border:0;background:linear-gradient(135deg,var(--blue),#89adff);color:white;box-shadow:0 20px 34px rgba(79,140,255,.3);z-index:45;font-size:20px}.miniBtns{display:flex;gap:6px}.miniBtns .btn{min-height:32px;padding:7px 9px;border-radius:12px;font-size:11px}.bonus-control-grid{display:grid;gap:9px}.bonus-user-card{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:17px;background:#f8fbff}.bonus-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.bonus-mini{border:1px solid var(--line);border-radius:12px;background:#fff;padding:7px 8px}.bonus-mini .tiny{font-size:8px}.bonus-mini .amt{font-size:12px;margin-top:2px}.ops-hero{border-radius:20px;background:linear-gradient(135deg,#eff6ff,#fff);border:1px solid rgba(79,140,255,.18);padding:12px}.filter-row{display:grid;grid-template-columns:1fr auto;gap:8px}.att-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.att-actions .btn{min-height:30px;border-radius:11px;padding:6px 8px;font-size:10.5px}@media(max-width:375px){.wrap{padding-left:10px;padding-right:10px}.hero .val{font-size:23px}.grid3{gap:6px}.stat{padding:9px}.stat .val{font-size:16px}.tabs{height:72px}.tab i{font-size:17px}.tab{font-size:8.5px}.bonus-user-card{grid-template-columns:34px 1fr}.bonus-user-card>.btn{grid-column:1 / -1;width:100%}}
+    /* =========================================
+       MODERN UI/UX REDESIGN - ROCKY ADMIN
+       ========================================= */
 
+    :root {
+      /* Light Mode Palette - Clean & Soft */
+      --bg: #f3f6f9;
+      --surface: #ffffff;
+      --surface-hover: #f8fafc;
+      --surface-inset: #f1f5f9;
+      --line: #e2e8f0;
+      
+      --text-main: #0f172a;
+      --text-soft: #64748b;
+      --text-muted: #94a3b8;
+      
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-soft: #eff6ff;
+      --primary-grad: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+      
+      --success: #10b981;
+      --success-soft: #ecfdf5;
+      
+      --danger: #ef4444;
+      --danger-soft: #fef2f2;
+      
+      --warning: #f59e0b;
+      --warning-soft: #fffbeb;
 
-    /* === PATCH: BONUS HARIAN + CETAK TRANSAKSI === */
-    .daily-bonus-card{cursor:pointer;border-color:rgba(22,163,74,.20);background:linear-gradient(135deg,var(--green2),#fff);position:relative;overflow:hidden}.daily-bonus-card:active{transform:scale(.99)}.daily-bonus-card .bonus-total{font-size:22px;font-weight:950;color:var(--green);letter-spacing:-.04em}.daily-bonus-card .bonus-sub{font-size:10.5px;color:var(--soft);line-height:1.35;margin-top:3px}.daily-bonus-break{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.daily-bonus-mini{border:1px solid rgba(15,23,42,.07);background:rgba(255,255,255,.72);border-radius:13px;padding:8px}.daily-bonus-mini b{display:block;font-size:12px;margin-top:3px;color:var(--text)}.bonus-detail-row{border:1px solid var(--line);border-radius:15px;background:#f8fbff;padding:10px;margin-bottom:8px}.bonus-detail-row .bonus-line{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--soft);margin-top:5px}.bonus-detail-row .bonus-line strong{color:var(--text);font-variant-numeric:tabular-nums}.bonus-detail-row .bonus-total-line{border-top:1px solid var(--line);padding-top:7px;margin-top:7px;font-weight:950}.trx-print-card{border-color:rgba(79,140,255,.18);background:linear-gradient(135deg,#eff6ff,#fff)}.tx-note-mini{font-size:10.5px;color:var(--soft);line-height:1.35;padding:8px 10px;border-radius:12px;background:#f8fbff;border:1px dashed var(--line)}.tx-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%}.tx-action-grid .cancel{grid-column:1 / -1}.receipt-preview-box{margin-top:10px;border:1px dashed var(--line);background:#0f172a;color:#e5e7eb;border-radius:15px;padding:11px;max-height:48vh;overflow:auto}.receipt-preview-text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.45;white-space:pre-wrap;margin:0}.receipt-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-
-
-
-    /* === REVISI UI APK: logo hilang, home cash fisik, detail bonus compact, bonus page rapi === */
-    .logo,.loginLogo{display:none!important}
-    .top .brand{gap:0!important;min-width:0;flex:1}.top .brand>div{min-width:0}.loginBox{padding-top:22px!important}
-    .daily-bonus-card .bonus-sub{max-width:270px}.daily-bonus-break{grid-template-columns:repeat(3,minmax(0,1fr))}.daily-bonus-mini{min-width:0}.daily-bonus-mini b{white-space:nowrap;font-size:11.5px}
-    #dailyBonusDetailModal{align-items:flex-start;padding-top:54px}
-    #dailyBonusDetailModal .sheet{max-height:86vh;overflow:auto;width:min(410px,100%);padding:14px;border-radius:22px}
-    #dailyBonusDetailModal .sheet>.btn.full{position:sticky;bottom:0;margin-top:10px;background:#fff;box-shadow:0 -10px 20px rgba(255,255,255,.86)}
-    .bonus-summary-top{background:linear-gradient(135deg,var(--green2),#fff)!important;border-color:rgba(22,163,74,.16)!important}
-    .bonus-detail-row{padding:10px 11px!important;border-radius:16px!important;background:#f8fbff!important;border:1px solid var(--line)!important;margin-bottom:8px!important;overflow:hidden}
-    .bonus-detail-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px}
-    .bonus-detail-total{font-size:15px;font-weight:950;color:var(--green);white-space:nowrap;text-align:right;line-height:1.2}
-    .bonus-compact-break{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-width:0}
-    .bonus-compact-break span{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:5px 7px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:10px;font-weight:850;color:var(--soft);white-space:nowrap}
-    .bonus-compact-break b{color:var(--text);font-weight:950;font-variant-numeric:tabular-nums}
-    .bonus-user-card{grid-template-columns:36px minmax(0,1fr) 42px!important;align-items:center!important;gap:9px!important;padding:10px!important}
-    .bonus-user-card>.btn.amber{width:42px!important;height:42px!important;min-height:42px!important;min-width:42px!important;padding:0!important;border-radius:14px!important;align-self:center!important}
-    .bonus-user-card .bonus-stats{grid-template-columns:1fr 1fr!important;gap:6px!important}.bonus-user-card .bonus-mini{min-width:0}.bonus-user-card .bonus-mini .amt{font-size:11.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    @media(max-width:375px){.bonus-user-card{grid-template-columns:34px minmax(0,1fr) 40px!important}.bonus-user-card>.btn.amber{grid-column:auto!important;width:40px!important;height:40px!important;min-width:40px!important}.bonus-user-card .bonus-stats{gap:5px!important}.bonus-user-card .bonus-mini{padding:6px 6px!important}.bonus-detail-head{grid-template-columns:1fr}.bonus-detail-total{text-align:left;font-size:16px}.bonus-compact-break span{font-size:9.5px;padding:5px 6px}.daily-bonus-break{gap:5px}.daily-bonus-mini{padding:7px 6px}.daily-bonus-mini b{font-size:10.5px}}
-
-
-
-    /* === UI REFRESH + MODE GELAP/TERANG === */
-    :root{--bg:#eef4ff;--bg2:#ffffff;--bg3:#f7faff;--line:rgba(37,99,235,.10);--text:#11213d;--soft:#60738e;--muted:#90a2bc;--blue:#3b82f6;--blue2:rgba(59,130,246,.12);--green:#16a34a;--green2:rgba(22,163,74,.12);--red:#ef4444;--red2:rgba(239,68,68,.11);--amber:#f59e0b;--amber2:rgba(245,158,11,.13);--shadow:0 22px 54px rgba(62,94,146,.14);--surface:#f8fbff;--surface2:#f2f7ff;--appGrad:radial-gradient(circle at top left,rgba(59,130,246,.23),transparent 28%),linear-gradient(180deg,#f8fbff 0%,#edf4ff 100%);--cardGrad:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);--heroGrad:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%);--tabBg:rgba(255,255,255,.92);--tabActive:#eaf2ff;--modalBg:rgba(15,23,42,.22)}
-    html[data-theme="dark"]{--bg:#0b1220;--bg2:#121b2d;--bg3:#172338;--line:rgba(148,163,184,.18);--text:#edf3ff;--soft:#94a3b8;--muted:#66758d;--blue:#60a5fa;--blue2:rgba(96,165,250,.16);--green:#4ade80;--green2:rgba(74,222,128,.14);--red:#f87171;--red2:rgba(248,113,113,.14);--amber:#fbbf24;--amber2:rgba(251,191,36,.14);--shadow:0 24px 60px rgba(0,0,0,.34);--surface:#162235;--surface2:#101a2b;--appGrad:radial-gradient(circle at top left,rgba(96,165,250,.18),transparent 25%),linear-gradient(180deg,#0f172a 0%,#0a1220 100%);--cardGrad:linear-gradient(180deg,#152033 0%,#0f1728 100%);--heroGrad:linear-gradient(135deg,#1d4ed8 0%,#0ea5e9 100%);--tabBg:rgba(10,18,32,.9);--tabActive:rgba(96,165,250,.15);--modalBg:rgba(2,8,23,.64)}
-    html,body,button,input,select,textarea,#app,.card,.sheet,.item,.btn,.input,.hero,.stat,.tabs,.tab,.toast{transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .14s ease}
-    html,body{background:var(--bg)!important;color:var(--text)!important}
-    #app{background:var(--appGrad)!important}
-    .card,.sheet{background:var(--cardGrad)!important;border-color:var(--line)!important;box-shadow:var(--shadow)!important}
-    .top{margin:2px 0 14px!important}
-    .brand h1{font-size:19px!important;letter-spacing:-.045em}
-    .sub,.meta,.soft,.chip{color:var(--soft)!important}
-    .hero{background:var(--heroGrad)!important;border-color:transparent!important;box-shadow:0 20px 42px rgba(37,99,235,.24)!important;color:#fff!important;position:relative;isolation:isolate}
-    .hero::after{content:"";position:absolute;right:-34px;top:-34px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.16);filter:blur(2px)}
-    .hero .tiny,.hero .meta,.hero .val{color:#fff!important;position:relative;z-index:1}
-    .stat,.bonus-mini,.bonus-user-card,.item,.daily-bonus-mini,.bonus-detail-row,.ops-hero,.tx-note-mini,.input,.receipt-preview-box{background:var(--surface)!important;border-color:var(--line)!important;color:var(--text)!important}
-    .ops-hero{background:linear-gradient(135deg,var(--surface),var(--bg2))!important}
-    .input{border-radius:15px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-    .input:focus{background:var(--bg2)!important;box-shadow:0 0 0 3px rgba(59,130,246,.12)!important}
-    .btn{background:var(--bg2)!important;border-color:var(--line)!important;color:var(--text)!important;box-shadow:none}
-    .btn:hover{transform:translateY(-1px)}
-    .btn.primary{background:linear-gradient(135deg,var(--blue),#7bb0ff)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 14px 30px rgba(59,130,246,.22)!important}
-    .btn.green{background:var(--green2)!important;color:var(--green)!important}
-    .btn.red{background:var(--red2)!important;color:var(--red)!important}
-    .btn.amber{background:var(--amber2)!important;color:var(--amber)!important}
-    .btn.icon{backdrop-filter:blur(10px)}
-    .themeBtn{background:var(--surface2)!important;color:var(--blue)!important;border-color:var(--line)!important}
-    .tabs{background:var(--tabBg)!important;border-color:var(--line)!important;box-shadow:var(--shadow)!important}
-    .tab{color:var(--muted)!important}
-    .tab.active{background:var(--tabActive)!important;color:var(--blue)!important}
-    .modal{background:var(--modalBg)!important}
-    .toast{background:var(--bg2)!important;color:var(--text)!important}
-    .loading{background:rgba(255,255,255,.38)!important}
-    html[data-theme="dark"] .loading{background:rgba(2,8,23,.5)!important}
-    .fab{background:linear-gradient(135deg,var(--blue),#7cb8ff)!important;box-shadow:0 18px 34px rgba(59,130,246,.28)!important}
-    .daily-bonus-card{background:linear-gradient(135deg,var(--green2),var(--bg2))!important}
-    .daily-bonus-card .bonus-total,.bonus-detail-total{color:var(--green)!important}
-    .daily-bonus-mini,.bonus-mini{box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
-    .bonus-compact-break span{background:var(--bg2)!important;color:var(--soft)!important;border-color:var(--line)!important}
-    .receipt-preview-box{background:var(--surface2)!important}
-    html[data-theme="dark"] .receipt-preview-box{background:#0a1220!important;color:#dbe7ff!important}
-    .login{padding:20px 16px!important}
-    .loginCardFancy{padding:16px!important;overflow:hidden;position:relative}
-    .loginCardFancy::before{content:"";position:absolute;inset:auto -50px -50px auto;width:160px;height:160px;border-radius:50%;background:rgba(59,130,246,.12)}
-    .loginThemeRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;position:relative;z-index:1}
-    .loginHero{position:relative;z-index:1;padding:8px 0 6px}
-    .loginHero h1{margin-bottom:6px}
-    .chip{background:var(--bg2)!important;border-color:var(--line)!important}
-    .chip.ok{background:var(--green2)!important;color:var(--green)!important}
-    .chip.bad{background:var(--red2)!important;color:var(--red)!important}
-    .chip.warn{background:var(--amber2)!important;color:var(--amber)!important}
-    .sectionTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-    .sectionTitle .title{font-size:14px}
-    @media(max-width:375px){.top .row{gap:6px!important}.btn.icon{width:36px!important;flex:0 0 36px}.brand h1{font-size:18px!important}}
-
-  
-
-    /* === PATCH COMPACT RINGAN: hanya tampilan, tanpa ubah logika/fitur === */
-    :root{
-      --shadow:0 3px 10px rgba(62,94,146,.08)!important;
-      --line:rgba(15,23,42,.10)!important;
-    }
-    html[data-theme="dark"]{
-      --shadow:0 4px 14px rgba(0,0,0,.26)!important;
-      --line:rgba(148,163,184,.16)!important;
-    }
-    *{scrollbar-width:thin}
-    html,body{
-      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
-      font-size:11px!important;
-      background:var(--bg)!important;
-      text-rendering:optimizeSpeed!important;
-    }
-    #app{
-      width:min(420px,100%)!important;
-      background:var(--bg)!important;
-      overflow-x:hidden!important;
-    }
-    #app,.card,.sheet,.item,.btn,.input,.hero,.stat,.tabs,.tab,.toast{
-      transition:none!important;
-      animation-duration:.01ms!important;
-    }
-    .wrap{padding:8px 8px 76px!important}
-    .top{gap:6px!important;margin:0 0 7px!important}
-    .top .row{gap:5px!important}
-    h1,.brand h1{font-size:15px!important;line-height:1.05!important;letter-spacing:-.035em!important}
-    .sub{font-size:9px!important;margin-top:1px!important;line-height:1.2!important}
-    .title{font-size:12px!important;line-height:1.15!important}
-    .tiny{font-size:8px!important;letter-spacing:.05em!important}
-    .meta{font-size:9.5px!important;margin-top:2px!important;line-height:1.25!important}
-    .row{gap:5px!important}
-    .grid2,.grid3{gap:6px!important}
-    .mb{margin-bottom:6px!important}
-    .sep{margin:7px 0!important}
-
-    .card,.sheet,.item,.stat,.hero,.bonus-user-card,.daily-bonus-mini,.bonus-mini,.bonus-detail-row,.ops-hero{
-      border-radius:12px!important;
-      box-shadow:var(--shadow)!important;
-      background:var(--bg2)!important;
-    }
-    .pad{padding:8px!important}
-    .hero{padding:9px 10px!important;overflow:hidden!important}
-    .hero::after,.loginCardFancy::before{display:none!important}
-    .hero .val{font-size:20px!important;margin-top:2px!important;line-height:1.05!important}
-    .stat{padding:8px!important;min-height:auto!important}
-    .stat .val{font-size:15px!important;margin-top:2px!important;line-height:1.1!important}
-    .amt{font-size:12.5px!important;line-height:1.15!important}
-
-    .btn{
-      min-height:31px!important;
-      border-radius:10px!important;
-      padding:6px 8px!important;
-      font-size:10.5px!important;
-      gap:5px!important;
-      box-shadow:none!important;
-    }
-    .btn:hover,.btn:active,.daily-bonus-card:active{transform:none!important}
-    .btn.primary{box-shadow:none!important}
-    .btn.icon{width:31px!important;height:31px!important;min-height:31px!important;flex:0 0 31px!important;padding:0!important}
-    .miniBtns{gap:4px!important}
-    .miniBtns .btn,.att-actions .btn{min-height:27px!important;padding:4px 6px!important;border-radius:9px!important;font-size:9.5px!important}
-    .input{
-      min-height:33px!important;
-      border-radius:10px!important;
-      padding:7px 8px!important;
-      font-size:11px!important;
-      background:var(--bg2)!important;
-      box-shadow:none!important;
-    }
-    textarea.input{min-height:58px!important}
-    .input:focus{box-shadow:0 0 0 2px rgba(59,130,246,.10)!important}
-
-    .list{gap:5px!important}
-    .item{padding:7px!important;gap:7px!important}
-    .ico{width:28px!important;height:28px!important;flex-basis:28px!important;border-radius:10px!important}
-    .name{font-size:11px!important;line-height:1.2!important}
-    .chip{padding:3px 6px!important;font-size:8.5px!important;gap:3px!important}
-    .empty{padding:14px 8px!important;font-size:10px!important}
-
-    .tabs{
-      width:min(404px,calc(100% - 12px))!important;
-      height:57px!important;
-      bottom:6px!important;
-      padding:4px!important;
-      gap:2px!important;
-      border-radius:16px!important;
-      backdrop-filter:none!important;
-      -webkit-backdrop-filter:none!important;
-      box-shadow:0 4px 14px rgba(15,23,42,.12)!important;
-    }
-    .tab{border-radius:12px!important;font-size:7.8px!important;gap:2px!important}
-    .tab i{font-size:14px!important}
-    .fab{
-      width:46px!important;
-      height:46px!important;
-      right:12px!important;
-      bottom:68px!important;
-      border-radius:15px!important;
-      box-shadow:0 8px 18px rgba(59,130,246,.22)!important;
-      font-size:17px!important;
+      --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.03);
+      --shadow-md: 0 12px 32px rgba(15, 23, 42, 0.06);
+      --shadow-lg: 0 24px 48px rgba(15, 23, 42, 0.08);
+      --shadow-float: 0 16px 32px rgba(59, 130, 246, 0.25);
+      
+      --radius-sm: 12px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
     }
 
-    .modal{
-      padding:10px!important;
-      background:rgba(15,23,42,.28)!important;
-      backdrop-filter:none!important;
-      -webkit-backdrop-filter:none!important;
-    }
-    .sheet{
-      width:min(382px,100%)!important;
-      max-width:382px!important;
-      max-height:90vh!important;
-      overflow:auto!important;
-      padding:10px!important;
-      border-radius:15px!important;
-    }
-    .sheetHead{margin-bottom:7px!important;gap:7px!important}
-    .form{gap:6px!important}
-    .toast{padding:7px 11px!important;font-size:10.5px!important;box-shadow:var(--shadow)!important}
-    .loading{background:rgba(255,255,255,.28)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-    html[data-theme="dark"] .loading{background:rgba(2,8,23,.38)!important}
-    .spin{width:28px!important;height:28px!important;border-width:3px!important}
+    html[data-theme="dark"] {
+      /* Dark Mode Palette - Deep & Premium */
+      --bg: #0b1120;
+      --surface: #151e32;
+      --surface-hover: #1e293b;
+      --surface-inset: #0f172a;
+      --line: #1e2e4a;
+      
+      --text-main: #f8fafc;
+      --text-soft: #94a3b8;
+      --text-muted: #64748b;
+      
+      --primary: #60a5fa;
+      --primary-hover: #3b82f6;
+      --primary-soft: rgba(59, 130, 246, 0.15);
+      --primary-grad: linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%);
+      
+      --success: #34d399;
+      --success-soft: rgba(16, 185, 129, 0.15);
+      
+      --danger: #f87171;
+      --danger-soft: rgba(239, 68, 68, 0.15);
+      
+      --warning: #fbbf24;
+      --warning-soft: rgba(245, 158, 11, 0.15);
 
-    .login{padding:10px!important}
-    .loginBox{padding:12px!important}
-    .loginHero{padding:4px 0!important}
-    .loginHero h1{font-size:20px!important;margin-bottom:4px!important}
-    .loginThemeRow{margin-bottom:8px!important}
-
-    .daily-bonus-card{background:var(--bg2)!important}
-    .daily-bonus-card .bonus-total{font-size:18px!important;line-height:1.05!important}
-    .daily-bonus-card .bonus-sub{font-size:9.3px!important;line-height:1.25!important;margin-top:2px!important}
-    .daily-bonus-break{gap:5px!important;margin-top:6px!important}
-    .daily-bonus-mini{padding:6px!important;border-radius:10px!important}
-    .daily-bonus-mini b{font-size:10px!important;margin-top:1px!important}
-    .bonus-detail-row{padding:7px!important;margin-bottom:5px!important;border-radius:11px!important}
-    .bonus-detail-total{font-size:13px!important}
-    .bonus-compact-break{gap:4px!important;margin-top:5px!important}
-    .bonus-compact-break span{font-size:8.8px!important;padding:3px 5px!important}
-    .bonus-user-card{grid-template-columns:30px minmax(0,1fr) 34px!important;padding:7px!important;gap:6px!important;border-radius:12px!important}
-    .bonus-user-card>.btn.amber{width:34px!important;height:34px!important;min-height:34px!important;min-width:34px!important;border-radius:11px!important}
-    .bonus-stats{gap:4px!important;margin-top:5px!important}
-    .bonus-mini{padding:5px!important;border-radius:9px!important}
-    .bonus-mini .tiny{font-size:7.5px!important}
-    .bonus-mini .amt{font-size:10px!important}
-
-    .ops-hero{padding:8px!important;border-radius:12px!important}
-    .filter-row{gap:5px!important}
-    .receipt-preview-box{margin-top:7px!important;padding:8px!important;border-radius:11px!important;max-height:42vh!important}
-    .receipt-preview-text{font-size:10px!important;line-height:1.35!important}
-    .receipt-modal-actions,.tx-action-grid{gap:5px!important}
-
-    @media(max-width:375px){
-      .wrap{padding-left:7px!important;padding-right:7px!important;padding-bottom:72px!important}
-      h1,.brand h1{font-size:14px!important}
-      .hero .val{font-size:18px!important}
-      .grid3{gap:5px!important}
-      .stat{padding:7px!important}
-      .stat .val{font-size:13.5px!important}
-      .tabs{height:54px!important;width:calc(100% - 10px)!important}
-      .tab i{font-size:13px!important}
-      .tab span{font-size:7.3px!important}
-      .bonus-user-card{grid-template-columns:28px minmax(0,1fr) 32px!important}
-      .bonus-user-card>.btn.amber{width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important}
-      .daily-bonus-mini{padding:5px!important}
-      .daily-bonus-mini b{font-size:9px!important}
+      --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.5);
+      --shadow-float: 0 16px 32px rgba(0, 0, 0, 0.4);
     }
 
-    @media(prefers-reduced-motion:reduce){
-      *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    html, body {
+      margin: 0; padding: 0;
+      min-height: 100%;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      font-size: 14px; /* Base size larger for readability */
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+      transition: background 0.3s ease, color 0.3s ease;
     }
 
+    .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .hide { display: none !important; }
 
-    /* === PATCH FIX: Cash Fisik card terlihat jelas di mode terang === */
-    html[data-theme="light"] .hero{
-      background:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%)!important;
-      border:1px solid rgba(37,99,235,.20)!important;
-      color:#fff!important;
-      box-shadow:0 6px 16px rgba(37,99,235,.18)!important;
-    }
-    html[data-theme="light"] .hero .tiny,
-    html[data-theme="light"] .hero .meta,
-    html[data-theme="light"] .hero .val{
-      color:#fff!important;
-    }
-    html[data-theme="light"] .hero .meta{opacity:.92!important}
-    html[data-theme="dark"] .hero{
-      background:linear-gradient(135deg,#1d4ed8 0%,#0ea5e9 100%)!important;
-      color:#fff!important;
-    }
-    html[data-theme="dark"] .hero .tiny,
-    html[data-theme="dark"] .hero .meta,
-    html[data-theme="dark"] .hero .val{
-      color:#fff!important;
+    /* App Container */
+    #app {
+      width: min(480px, 100%);
+      margin: auto;
+      min-height: 100vh;
+      position: relative;
+      background: var(--bg);
+      overflow-x: hidden;
     }
 
-
-
-    /* === ULTRA READ SAVER UI === */
-    .read-saver-note{font-size:10.5px;line-height:1.35;color:var(--soft);margin-top:6px}
-    .read-saver-card{border-color:rgba(245,158,11,.22)!important;background:linear-gradient(135deg,var(--amber2),var(--bg2))!important}
-    .read-saver-card .btn{min-height:32px;border-radius:12px;font-size:11px;padding:7px 9px}
-    .monthly-status{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 7px;font-size:9.5px;font-weight:900;border:1px solid var(--line);background:var(--bg2);color:var(--soft)}
-    .monthly-status.loaded{background:var(--green2);border-color:rgba(22,163,74,.22);color:var(--green)}
-    .monthly-status.light{background:var(--amber2);border-color:rgba(245,158,11,.22);color:var(--amber)}
-    .compact-load-row{display:flex;gap:7px;align-items:center;justify-content:space-between;margin-top:8px}
-    .compact-load-row .btn{white-space:nowrap}
-
-  
-
-    /* === PATCH UI LEBIH BESAR: tampilan saja, tanpa ubah fitur / logika JS === */
-    html,body{
-      font-size:13px!important;
-      line-height:1.38!important;
-    }
-    #app{
-      width:min(460px,100%)!important;
-    }
-    .wrap{
-      padding:14px 12px 94px!important;
-    }
-    .top{
-      gap:10px!important;
-      margin:4px 0 13px!important;
-    }
-    .top .row,
-    .row{
-      gap:8px!important;
-    }
-    h1,.brand h1{
-      font-size:20px!important;
-      line-height:1.1!important;
-      letter-spacing:-.04em!important;
-    }
-    .sub{
-      font-size:11px!important;
-      margin-top:3px!important;
-      line-height:1.35!important;
-    }
-    .title{
-      font-size:15px!important;
-      line-height:1.25!important;
-    }
-    .tiny{
-      font-size:9.5px!important;
-      letter-spacing:.06em!important;
-    }
-    .meta{
-      font-size:11px!important;
-      margin-top:3px!important;
-      line-height:1.35!important;
-    }
-    .grid2,.grid3{
-      gap:9px!important;
-    }
-    .mb{
-      margin-bottom:10px!important;
-    }
-    .sep{
-      margin:11px 0!important;
+    .wrap {
+      padding: 24px 20px 110px 20px; /* Ample padding, extra bottom space for tabs */
     }
 
-    .card,.sheet,.item,.stat,.hero,.bonus-user-card,.daily-bonus-mini,.bonus-mini,.bonus-detail-row,.ops-hero{
-      border-radius:18px!important;
-      box-shadow:0 10px 28px rgba(62,94,146,.12)!important;
+    /* Top Header */
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 12px;
     }
-    html[data-theme="dark"] .card,
-    html[data-theme="dark"] .sheet,
-    html[data-theme="dark"] .item,
-    html[data-theme="dark"] .stat,
-    html[data-theme="dark"] .hero,
-    html[data-theme="dark"] .bonus-user-card,
-    html[data-theme="dark"] .daily-bonus-mini,
-    html[data-theme="dark"] .bonus-mini,
-    html[data-theme="dark"] .bonus-detail-row,
-    html[data-theme="dark"] .ops-hero{
-      box-shadow:0 12px 30px rgba(0,0,0,.30)!important;
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    h1, .brand h1 {
+      font-size: 22px;
+      line-height: 1.2;
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: -0.03em;
     }
-    .pad{
-      padding:13px!important;
+    .sub {
+      font-size: 12px;
+      color: var(--text-soft);
+      margin-top: 4px;
+      font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .hero{
-      padding:15px!important;
-    }
-    .hero .val{
-      font-size:27px!important;
-      margin-top:5px!important;
-      line-height:1.12!important;
-    }
-    .stat{
-      padding:12px!important;
-    }
-    .stat .val{
-      font-size:19px!important;
-      margin-top:5px!important;
-      line-height:1.15!important;
-    }
-    .amt{
-      font-size:15px!important;
-      line-height:1.22!important;
-    }
+    .row { display: flex; align-items: center; gap: 10px; }
 
-    .btn{
-      min-height:42px!important;
-      border-radius:14px!important;
-      padding:10px 12px!important;
-      font-size:12.5px!important;
-      gap:7px!important;
-      font-weight:850!important;
-    }
-    .btn.icon{
-      width:42px!important;
-      height:42px!important;
-      min-height:42px!important;
-      flex:0 0 42px!important;
-      padding:0!important;
-    }
-    .btn.icon i{
-      font-size:15px!important;
-    }
-    .miniBtns{
-      gap:7px!important;
-    }
-    .miniBtns .btn,
-    .att-actions .btn{
-      min-height:36px!important;
-      padding:7px 10px!important;
-      border-radius:12px!important;
-      font-size:11.5px!important;
-    }
-    .input{
-      min-height:45px!important;
-      border-radius:14px!important;
-      padding:11px 12px!important;
-      font-size:13px!important;
-      line-height:1.25!important;
-    }
-    textarea.input{
-      min-height:86px!important;
-    }
+    /* Grids */
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .mb { margin-bottom: 16px; }
+    .sep { height: 1px; background: var(--line); margin: 16px 0; border-radius: 2px; }
 
-    .list{
-      gap:9px!important;
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s ease;
     }
-    .item{
-      padding:12px!important;
-      gap:11px!important;
-    }
-    .ico{
-      width:38px!important;
-      height:38px!important;
-      flex-basis:38px!important;
-      border-radius:14px!important;
-      font-size:15px!important;
-    }
-    .name{
-      font-size:13px!important;
-      line-height:1.25!important;
-    }
-    .chip{
-      padding:5px 9px!important;
-      font-size:10px!important;
-      gap:5px!important;
-    }
-    .empty{
-      padding:24px 12px!important;
-      font-size:12px!important;
-    }
+    .pad { padding: 20px; }
+    
+    /* Typography specific */
+    .title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+    .tiny { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .meta { font-size: 12px; color: var(--text-soft); margin-top: 4px; line-height: 1.4; }
+    .amt { font-size: 16px; font-weight: 800; }
 
-    .tabs{
-      width:min(436px,calc(100% - 18px))!important;
-      height:74px!important;
-      bottom:8px!important;
-      padding:7px!important;
-      gap:4px!important;
-      border-radius:24px!important;
-      box-shadow:0 12px 28px rgba(15,23,42,.14)!important;
+    /* Hero Widget (Main Dashboard Highlight) */
+    .hero {
+      padding: 24px;
+      border-radius: var(--radius-xl);
+      background: var(--primary-grad);
+      color: #ffffff;
+      box-shadow: var(--shadow-float);
+      position: relative;
+      overflow: hidden;
+      border: none;
     }
-    .tab{
-      border-radius:17px!important;
-      font-size:9.5px!important;
-      gap:5px!important;
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+      pointer-events: none;
     }
-    .tab i{
-      font-size:18px!important;
-    }
-    .fab{
-      width:58px!important;
-      height:58px!important;
-      right:18px!important;
-      bottom:92px!important;
-      border-radius:20px!important;
-      font-size:20px!important;
-      box-shadow:0 16px 30px rgba(59,130,246,.28)!important;
-    }
+    .hero .tiny { color: rgba(255,255,255,0.8); }
+    .hero .meta { color: rgba(255,255,255,0.9); }
+    .hero .val { font-size: 32px; font-weight: 800; letter-spacing: -0.04em; margin-top: 8px; margin-bottom: 4px; line-height: 1.1; position: relative; z-index: 1;}
 
-    .modal{
-      padding:16px!important;
+    /* Stat Cards */
+    .stat {
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
-    .sheet{
-      width:min(420px,100%)!important;
-      max-width:420px!important;
-      max-height:91vh!important;
-      padding:17px!important;
-      border-radius:24px!important;
-    }
-    .sheetHead{
-      margin-bottom:12px!important;
-      gap:10px!important;
-    }
-    .form{
-      gap:10px!important;
-    }
-    .toast{
-      padding:10px 15px!important;
-      font-size:12px!important;
-      border-radius:999px!important;
-    }
-    .spin{
-      width:38px!important;
-      height:38px!important;
-    }
+    .stat .val { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; margin-top: 6px; }
 
-    .login{
-      padding:18px 14px!important;
+    /* Buttons */
+    button, input, select, textarea { font-family: inherit; }
+    .btn {
+      border: none;
+      border-radius: var(--radius-sm);
+      min-height: 48px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-main);
+      background: var(--surface-inset);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .loginBox{
-      padding:18px!important;
+    .btn:active { transform: scale(0.96); }
+    .btn.primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(59, 130, 246, 0.25);
     }
-    .loginHero{
-      padding:10px 0 8px!important;
+    .btn.green { background: var(--success-soft); color: var(--success); }
+    .btn.red { background: var(--danger-soft); color: var(--danger); }
+    .btn.amber { background: var(--warning-soft); color: var(--warning); }
+    .btn.icon {
+      width: 44px; height: 44px; min-height: 44px; padding: 0;
+      border-radius: 50%; /* Modern circular icon buttons */
+      flex: 0 0 44px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-sm);
     }
-    .loginHero h1{
-      font-size:26px!important;
-      margin-bottom:7px!important;
-    }
-    .loginThemeRow{
-      margin-bottom:14px!important;
-    }
+    .btn.full { width: 100%; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+    .miniBtns .btn { min-height: 38px; padding: 8px 12px; border-radius: 10px; font-size: 13px; }
 
-    .daily-bonus-card .bonus-total{
-      font-size:25px!important;
-      line-height:1.12!important;
+    /* Inputs */
+    .input {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-hover);
+      color: var(--text-main);
+      padding: 12px 16px;
+      outline: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
     }
-    .daily-bonus-card .bonus-sub,
-    .read-saver-note,
-    .tx-note-mini{
-      font-size:11.5px!important;
-      line-height:1.45!important;
+    .input:focus {
+      background: var(--surface);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--primary-soft);
     }
-    .daily-bonus-break{
-      gap:8px!important;
-      margin-top:10px!important;
-    }
-    .daily-bonus-mini{
-      padding:10px!important;
-      border-radius:15px!important;
-    }
-    .daily-bonus-mini b{
-      font-size:13px!important;
-      margin-top:3px!important;
-    }
-    .bonus-user-card{
-      grid-template-columns:40px minmax(0,1fr) 46px!important;
-      padding:12px!important;
-      gap:10px!important;
-      border-radius:18px!important;
-    }
-    .bonus-user-card>.btn.amber{
-      width:46px!important;
-      height:46px!important;
-      min-height:46px!important;
-      min-width:46px!important;
-      border-radius:15px!important;
-    }
-    .bonus-stats{
-      gap:7px!important;
-      margin-top:8px!important;
-    }
-    .bonus-mini{
-      padding:8px!important;
-      border-radius:13px!important;
-    }
-    .bonus-mini .tiny{
-      font-size:9px!important;
-    }
-    .bonus-mini .amt{
-      font-size:13px!important;
-    }
-    .bonus-detail-row{
-      padding:11px!important;
-      margin-bottom:9px!important;
-      border-radius:17px!important;
-    }
-    .bonus-detail-total{
-      font-size:16px!important;
-    }
-    .bonus-compact-break{
-      gap:7px!important;
-      margin-top:9px!important;
-    }
-    .bonus-compact-break span{
-      font-size:10.5px!important;
-      padding:5px 8px!important;
-    }
+    textarea.input { min-height: 80px; resize: vertical; line-height: 1.5; }
 
-    .ops-hero{
-      padding:13px!important;
-      border-radius:18px!important;
+    /* Lists */
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .item {
+      display: flex; gap: 14px; align-items: center;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s;
     }
-    .filter-row{
-      gap:8px!important;
+    .ico {
+      width: 44px; height: 44px;
+      border-radius: 14px;
+      display: grid; place-items: center;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 18px;
+      flex: 0 0 44px;
     }
-    .receipt-preview-box{
-      margin-top:11px!important;
-      padding:12px!important;
-      border-radius:15px!important;
-      max-height:48vh!important;
+    .grow { min-width: 0; flex: 1; }
+    .name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* Chips */
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      background: var(--surface-inset);
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .receipt-preview-text{
-      font-size:12px!important;
-      line-height:1.5!important;
-    }
-    .receipt-modal-actions,
-    .tx-action-grid{
-      gap:9px!important;
-    }
+    .chip.ok { background: var(--success-soft); color: var(--success); }
+    .chip.bad { background: var(--danger-soft); color: var(--danger); }
+    .chip.warn { background: var(--warning-soft); color: var(--warning); }
 
-    @media(max-width:375px){
-      html,body{
-        font-size:12.5px!important;
-      }
-      .wrap{
-        padding:12px 10px 88px!important;
-      }
-      h1,.brand h1{
-        font-size:18px!important;
-      }
-      .sub{
-        font-size:10.5px!important;
-      }
-      .title{
-        font-size:14px!important;
-      }
-      .hero .val{
-        font-size:24px!important;
-      }
-      .stat{
-        padding:10px!important;
-      }
-      .stat .val{
-        font-size:17px!important;
-      }
-      .btn{
-        min-height:40px!important;
-        font-size:12px!important;
-        padding:9px 10px!important;
-      }
-      .btn.icon{
-        width:40px!important;
-        height:40px!important;
-        min-height:40px!important;
-        flex-basis:40px!important;
-      }
-      .input{
-        min-height:43px!important;
-        font-size:12.5px!important;
-      }
-      .grid3{
-        gap:7px!important;
-      }
-      .tabs{
-        width:calc(100% - 14px)!important;
-        height:70px!important;
-        bottom:7px!important;
-        padding:6px!important;
-      }
-      .tab i{
-        font-size:17px!important;
-      }
-      .tab span{
-        font-size:8.8px!important;
-      }
-      .fab{
-        width:54px!important;
-        height:54px!important;
-        bottom:88px!important;
-        right:14px!important;
-      }
-      .bonus-user-card{
-        grid-template-columns:38px minmax(0,1fr) 44px!important;
-      }
-      .bonus-user-card>.btn.amber{
-        width:44px!important;
-        height:44px!important;
-        min-width:44px!important;
-        min-height:44px!important;
-      }
-      .daily-bonus-mini{
-        padding:8px!important;
-      }
-      .daily-bonus-mini b{
-        font-size:11.5px!important;
-      }
+    /* Bottom Navigation (Floating Glassmorphism) */
+    .tabs {
+      position: fixed;
+      left: 50%; bottom: 20px;
+      transform: translateX(-50%);
+      width: min(440px, calc(100% - 32px));
+      height: 72px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+      padding: 8px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      z-index: 50;
     }
+    html[data-theme="dark"] .tabs {
+      background: rgba(21, 30, 50, 0.85);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+    .tab {
+      border: 0; background: transparent; color: var(--text-muted);
+      border-radius: 18px; font-weight: 700; font-size: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      transition: all 0.2s;
+    }
+    .tab i { font-size: 20px; margin-bottom: 2px; transition: transform 0.2s; }
+    .tab.active { background: var(--primary-soft); color: var(--primary); }
+    .tab.active i { transform: translateY(-2px); }
 
+    /* Modals & Bottom Sheets */
+    .modal {
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 90; display: none; align-items: flex-end; justify-content: center;
+      padding: 0; /* Align to bottom for sheet effect */
+    }
+    .modal.show { display: flex; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .sheet {
+      width: min(480px, 100%);
+      background: var(--surface);
+      border-radius: 32px 32px 0 0;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    
+    /* Ensure non-bottom-sheet modals (like pin) look good too */
+    #pinModal { align-items: center; padding: 24px; }
+    #pinModal .sheet { border-radius: 28px; animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .sheetHead { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .form { display: flex; flex-direction: column; gap: 14px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+      z-index: 120;
+      background: var(--text-main); color: var(--bg);
+      border-radius: 99px; padding: 12px 24px;
+      font-size: 14px; font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      opacity: 0; pointer-events: none; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Loading Spinner */
+    .loading {
+      position: fixed; inset: 0; display: none; place-items: center;
+      background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(4px); z-index: 100;
+    }
+    html[data-theme="dark"] .loading { background: rgba(11, 17, 32, 0.6); }
+    .loading.show { display: grid; }
+    .spin {
+      width: 48px; height: 48px;
+      border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--primary);
+      animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Login Page */
+    .login { min-height: 100vh; display: flex; align-items: center; padding: 20px; justify-content: center; }
+    .loginBox { width: 100%; padding: 32px 24px; border-radius: 32px; box-shadow: var(--shadow-lg); }
+    .loginThemeRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .loginHero { text-align: center; margin-bottom: 32px; }
+    .loginHero h1 { font-size: 32px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+
+    /* Floating Action Button */
+    .fab {
+      position: fixed; right: 24px; bottom: 104px; /* Above the tabs */
+      width: 64px; height: 64px;
+      border-radius: 20px; border: 0;
+      background: var(--primary-grad);
+      color: white;
+      box-shadow: var(--shadow-float);
+      z-index: 45; font-size: 24px;
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .fab:active { transform: scale(0.92); }
+
+    /* Bonus Layouts (Premium Look) */
+    .daily-bonus-card {
+      background: linear-gradient(135deg, var(--success-soft) 0%, var(--surface) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      cursor: pointer; position: relative; overflow: hidden;
+    }
+    .daily-bonus-card:active { transform: scale(0.98); }
+    .daily-bonus-card .bonus-total { font-size: 28px; font-weight: 800; color: var(--success); margin: 4px 0; }
+    .daily-bonus-card .bonus-sub { font-size: 13px; line-height: 1.4; color: var(--text-soft); }
+    .daily-bonus-break { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+    .daily-bonus-mini { background: var(--surface); border-radius: 12px; padding: 12px; text-align: center; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+    .daily-bonus-mini b { display: block; font-size: 14px; margin-top: 4px; color: var(--text-main); }
+    
+    .bonus-detail-row {
+      background: var(--surface-inset);
+      border-radius: 20px; padding: 16px; margin-bottom: 12px;
+      border: 1px solid var(--line);
+    }
+    .bonus-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;}
+    .bonus-detail-total { font-size: 18px; font-weight: 800; color: var(--success); }
+    .bonus-compact-break { display: flex; flex-wrap: wrap; gap: 8px; }
+    .bonus-compact-break span { background: var(--surface); padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--text-soft); border: 1px solid var(--line); }
+    .bonus-compact-break b { color: var(--text-main); margin-left: 4px; }
+
+    /* Ops & Others */
+    .ops-hero { background: var(--primary-soft); padding: 20px; border-radius: var(--radius-xl); border: 1px dashed rgba(59, 130, 246, 0.3); }
+    .tx-note-mini { font-size: 13px; color: var(--text-soft); padding: 12px; border-radius: 12px; background: var(--surface-hover); line-height: 1.5; border: 1px solid var(--line); }
+    .receipt-preview-box { background: #1e293b; color: #f8fafc; border-radius: 16px; padding: 16px; margin-top: 16px; max-height: 50vh; overflow-y: auto; box-shadow: inset 0 4px 12px rgba(0,0,0,0.2); }
+    .receipt-preview-text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.6; margin: 0; white-space: pre-wrap; }
+    
+    .bonus-user-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+    .bonus-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .bonus-mini { background: var(--surface-inset); border-radius: 10px; padding: 10px; }
+    
+    .read-saver-card { border-color: rgba(245, 158, 11, 0.3); background: linear-gradient(135deg, var(--warning-soft), var(--surface)); }
+    .monthly-status { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid var(--line); }
+    .monthly-status.loaded { background: var(--success-soft); color: var(--success); border-color: rgba(16, 185, 129, 0.2); }
+    .monthly-status.light { background: var(--warning-soft); color: var(--warning); border-color: rgba(245, 158, 11, 0.2); }
+
+    .empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; font-weight: 500; background: var(--surface-hover); border-radius: var(--radius-lg); border: 1px dashed var(--line); }
+
+    /* Responsive adjustments */
+    @media (max-width: 380px) {
+      .wrap { padding: 20px 16px 100px 16px; }
+      h1, .brand h1 { font-size: 20px; }
+      .hero { padding: 20px; }
+      .hero .val { font-size: 28px; }
+      .btn { padding: 10px 14px; font-size: 13px; }
+      .tabs { width: calc(100% - 24px); }
+      .fab { bottom: 96px; width: 56px; height: 56px; font-size: 20px; }
+      .sheet { padding: 20px; }
+    }
   </style>
 </head>
 <body>
 <div id="app">
-  <div id="toast" class="toast"></div><div id="loading" class="loading"><div class="spin"></div></div><main id="view"></main>
+  <div id="toast" class="toast"></div>
+  <div id="loading" class="loading"><div class="spin"></div></div>
+  <main id="view"></main>
+  
   <button id="fab" class="fab hide" onclick="openTransactionModal()"><i class="fas fa-plus"></i></button>
-  <nav id="tabs" class="tabs hide"><button class="tab" data-page="home" onclick="go('home')"><i class="fas fa-gauge-high"></i><span>Home</span></button><button class="tab" data-page="trx" onclick="go('trx')"><i class="fas fa-receipt"></i><span>Trx</span></button><button class="tab" data-page="bonus" onclick="go('bonus')"><i class="fas fa-gift"></i><span>Bonus</span></button><button class="tab" data-page="team" onclick="go('team')"><i class="fas fa-users"></i><span>User</span></button><button class="tab" data-page="ops" onclick="go('ops')"><i class="fas fa-list-check"></i><span>Ops</span></button></nav>
-  <div id="trxModal" class="modal"><div class="sheet"><div class="sheetHead"><div><div class="title" id="trxTitle">Transaksi</div><div class="meta">Cetak / simpan / batal seperti aplikasi printer</div></div><button class="btn icon" onclick="closeModal('trxModal')"><i class="fas fa-xmark"></i></button></div><div class="form"><input type="hidden" id="trxId"><select id="trxUser" class="input"></select><textarea id="trxNote" class="input" rows="3" placeholder="Nama produk / catatan transaksi" style="resize:vertical;min-height:78px"></textarea><input id="trxAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal" oninput="formatMoneyInput(this)" style="text-align:right;font-size:20px;font-weight:950"><div class="tx-note-mini">Pilih <b>Simpan</b> untuk catat transaksi saja. Pilih <b>Cetak</b> untuk simpan sekaligus kirim struk ke printer Android.</div><div class="tx-action-grid"><button class="btn red cancel" onclick="closeModal('trxModal')"><i class="fas fa-xmark"></i> Batal</button><button class="btn green" onclick="saveTransaction(true)"><i class="fas fa-print"></i> Cetak</button><button class="btn primary" onclick="saveTransaction(false)"><i class="fas fa-floppy-disk"></i> Simpan</button></div></div></div></div>
-  <div id="bonusModal" class="modal"><div class="sheet"><div class="sheetHead"><div><div class="title">Bonus Manual</div><div class="meta">Tambah / kurangi bonus manual</div></div><button class="btn icon" onclick="closeModal('bonusModal')"><i class="fas fa-xmark"></i></button></div><div class="form"><select id="bonusUser" class="input"></select><select id="bonusMode" class="input"><option value="add">Tambah Bonus (+)</option><option value="subtract">Kurangi Bonus (-)</option></select><input id="bonusAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal bonus" oninput="formatMoneyInput(this)" style="text-align:right;font-size:20px;font-weight:950"><input id="bonusNote" class="input" placeholder="Catatan bonus / alasan koreksi"><div class="tx-note-mini">Pilih <b>Kurangi Bonus</b> kalau bonus user mau dipotong. Nominal akan otomatis masuk sebagai minus di perhitungan bonus.</div><button class="btn primary full" onclick="saveManualBonus()"><i class="fas fa-floppy-disk"></i> Simpan Bonus</button></div></div></div>
-  <div id="userModal" class="modal"><div class="sheet"><div class="sheetHead"><div><div class="title" id="userTitle">User</div><div class="meta">Tambah / edit user ringan</div></div><button class="btn icon" onclick="closeModal('userModal')"><i class="fas fa-xmark"></i></button></div><div class="form"><input id="uUsername" class="input" placeholder="Username, contoh: risma"><input id="uName" class="input" placeholder="Nama tampil"><input id="uPin" class="input" type="tel" inputmode="numeric" placeholder="PIN"><select id="uRole" class="input"><option value="staff">Staff</option><option value="harian">Harian</option><option value="admin">Admin</option></select><select id="uActive" class="input"><option value="true">Aktif</option><option value="false">Nonaktif</option></select><button class="btn primary full" onclick="saveUser()"><i class="fas fa-user-check"></i> Simpan User</button></div></div></div>
-  <div id="bonusControlModal" class="modal"><div class="sheet"><div class="sheetHead"><div><div class="title">Control Bonus User</div><div class="meta" id="bcMeta">Atur persen transaksi & bonus closing</div></div><button class="btn icon" onclick="closeModal('bonusControlModal')"><i class="fas fa-xmark"></i></button></div><div class="form"><input type="hidden" id="bcUsername"><input id="bcTransactionPercent" class="input" type="number" step="0.01" placeholder="Bonus transaksi % contoh 1.5"><input id="bcClosingMinute" class="input" type="tel" inputmode="numeric" placeholder="Bonus closing per menit"><button class="btn primary full" onclick="saveUserBonusControl()"><i class="fas fa-sliders"></i> Simpan Bonus User</button></div></div></div>
-  <div id="attendanceModal" class="modal"><div class="sheet"><div class="sheetHead"><div><div class="title" id="attTitle">Tambah Absen</div><div class="meta">Sama pola admin: user, tanggal, jam, PIN</div></div><button class="btn icon" onclick="closeModal('attendanceModal')"><i class="fas fa-xmark"></i></button></div><div class="form"><input type="hidden" id="attId"><select id="attUser" class="input"></select><input id="attDate" class="input" type="date"><input id="attTime" class="input" type="time"><button class="btn primary full" onclick="saveAdminAttendance()"><i class="fas fa-user-clock"></i> Simpan Absen</button></div></div></div>
+  
+  <nav id="tabs" class="tabs hide">
+    <button class="tab" data-page="home" onclick="go('home')"><i class="fas fa-gauge-high"></i><span>Home</span></button>
+    <button class="tab" data-page="trx" onclick="go('trx')"><i class="fas fa-receipt"></i><span>Trx</span></button>
+    <button class="tab" data-page="bonus" onclick="go('bonus')"><i class="fas fa-gift"></i><span>Bonus</span></button>
+    <button class="tab" data-page="team" onclick="go('team')"><i class="fas fa-users"></i><span>User</span></button>
+    <button class="tab" data-page="ops" onclick="go('ops')"><i class="fas fa-list-check"></i><span>Ops</span></button>
+  </nav>
+
+  <!-- Modals -->
+  <div id="trxModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="trxTitle">Transaksi</div><div class="meta">Cetak / simpan / batal seperti aplikasi printer</div></div>
+        <button class="btn icon" onclick="closeModal('trxModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="trxId">
+        <select id="trxUser" class="input"></select>
+        <textarea id="trxNote" class="input" rows="3" placeholder="Nama produk / catatan transaksi"></textarea>
+        <input id="trxAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal Rp" oninput="formatMoneyInput(this)" style="text-align:right;font-size:24px;font-weight:800;height:64px;color:var(--primary);">
+        <div class="tx-note-mini"><i class="fas fa-info-circle"></i> Pilih <b>Simpan</b> untuk catat transaksi saja. Pilih <b>Cetak</b> untuk simpan sekaligus kirim struk ke printer Bluetooth Android.</div>
+        <div class="grid2">
+          <button class="btn red" onclick="closeModal('trxModal')" style="grid-column: 1 / -1;"><i class="fas fa-xmark"></i> Batal</button>
+          <button class="btn green" onclick="saveTransaction(true)"><i class="fas fa-print"></i> Cetak</button>
+          <button class="btn primary" onclick="saveTransaction(false)"><i class="fas fa-floppy-disk"></i> Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bonusModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Bonus Manual</div><div class="meta">Tambah / kurangi bonus secara kustom</div></div>
+        <button class="btn icon" onclick="closeModal('bonusModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <select id="bonusUser" class="input"></select>
+        <select id="bonusMode" class="input">
+          <option value="add">Tambah Bonus (+)</option>
+          <option value="subtract">Kurangi Bonus (-)</option>
+        </select>
+        <input id="bonusAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal bonus Rp" oninput="formatMoneyInput(this)" style="text-align:right;font-size:24px;font-weight:800;height:64px;">
+        <input id="bonusNote" class="input" placeholder="Catatan bonus / alasan penyesuaian">
+        <div class="tx-note-mini"><i class="fas fa-info-circle"></i> Mode Kurangi Bonus akan memotong kalkulasi bonus harian.</div>
+        <button class="btn primary full" onclick="saveManualBonus()"><i class="fas fa-floppy-disk"></i> Simpan Bonus</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="userModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="userTitle">User</div><div class="meta">Manajemen akun ringan</div></div>
+        <button class="btn icon" onclick="closeModal('userModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input id="uUsername" class="input" placeholder="Username (huruf kecil & angka)">
+        <input id="uName" class="input" placeholder="Nama Lengkap Tampil">
+        <input id="uPin" class="input" type="tel" inputmode="numeric" placeholder="PIN Rahasia">
+        <select id="uRole" class="input">
+          <option value="staff">Staff Biasa</option>
+          <option value="harian">Karyawan Harian</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <select id="uActive" class="input">
+          <option value="true">Akun Aktif</option>
+          <option value="false">Dinonaktifkan</option>
+        </select>
+        <button class="btn primary full" onclick="saveUser()"><i class="fas fa-user-check"></i> Simpan Data User</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bonusControlModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kontrol Bonus User</div><div class="meta" id="bcMeta">Atur rate persentase</div></div>
+        <button class="btn icon" onclick="closeModal('bonusControlModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="bcUsername">
+        <input id="bcTransactionPercent" class="input" type="number" step="0.01" placeholder="Bonus transaksi % (contoh 1.5)">
+        <input id="bcClosingMinute" class="input" type="tel" inputmode="numeric" placeholder="Bonus closing per menit Rp">
+        <button class="btn primary full" onclick="saveUserBonusControl()"><i class="fas fa-sliders"></i> Terapkan Pengaturan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="attendanceModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="attTitle">Input Absen</div><div class="meta">Input jam masuk secara manual</div></div>
+        <button class="btn icon" onclick="closeModal('attendanceModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="attId">
+        <select id="attUser" class="input"></select>
+        <input id="attDate" class="input" type="date">
+        <input id="attTime" class="input" type="time">
+        <button class="btn primary full" onclick="saveAdminAttendance()"><i class="fas fa-user-clock"></i> Simpan Kehadiran</button>
+      </div>
+    </div>
+  </div>
 </div>
+
 <script type="module">
+  // =========================================================================
+  // LOGIC TIDAK DIUBAH SAMA SEKALI - MURNI DARI KODE ORIGINAL
+  // =========================================================================
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
   import { getFirestore, doc, getDocFromServer, setDoc, addDoc, collection, getDocs, getDocsFromServer, query, where, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
   import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+  
   const firebaseConfig={apiKey:"AIzaSyAqmTEKnLKOXcmOoR9RrXksNe5_Fix42w8",authDomain:"rocky-fd14b.firebaseapp.com",projectId:"rocky-fd14b",storageBucket:"rocky-fd14b.firebasestorage.app",messagingSenderId:"861954349314",appId:"1:861954349314:web:bb8384825daedb8d34ca1b"};
   const CASH_FISIK_SUPABASE_URL="https://myxrvipyodadnldtomzs.supabase.co",CASH_FISIK_SUPABASE_ANON_KEY="sb_publishable_aG-kyasJNCEk2U9fN5T4qg_GfY0FpPH",CASH_FISIK_OWNER_ID="rocky-hijab",OPS_PREFIX="[OPS] ",CASHOUT_PREFIX="[CASHOUT:",DEFAULT_TRANSACTION_BONUS_RATE=.015,DEFAULT_CLOSING_BONUS_PER_MINUTE=100,CLOSING_HOUR=18,SESSION_KEY="rocky_admin_lite_session_v1",THEME_KEY="rocky_admin_lite_theme_v1";
+  
   const app=initializeApp(firebaseConfig),db=getFirestore(app),cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
+  
   const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE},cashRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{}};
-  /* === FIREBASE READ SAVER PATCH === */
+  
   function nextMonthStartKey(mk=monthKey()){const[y,m]=String(mk||monthKey()).split("-").map(Number),d=new Date(y||new Date().getFullYear(),m||new Date().getMonth()+1,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
   function localSortKey(r){return Number(r?.closedAtMs||r?.createdAtMs||r?.updatedAtMs||r?.deletedAtMs||0)||0}
   function localSort(listName){if(listName==="users")state.users.sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));else state[listName].sort((a,b)=>localSortKey(b)-localSortKey(a))}
@@ -742,21 +609,28 @@
   function applyTheme(theme){const next=theme==="dark"?"dark":"light";document.documentElement.setAttribute("data-theme",next);try{localStorage.setItem(THEME_KEY,next)}catch(e){}syncThemeUi()}
   function initialTheme(){try{const saved=localStorage.getItem(THEME_KEY);if(saved==="light"||saved==="dark")return saved}catch(e){}return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?"dark":"light"}
   window.toggleTheme=()=>{applyTheme(currentTheme()==="dark"?"light":"dark")};
+  
   const isDeleted=r=>r?.deleted===true||r?.isDeleted===true||r?.status==="deleted",isActive=u=>u&&u.active!==false&&u.deleted!==true&&u.status!=="inactive",isDaily=u=>String(u?.role||"").toLowerCase()==="harian",activeUsers=()=>state.users.filter(isActive).sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username))),userBy=username=>state.users.find(u=>cleanUser(u.username)===cleanUser(username)),userName=username=>userBy(username)?.name||username||"-",visibleTx=()=>state.tx.filter(t=>!isDeleted(t)),todayTx=()=>visibleTx().filter(t=>String(t.dateKey||"").slice(0,10)===dateKey()),visibleManual=()=>state.manual.filter(b=>!isDeleted(b)),extractDateKey=r=>String(r?.dateKey||(r?.createdAtMs?dateKey(new Date(Number(r.createdAtMs))):dateKey())).slice(0,10),recordTimeMs=r=>Number(r?.createdAtMs||r?.updatedAtMs||0)||Date.now(),todayAtt=()=>state.att.filter(a=>!isDeleted(a)&&extractDateKey(a)===dateKey());
-  const setBusy=on=>$("loading").classList.toggle("show",!!on),toast=(msg,bad=false)=>{const t=$("toast");t.textContent=msg;t.style.borderColor=bad?"rgba(239,68,68,.32)":"rgba(79,140,255,.32)";t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200)},modal=id=>$(id).classList.add("show");window.closeModal=id=>$(id).classList.remove("show");
+  const setBusy=on=>$("loading").classList.toggle("show",!!on),toast=(msg,bad=false)=>{const t=$("toast");t.textContent=msg;t.style.background=bad?"var(--danger)":"var(--text-main)";t.style.color=bad?"#fff":"var(--bg)";t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2500)},modal=id=>$(id).classList.add("show");window.closeModal=id=>$(id).classList.remove("show");
+  
   function parseMoney(v){return Number(String(v||"").replace(/[^0-9-]/g,""))||0}function getUserRate(u){const user=typeof u==="string"?userBy(u):u,raw=Number(user?.transactionBonusRate);if(Number.isFinite(raw)&&raw>=0)return raw;const percent=Number(user?.transactionBonusPercent);if(Number.isFinite(percent)&&percent>=0)return percent/100;return Number(state.bonusSettings.transactionBonusRate||DEFAULT_TRANSACTION_BONUS_RATE)}function getClosingMinute(u){const user=typeof u==="string"?userBy(u):u;if(isDaily(user))return 0;const n=Number(user?.closingBonusPerMinute);return Number.isFinite(n)&&n>=0?n:Number(state.bonusSettings.closingBonusPerMinute||DEFAULT_CLOSING_BONUS_PER_MINUTE)}function closingDelayMinutes(d=now()){const deadline=new Date(d);deadline.setHours(CLOSING_HOUR,0,0,0);return Math.max(0,Math.floor((d.getTime()-deadline.getTime())/60000))}function delayFromTimeLabel(label){const m=String(label||"").match(/^(\d{1,2}):(\d{2})$/);if(!m)return null;const h=Number(m[1]),min=Number(m[2]);if(h<0||h>23||min<0||min>59)return null;return Math.max(0,h*60+min-CLOSING_HOUR*60)}function currentWibTimeLabel(){return new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Jakarta"}).replace(".",":")}function formatAttendanceTime(rec){return new Date(recordTimeMs(rec)).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"}).replace(".",":")}
   function cashOutType(rec){const m=String(rec.description||"").match(/^\[CASHOUT:(\w+)\]/i);return m?String(m[1]).toLowerCase():"lainnya"}function financeDeductions(){let ops=0,qris=0,tabungan=0;for(const r of state.cashRows){const desc=String(r.description||""),amount=Math.abs(Number(r.amount||0)),type=String(r.type||"").toLowerCase();if(type==="expense"&&desc.startsWith(OPS_PREFIX))ops+=amount;if(type==="expense"&&desc.startsWith(CASHOUT_PREFIX)){const t=cashOutType(r);if(t==="qris")qris+=amount;else if(t==="tabungan")tabungan+=amount}}return{ops,qris,tabungan,total:ops+qris+tabungan}}function getAttendanceDocId(username,dk){return`${cleanUser(username)}_${dk}`}function getClosingDocId(dk,targetUsername=null){return targetUsername?`${dk}_${cleanUser(targetUsername)}`:`${dk}_global`}function getTodayGlobalClosing(){return state.closing.find(c=>!isDeleted(c)&&c.scope==="global"&&c.closed===true&&c.canceled!==true&&String(c.dateKey||"").slice(0,10)===dateKey())}function getTodayUserClosing(username){return state.closing.find(c=>!isDeleted(c)&&c.scope==="user"&&c.closed===true&&c.canceled!==true&&cleanUser(c.user)===cleanUser(username)&&String(c.dateKey||"").slice(0,10)===dateKey())}function isClosingCanceledForUser(globalClosing,username){return!!globalClosing?.canceledUsers?.[cleanUser(username)]}function closingTargetUser(){return state.closingTarget&&state.closingTarget!=="global"?userBy(state.closingTarget):null}function hasAttendanceToday(username){return todayAtt().some(a=>cleanUser(a.user)===cleanUser(username))}function closingTargetUsers(targetUsername=null){const all=activeUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin"),eligible=all.filter(u=>isDaily(u)||hasAttendanceToday(u.username));return targetUsername?eligible.filter(u=>cleanUser(u.username)===cleanUser(targetUsername)):eligible}function buildClosingBonusByUser(delay,targetUsername=null){const targetUsers=closingTargetUsers(targetUsername),bonusByUser={},bonusPerMinuteByUser={},bonusPerUser={};for(const u of targetUsers){const perMinute=getClosingMinute(u);bonusPerMinuteByUser[u.username]=perMinute;bonusPerUser[u.username]=delay*perMinute;bonusByUser[u.username]=delay*perMinute}const totalBonus=Object.values(bonusByUser).reduce((s,n)=>s+Number(n||0),0);return{users:targetUsers,targetUsers,bonusByUser,bonusPerMinuteByUser,bonusPerUser,totalBonus}}
-  function askPin(message="Masukkan PIN admin:"){return new Promise(resolve=>{const old=document.getElementById("pinModal");if(old)old.remove();const wrap=document.createElement("div");wrap.id="pinModal";wrap.className="modal show";wrap.style.zIndex="150";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">Konfirmasi PIN</div><div class="meta">${esc(message).replace(/\n/g,"<br>")}</div></div><button class="btn icon" id="pinCancel"><i class="fas fa-xmark"></i></button></div><input id="pinInput" class="input" type="password" inputmode="numeric" placeholder="PIN admin" style="text-align:center;font-size:18px;letter-spacing:.12em"><div class="grid2" style="margin-top:10px"><button class="btn" id="pinNo">Batal</button><button class="btn primary" id="pinOk">Lanjut</button></div></div>`;document.body.appendChild(wrap);const done=v=>{wrap.remove();resolve(v)};wrap.querySelector("#pinCancel").onclick=()=>done(null);wrap.querySelector("#pinNo").onclick=()=>done(null);wrap.querySelector("#pinOk").onclick=()=>done(String(wrap.querySelector("#pinInput").value||"").trim());wrap.onclick=e=>{if(e.target===wrap)done(null)};setTimeout(()=>wrap.querySelector("#pinInput")?.focus(),50)})}
-  function header(title,subtitle){return`<div class="top"><div class="brand"><div><h1>${title}</h1><div class="sub">${subtitle}</div></div></div><div class="row">${themeButton()}<button class="btn icon" onclick="refreshAll(true)"><i class="fas fa-rotate"></i></button><button class="btn icon red" onclick="logout()"><i class="fas fa-right-from-bracket"></i></button></div></div>`}function optionUsers(selected=""){return activeUsers().map(u=>`<option value="${esc(u.username)}" ${cleanUser(selected)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function optionClosingUsers(){return`<option value="global" ${state.closingTarget==="global"?"selected":""}>GLOBAL · Semua user valid</option>`+activeUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>`<option value="${esc(u.username)}" ${cleanUser(state.closingTarget)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function syncUserSelects(){for(const id of["trxUser","bonusUser","attUser"]){const el=$(id);if(el)el.innerHTML=optionUsers(state.user?.username)}}
-  function showLogin(){$("tabs").classList.add("hide");$("fab").classList.add("hide");$("view").innerHTML=`<section class="login"><div class="card loginBox loginCardFancy"><div class="loginThemeRow"><span class="chip"><i class="fas fa-palette"></i> <span class="themeLabel">${themeLabel()}</span></span>${themeButton()}</div><div class="loginHero"><h1 style="text-align:center;font-size:24px">Only Admin</h1><div class="sub" style="text-align:center;margin-bottom:16px">Koleksi Terbaik Untuk Muslimah Hebat</div></div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;syncThemeUi()}async function login(){const username=cleanUser($("loginUser").value),pin=String($("loginPin").value||"").trim();if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const snap=await getDocFromServer(doc(db,"users",username));if(!snap.exists())throw new Error("User tidak ditemukan");const u={id:snap.id,username:snap.id,...snap.data()};if(String(u.pin||"")!==pin)throw new Error("PIN salah");if(!isActive(u))throw new Error("User nonaktif");if(String(u.role||"").toLowerCase()!=="admin"&&cleanUser(u.username)!=="admin")throw new Error("Panel ini khusus admin");state.user={username:cleanUser(u.username||snap.id),name:u.name||u.username||snap.id,role:u.role||"admin",pin:String(u.pin||"")};localStorage.setItem(SESSION_KEY,JSON.stringify(state.user));await refreshAll(true);go("home")}catch(e){toast(e.message||"Login gagal",true)}finally{setBusy(false)}}window.login=login;window.logout=()=>{localStorage.removeItem(SESSION_KEY);Object.assign(state,{user:null,tx:[],att:[],closing:[],manual:[]});showLogin()};
+  
+  function askPin(message="Masukkan PIN admin:"){return new Promise(resolve=>{const old=document.getElementById("pinModal");if(old)old.remove();const wrap=document.createElement("div");wrap.id="pinModal";wrap.className="modal show";wrap.style.zIndex="150";wrap.innerHTML=`<div class="sheet"><div class="sheetHead" style="margin-bottom:12px;"><div><div class="title" style="font-size:20px;">Konfirmasi Keamanan</div><div class="meta">${esc(message).replace(/\n/g,"<br>")}</div></div></div><input id="pinInput" class="input" type="password" inputmode="numeric" placeholder="Masukkan PIN" style="text-align:center;font-size:24px;letter-spacing:.25em;height:64px;border-radius:20px;"><div class="grid2" style="margin-top:20px"><button class="btn" id="pinNo">Batal</button><button class="btn primary" id="pinOk"><i class="fas fa-check"></i> Lanjut</button></div></div>`;document.body.appendChild(wrap);const done=v=>{wrap.remove();resolve(v)};wrap.querySelector("#pinNo").onclick=()=>done(null);wrap.querySelector("#pinOk").onclick=()=>done(String(wrap.querySelector("#pinInput").value||"").trim());wrap.onclick=e=>{if(e.target===wrap)done(null)};setTimeout(()=>wrap.querySelector("#pinInput")?.focus(),50)})}
+  function header(title,subtitle){return`<div class="top"><div class="brand"><div class="ico" style="width:48px;height:48px;border-radius:16px;background:var(--primary-grad);color:white;box-shadow:var(--shadow-float);"><i class="fas fa-layer-group"></i></div><div><h1>${title}</h1><div class="sub">${subtitle}</div></div></div><div class="row">${themeButton()}<button class="btn icon" onclick="refreshAll(true)"><i class="fas fa-rotate"></i></button><button class="btn icon red" onclick="logout()"><i class="fas fa-right-from-bracket"></i></button></div></div>`}function optionUsers(selected=""){return activeUsers().map(u=>`<option value="${esc(u.username)}" ${cleanUser(selected)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function optionClosingUsers(){return`<option value="global" ${state.closingTarget==="global"?"selected":""}>GLOBAL · Berlaku Semua User</option>`+activeUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>`<option value="${esc(u.username)}" ${cleanUser(state.closingTarget)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)}</option>`).join("")}function syncUserSelects(){for(const id of["trxUser","bonusUser","attUser"]){const el=$(id);if(el)el.innerHTML=optionUsers(state.user?.username)}}
+  
+  function showLogin(){$("tabs").classList.add("hide");$("fab").classList.add("hide");$("view").innerHTML=`<section class="login"><div class="card loginBox loginCardFancy"><div class="loginThemeRow"><span class="chip"><i class="fas fa-palette"></i> <span class="themeLabel">${themeLabel()}</span></span>${themeButton()}</div><div class="loginHero"><div style="width:80px;height:80px;background:var(--primary-grad);border-radius:24px;margin:0 auto 24px;display:grid;place-items:center;color:white;font-size:32px;box-shadow:var(--shadow-float);"><i class="fas fa-shield-halved"></i></div><h1>Rocky Admin</h1><div class="sub" style="font-size:14px;">Sistem Manajemen Kasir & Karyawan</div></div><div class="form"><input id="loginUser" class="input" placeholder="Username / ID" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN Rahasia" autocomplete="current-password"><button class="btn primary full" style="margin-top:8px;min-height:54px;font-size:16px;" onclick="login()">Masuk ke Sistem <i class="fas fa-arrow-right" style="margin-left:8px;"></i></button></div></div></section>`;syncThemeUi()}
+  
+  async function login(){const username=cleanUser($("loginUser").value),pin=String($("loginPin").value||"").trim();if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const snap=await getDocFromServer(doc(db,"users",username));if(!snap.exists())throw new Error("User tidak ditemukan");const u={id:snap.id,username:snap.id,...snap.data()};if(String(u.pin||"")!==pin)throw new Error("PIN salah");if(!isActive(u))throw new Error("User nonaktif");if(String(u.role||"").toLowerCase()!=="admin"&&cleanUser(u.username)!=="admin")throw new Error("Panel ini khusus admin");state.user={username:cleanUser(u.username||snap.id),name:u.name||u.username||snap.id,role:u.role||"admin",pin:String(u.pin||"")};localStorage.setItem(SESSION_KEY,JSON.stringify(state.user));await refreshAll(true);go("home")}catch(e){toast(e.message||"Login gagal",true)}finally{setBusy(false)}}window.login=login;window.logout=()=>{localStorage.removeItem(SESSION_KEY);Object.assign(state,{user:null,tx:[],att:[],closing:[],manual:[]});showLogin()};
+  
   async function fetchCashFisik(){try{const{data,error}=await cashDb.from("transactions").select("id,date,description,amount,type").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date",dateKey()).order("id",{ascending:false});if(error)throw error;state.cashRows=data||[]}catch(e){console.warn("cash fisik supabase gagal",e);state.cashRows=[]}}
+  
   async function refreshAll(force=false){
     if(!state.user)return;
     const dk=dateKey();
     if(!force&&Date.now()-state.lastRefresh<12000&&state.dayLoadedKey===dk)return render();
     setBusy(true);
     try{
-      const mk=monthKey();
       const txQ=query(collection(db,"transactions"),where("dateKey","==",dk),limit(180));
       const attQ=query(collection(db,"attendance"),where("dateKey","==",dk),limit(80));
       const closingQ=query(collection(db,"closings"),where("dateKey","==",dk),limit(80));
@@ -829,7 +703,7 @@
       state.lastRefresh=Date.now();
       syncUserSelects();
       render();
-      toast("Data bulanan dimuat manual")
+      toast("Data bulanan berhasil dimuat")
     }catch(e){toast(e.message||"Gagal load data bulanan",true)}finally{setBusy(false)}
   }
   window.loadMonthlyLite=loadMonthlyLite;
@@ -850,9 +724,9 @@
     }catch(e){toast(e.message||"Gagal load absen tanggal ini",true);render()}finally{setBusy(false)}
   }
   window.loadAttendanceForDate=loadAttendanceForDate;
+  
   function render(){if(!state.user)return showLogin();$("tabs").classList.remove("hide");document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="trx");const map={home:renderHome,trx:renderTrx,bonus:renderBonus,team:renderTeam,ops:renderOps};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>{state.page=page;render()};
 
-  /* === PATCH: Ringkasan Bonus Harian + Receipt Printer === */
   const moneyValue=n=>Math.round(Number(n||0));
   function formatMoneyInput(el){if(!el)return;const n=parseMoney(el.value);el.value=n?rupiah(n):""}window.formatMoneyInput=formatMoneyInput;
   function txTimeMs(t){return Number(t?.createdAtMs||t?.updatedAtMs||Date.now())||Date.now()}
@@ -867,22 +741,26 @@
   function closingBonusTodayForUser(username){const u=cleanUser(username),dk=dateKey();if(!u)return 0;let total=0;for(const c of state.closing){if(isDeleted(c)||c.closed!==true||c.canceled===true||String(c.dateKey||"").slice(0,10)!==dk)continue;const map=c.bonusByUser||c.bonusPerUser||{};if(String(c.scope||"").toLowerCase()==="global"){if(isClosingCanceledForUser(c,u))continue;let val=mapValueByUser(map,u);if(!val&&Number(c.delayMinutes||0)>0)val=Number(c.delayMinutes||0)*getClosingMinute(u);total+=Number(val||0)}else if(cleanUser(c.user)===u){let val=mapValueByUser(map,u);if(!val&&Number(c.totalBonus||0)>0)val=Number(c.totalBonus||0);if(!val&&Number(c.delayMinutes||0)>0)val=Number(c.delayMinutes||0)*getClosingMinute(u);total+=Number(val||0)}}return moneyValue(total)}
   function dailyBonusRows(){const dk=dateKey(),tx=todayTx();return activeUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>{const username=cleanUser(u.username),items=tx.filter(t=>cleanUser(t.user)===username),omzet=items.reduce((s,t)=>s+Number(t.amount||0),0),trxBonus=items.filter(t=>!txIsDaily(t)).reduce((s,t)=>s+txBonusAmount(t),0),dailySalary=items.filter(txIsDaily).reduce((s,t)=>s+txBonusAmount(t),0),manualBonus=manualBonusTodayForUser(username),closingBonus=isDaily(u)?0:closingBonusTodayForUser(username),total=trxBonus+dailySalary+manualBonus+closingBonus;return{username,name:u.name||username,role:u.role||"staff",omzet,trxCount:items.length,trxBonus,dailySalary,manualBonus,closingBonus,total}}).sort((a,b)=>b.total-a.total||b.omzet-a.omzet||String(a.name).localeCompare(String(b.name)))}
   function dailyBonusSummary(){const rows=dailyBonusRows(),staff=rows.reduce((s,r)=>s+r.trxBonus+r.closingBonus,0),harian=rows.reduce((s,r)=>s+r.dailySalary,0),manual=rows.reduce((s,r)=>s+r.manualBonus,0),total=rows.reduce((s,r)=>s+r.total,0),omzet=rows.reduce((s,r)=>s+r.omzet,0),active=rows.filter(r=>r.total||r.omzet||r.manualBonus).length;return{rows,staff,harian,manual,total,omzet,active}}
-  function dailyBonusCard(){const s=dailyBonusSummary();return`<div class="card pad mb daily-bonus-card" onclick="openDailyBonusDetail()" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="tiny" style="color:var(--green)">Ringkasan Bonus Harian</div><div class="bonus-total num">${rp(s.total)}</div><div class="bonus-sub">${s.active} user punya aktivitas/bonus hari ini · klik untuk detail masing-masing user</div></div><span class="chip ok"><i class="fas fa-chevron-right"></i> Detail</span></div><div class="daily-bonus-break"><div class="daily-bonus-mini"><div class="tiny">Staff</div><b class="num">${rp(s.staff)}</b></div><div class="daily-bonus-mini"><div class="tiny">Harian</div><b class="num">${rp(s.harian)}</b></div><div class="daily-bonus-mini"><div class="tiny">Manual</div><b class="num">${rp(s.manual)}</b></div></div></div>`}
-  function openDynamicSheet(id,title,subtitle,body,footer=""){const old=document.getElementById(id);if(old)old.remove();const wrap=document.createElement("div");wrap.id=id;wrap.className="modal show";wrap.style.zIndex="160";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">${esc(title)}</div><div class="meta">${esc(subtitle||"")}</div></div><button class="btn icon" onclick="closeDynamicSheet('${id}')"><i class="fas fa-xmark"></i></button></div>${body}${footer}</div>`;document.body.appendChild(wrap);wrap.addEventListener("click",e=>{if(e.target===wrap)closeDynamicSheet(id)})}
+  
+  function dailyBonusCard(){const s=dailyBonusSummary();return`<div class="card pad mb daily-bonus-card" onclick="openDailyBonusDetail()" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:8px;"><div><div class="tiny" style="color:var(--success)">Distribusi Bonus Hari Ini</div><div class="bonus-total num">${rp(s.total)}</div><div class="bonus-sub">${s.active} karyawan mendapat bonus hari ini.<br>Ketuk untuk melihat rincian per orang.</div></div><div class="ico" style="background:var(--success-soft);color:var(--success);width:40px;height:40px;"><i class="fas fa-arrow-right"></i></div></div><div class="daily-bonus-break"><div class="daily-bonus-mini"><div class="tiny">Staff Biasa</div><b class="num">${rp(s.staff)}</b></div><div class="daily-bonus-mini"><div class="tiny">Tim Harian</div><b class="num">${rp(s.harian)}</b></div><div class="daily-bonus-mini"><div class="tiny">Penyesuaian</div><b class="num">${rp(s.manual)}</b></div></div></div>`}
+  
+  function openDynamicSheet(id,title,subtitle,body,footer=""){const old=document.getElementById(id);if(old)old.remove();const wrap=document.createElement("div");wrap.id=id;wrap.className="modal show";wrap.style.zIndex="160";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title" style="font-size:20px;">${esc(title)}</div><div class="meta">${esc(subtitle||"")}</div></div><button class="btn icon" onclick="closeDynamicSheet('${id}')"><i class="fas fa-xmark"></i></button></div>${body}${footer}</div>`;document.body.appendChild(wrap);wrap.addEventListener("click",e=>{if(e.target===wrap)closeDynamicSheet(id)})}
   function closeDynamicSheet(id){document.getElementById(id)?.remove()}window.closeDynamicSheet=closeDynamicSheet;
-  function openDailyBonusDetail(){const s=dailyBonusSummary(),detailRows=s.rows.filter(r=>r.total||r.omzet||r.manualBonus);const rows=detailRows.length?detailRows.map(r=>{const harian=r.dailySalary?`<span>Harian <b>${rp(r.dailySalary)}</b></span>`:"";return`<div class="bonus-detail-row"><div class="bonus-detail-head"><div class="grow"><div class="name">${esc(r.name)}</div><div class="meta">@${esc(r.username)} · ${r.trxCount} trx · Omzet ${rp(r.omzet)}</div></div><div class="bonus-detail-total num">${rp(r.total)}</div></div><div class="bonus-compact-break"><span>Trx <b>${rp(r.trxBonus)}</b></span>${harian}<span>Manual <b>${rp(r.manualBonus)}</b></span><span>Closing <b>${rp(r.closingBonus)}</b></span></div></div>`}).join(""):`<div class="empty">Belum ada bonus / transaksi hari ini.</div>`;const body=`<div class="card pad mb bonus-summary-top" style="box-shadow:none"><div class="grid2"><div><div class="tiny">Total Bonus Hari Ini</div><div class="amt num" style="font-size:18px;color:var(--green)">${rp(s.total)}</div></div><div><div class="tiny">Omzet Hari Ini</div><div class="amt num" style="font-size:18px">${rp(s.omzet)}</div></div></div><div class="meta" style="margin-top:8px">Staff ${rp(s.staff)} · Harian ${rp(s.harian)} · Manual ${rp(s.manual)}</div></div>${rows}`;const footer=`<button class="btn full" onclick="closeDynamicSheet('dailyBonusDetailModal')"><i class="fas fa-arrow-left"></i> Kembali</button>`;openDynamicSheet("dailyBonusDetailModal","Detail Bonus Harian",`Tanggal ${dateId(dateKey())}`,body,footer)}window.openDailyBonusDetail=openDailyBonusDetail;
+  
+  function openDailyBonusDetail(){const s=dailyBonusSummary(),detailRows=s.rows.filter(r=>r.total||r.omzet||r.manualBonus);const rows=detailRows.length?detailRows.map(r=>{const harian=r.dailySalary?`<span>Harian <b class="num">${rp(r.dailySalary)}</b></span>`:"";return`<div class="bonus-detail-row"><div class="bonus-detail-head"><div class="grow"><div class="name">${esc(r.name)}</div><div class="meta">@${esc(r.username)} · ${r.trxCount} Trx · Omzet ${rp(r.omzet)}</div></div><div class="bonus-detail-total num">${rp(r.total)}</div></div><div class="bonus-compact-break"><span>Trx <b class="num">${rp(r.trxBonus)}</b></span>${harian}<span>Manual <b class="num">${rp(r.manualBonus)}</b></span><span>Closing <b class="num">${rp(r.closingBonus)}</b></span></div></div>`}).join(""):`<div class="empty"><i class="fas fa-folder-open" style="font-size:24px;margin-bottom:8px;opacity:0.5;"></i><br>Belum ada bonus hari ini.</div>`;const body=`<div class="card pad mb" style="background:var(--success-soft);border:none;box-shadow:none;"><div class="grid2"><div><div class="tiny">Total Cair</div><div class="amt num" style="font-size:20px;color:var(--success)">${rp(s.total)}</div></div><div><div class="tiny">Omzet Masuk</div><div class="amt num" style="font-size:20px">${rp(s.omzet)}</div></div></div><div class="meta" style="margin-top:12px;opacity:0.8;">Pecahan: Staff ${rp(s.staff)} · Harian ${rp(s.harian)} · Manual ${rp(s.manual)}</div></div><div style="margin-bottom:16px;">${rows}</div>`;const footer=`<button class="btn full" onclick="closeDynamicSheet('dailyBonusDetailModal')"><i class="fas fa-check"></i> Selesai</button>`;openDynamicSheet("dailyBonusDetailModal","Rincian Bonus",`Tanggal ${dateId(dateKey())}`,body,footer)}window.openDailyBonusDetail=openDailyBonusDetail;
 
   let receiptPreviewText="",receiptPreviewTitle="Struk Transaksi";
   function receiptLine(ch="-",n=32){return String(ch).repeat(n)}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-";return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\nTotal   : ${rp(t?.amount||0)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} · ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n    ${rp(t.amount)}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\nTOTAL   : ${rp(total)}\n${receiptLine()}\nTerima kasih\n\n\n`}
-  function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
-  function nativePrintReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);if(window.Android&&typeof window.Android.printReceipt==="function"){window.Android.printReceipt(text);return}if(window.Android&&typeof window.Android.printPdf==="function"){window.Android.printPdf(receiptPreviewTitle||"Struk Transaksi",text);return}toast("Cetak Android aktif saat dibuka dari APK Android Studio",true)}window.nativePrintReceiptText=nativePrintReceiptText;
-  async function copyReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.copyReceipt==="function"){window.Android.copyReceipt(text);return}if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);else{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove()}toast("Struk disalin")}catch(e){console.log(text);toast("Gagal salin struk",true)}}
-  async function shareReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.shareReceipt==="function"){window.Android.shareReceipt(text);return}if(navigator.share){await navigator.share({title:receiptPreviewTitle,text});return}await copyReceiptText()}catch(e){if(String(e?.name||"")!=="AbortError")toast("Gagal bagikan struk",true)}}window.shareReceiptText=shareReceiptText;
+  
+  function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Pratinjau struk fisik. Pastikan printer bluetooth aktif.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="grid2" style="margin-top:20px"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak Sekarang</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Pratinjau Cetak",body)}
+  function nativePrintReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);if(window.Android&&typeof window.Android.printReceipt==="function"){window.Android.printReceipt(text);return}if(window.Android&&typeof window.Android.printPdf==="function"){window.Android.printPdf(receiptPreviewTitle||"Struk Transaksi",text);return}toast("Hanya bekerja jika dibuka via Aplikasi WebView Android",true)}window.nativePrintReceiptText=nativePrintReceiptText;
+  async function copyReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.copyReceipt==="function"){window.Android.copyReceipt(text);return}if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);else{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove()}toast("Teks disalin ke clipboard")}catch(e){console.log(text);toast("Gagal menyalin struk",true)}}
+  async function shareReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.shareReceipt==="function"){window.Android.shareReceipt(text);return}if(navigator.share){await navigator.share({title:receiptPreviewTitle,text});return}await copyReceiptText()}catch(e){if(String(e?.name||"")!=="AbortError")toast("Gagal membagikan struk",true)}}window.shareReceiptText=shareReceiptText;
   function directPrintReceiptText(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");nativePrintReceiptText()}
   function printReceiptFromTx(id){const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);openReceiptPreview(receiptTextForTx(t),`Struk · ${dateId(String(t.dateKey||dateKey()).slice(0,10))}`)}window.printReceiptFromTx=printReceiptFromTx;
-  function printTodayTransactions(){const items=todayTx();if(!items.length)return toast("Belum ada transaksi hari ini",true);openReceiptPreview(receiptTextForTodayTransactions(),`Semua Transaksi · ${dateId(dateKey())}`)}window.printTodayTransactions=printTodayTransactions;
+  function printTodayTransactions(){const items=todayTx();if(!items.length)return toast("Belum ada transaksi hari ini",true);openReceiptPreview(receiptTextForTodayTransactions(),`Rekap Harian · ${dateId(dateKey())}`)}window.printTodayTransactions=printTodayTransactions;
 
   function renderHome(){
     const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+Number(t.amount||0),0),ded=financeDeductions(),cashFisik=totalToday-ded.total;
@@ -891,18 +769,33 @@
     const totalMonth=monthRows.reduce((sum,t)=>sum+Number(t.amount||0),0);
     const manualMonth=manualMonthRows.reduce((sum,b)=>sum+Number(b.amount||0),0);
     const bonusTrxMonth=monthRows.reduce((sum,t)=>sum+Number(t.amount||0)*getUserRate(t.user),0);
-    const monthBadge=state.monthlyLoaded?`<span class="monthly-status loaded"><i class="fas fa-check"></i> Bulanan loaded</span>`:`<span class="monthly-status light"><i class="fas fa-bolt"></i> Hemat read</span>`;
-    const monthCard=state.monthlyLoaded?`<div class="card stat"><div class="tiny">Bulan Ini</div><div class="val num">${rp(totalMonth)}</div><div class="meta">${monthRows.length} trx · manual load</div></div>`:`<div class="card stat read-saver-card"><div class="tiny">Bulan Ini</div><div class="val num" style="font-size:16px">Manual</div><div class="read-saver-note">Tidak auto baca ribuan trx.</div></div>`;
-    const monthlyBonusCard=state.monthlyLoaded?`<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Ringkasan Bonus Bulanan</div><div class="meta">Data bulan ini dimuat manual</div></div>${monthBadge}</div><div class="sep"></div><div class="grid2"><div><div class="tiny">Bonus Transaksi</div><div class="amt num">${rp(bonusTrxMonth)}</div></div><div><div class="tiny">Bonus Manual</div><div class="amt num">${rp(manualMonth)}</div></div></div><div class="compact-load-row"><div class="meta">Loaded ${new Date(state.monthlyLoadedAtMs||Date.now()).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</div><button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button></div></div>`:`<div class="card pad mb read-saver-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan Bulanan</div><div class="meta">Mode ultra hemat: data bulan ini tidak otomatis dibaca</div></div>${monthBadge}</div><div class="read-saver-note">Klik tombol ini hanya saat butuh laporan bulan ini. Perkiraan read: sesuai jumlah transaksi + absen bulan berjalan.</div><div class="compact-load-row"><span class="chip warn"><i class="fas fa-database"></i> Manual</span><button class="btn amber" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button></div></div>`;
-    return`<div class="wrap">${header("Panel Admin",`${esc(state.user.name)} · ${dateKey()} · refresh hemat hari ini`)}<div class="hero mb"><div class="tiny">Cash Fisik Hari Ini</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Pendapatan ${rp(totalToday)} · ${tToday.length} transaksi hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Pendapatan Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} trx</div></div></div>${dailyBonusCard()}<div class="grid3 mb"><div class="card stat"><div class="tiny">Oprasional</div><div class="val num">${rp(ded.ops)}</div></div><div class="card stat"><div class="tiny">QRIS</div><div class="val num">${rp(ded.qris)}</div></div><div class="card stat"><div class="tiny">Tabungan</div><div class="val num">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`}
-function renderTxList(list,withActions=true){if(!list.length)return`<div class="empty">Belum ada transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item"><div class="ico"><i class="fas fa-receipt"></i></div><div class="grow"><div class="name">${esc(t.note||"Transaksi")}</div><div class="meta">${esc(t.name||userName(t.user))} · ${txTimeLabel(t)}</div></div><div class="right"><div class="amt num">${rp(t.amount)}</div>${withActions?`<div class="miniBtns" style="margin-top:6px"><button class="btn green" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button></div>`:""}</div></div>`).join("")}</div>`}function renderTrx(){const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>`:"";return`<div class="wrap">${header("Transaksi","Riwayat hari ini · cetak simpan batal")}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div><div class="row mb"><button class="btn primary full" onclick="openTransactionModal()"><i class="fas fa-plus"></i> Tambah Transaksi</button></div>${printAll}${renderTxList(list,true)}</div>`}
-  window.openTransactionModal=()=>{$("trxTitle").textContent="Tambah Transaksi";$("trxId").value="";$("trxNote").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);modal("trxModal")};window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Transaksi";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);$("trxNote").value=t.note||"";$("trxAmount").value=rupiah(t.amount);modal("trxModal")};window.saveTransaction=async(printAfterSave=false)=>{const id=$("trxId").value,username=cleanUser($("trxUser").value),u=userBy(username),amount=parseMoney($("trxAmount").value),note=String($("trxNote").value||"Transaksi").trim();if(!username||!u)return toast("Pilih user",true);if(amount<=0)return toast("Nominal wajib lebih dari 0",true);setBusy(true);try{const old=id?state.tx.find(t=>t.id===id):null,createdAtMs=id?Number(old?.createdAtMs||Date.now()):Date.now(),payload={user:username,name:u.name||username,note,amount,dateKey:dateKey(),monthKey:monthKey(),userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",bonusRate:getUserRate(u),bonusPercent:Number((getUserRate(u)*100).toFixed(3)),transactionBonusRate:getUserRate(u),transactionBonusPercent:Number((getUserRate(u)*100).toFixed(3)),bonusLogicVersion:3,deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};let savedId=id;if(id){await setDoc(doc(db,"transactions",id),payload,{merge:true})}else{const ref=await addDoc(collection(db,"transactions"),{...payload,createdAt:serverTimestamp(),createdAtMs,createdBy:state.user.username});savedId=ref.id}const savedTx={id:savedId,...(old||{}),...payload,createdAtMs};localUpsert("tx",savedTx);closeModal("trxModal");finishLocalWrite();if(printAfterSave){toast("Transaksi tersimpan, mencetak struk");setTimeout(()=>directPrintReceiptText(receiptTextForTx(savedTx),"Struk Transaksi Baru"),120)}else toast("Transaksi tersimpan")}catch(e){toast(e.message||"Gagal simpan transaksi",true)}finally{setBusy(false)}};window.deleteTransaction=async id=>{const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const pin=await askPin(`Hapus transaksi ini?\n${t.name||userName(t.user)||"-"} · ${rp(t.amount)}\n${String(t.note||"Transaksi").trim()}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);if(!confirm("Yakin hapus transaksi ini? Data dibuat soft-delete."))return;setBusy(true);try{const patch={deleted:true,deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"transactions",id),patch,{merge:true});localMerge("tx",id,patch);finishLocalWrite();toast("Transaksi dihapus")}catch(e){toast(e.message||"Gagal hapus",true)}finally{setBusy(false)}};
-  function renderBonus(){const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} · ${esc(u.role||"staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx</div><div class="amt num">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num">${rp(getClosingMinute(u))}/mnt</div></div></div></div><button class="btn amber" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");return`<div class="wrap">${header("Bonus","Tambah / kurangi manual & control bonus user")}<div class="grid2 mb"><button class="btn primary full" onclick="openManualBonus('add')"><i class="fas fa-plus"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')"><i class="fas fa-minus"></i> Kurangi Bonus</button></div><div class="card pad mb"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Setting Global Bonus</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Control Bonus User</div><div class="meta">Rapih: persen transaksi + bonus closing per user</div></div><span class="chip ok">${users.length} user</span></div><div class="sep"></div><div class="bonus-control-grid">${rows||`<div class="empty">Belum ada user</div>`}</div></div></div>`}
-  window.openManualBonus=(mode="add")=>{$("bonusUser").innerHTML=optionUsers(state.user?.username);if($("bonusMode"))$("bonusMode").value=mode==="subtract"?"subtract":"add";$("bonusAmount").value="";$("bonusNote").value="";modal("bonusModal")};window.saveManualBonus=async()=>{const username=cleanUser($("bonusUser").value),u=userBy(username),mode=String($("bonusMode")?.value||"add")==="subtract"?"subtract":"add",rawAmount=Math.abs(parseMoney($("bonusAmount").value)),signedAmount=mode==="subtract"?-rawAmount:rawAmount,actionText=mode==="subtract"?"Kurangi":"Tambah",noteDefault=mode==="subtract"?"Koreksi pengurangan bonus":"Bonus manual",note=String($("bonusNote").value||noteDefault).trim();if(!u)return toast("Pilih user",true);if(rawAmount<=0)return toast("Nominal bonus wajib",true);const pin=await askPin(`${actionText} bonus manual untuk ${u.name||username}?\nNominal: ${mode==="subtract"?"- ":""}${rp(rawAmount)}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const payload={user:username,name:u.name||username,userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",amount:signedAmount,note,type:"manual",action:mode,dateKey:dateKey(),monthKey:monthKey(),deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now(),createdBy:state.user.username,createdByName:state.user.name};const ref=await addDoc(collection(db,"manualBonuses"),payload);localUpsert("manual",{id:ref.id,...payload});closeModal("bonusModal");finishLocalWrite();toast(mode==="subtract"?"Bonus manual dikurangi":"Bonus manual ditambahkan")}catch(e){toast(e.message||"Gagal bonus manual",true)}finally{setBusy(false)}};window.openBonusControl=username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);$("bcUsername").value=u.username;$("bcMeta").textContent=`${u.name||u.username} (@${u.username})`;$("bcTransactionPercent").value=Number((getUserRate(u)*100).toFixed(3));$("bcClosingMinute").value=getClosingMinute(u);modal("bonusControlModal")};window.saveUserBonusControl=async()=>{const username=cleanUser($("bcUsername").value),percent=Number($("bcTransactionPercent").value||0),minute=parseMoney($("bcClosingMinute").value);if(!username)return toast("User kosong",true);if(percent<0||minute<0)return toast("Bonus tidak boleh minus",true);const pin=await askPin(`Simpan control bonus untuk ${userName(username)}?\nTrx ${percent}% · Closing ${rp(minute)}/menit`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{await setDoc(doc(db,"users",username),{transactionBonusRate:percent/100,transactionBonusPercent:percent,closingBonusPerMinute:minute,bonusUpdatedAt:serverTimestamp(),bonusUpdatedAtMs:Date.now(),bonusUpdatedBy:state.user.username},{merge:true});localMerge("users",username,{transactionBonusRate:percent/100,transactionBonusPercent:percent,closingBonusPerMinute:minute,bonusUpdatedAtMs:Date.now(),bonusUpdatedBy:state.user.username});closeModal("bonusControlModal");finishLocalWrite();toast("Control bonus tersimpan")}catch(e){toast(e.message||"Gagal update bonus",true)}finally{setBusy(false)}};window.saveGlobalBonusSettings=async()=>{const trx=prompt("Bonus transaksi global (%)",Number((state.bonusSettings.transactionBonusRate*100).toFixed(3)));if(trx===null)return;const close=prompt("Bonus closing global per menit",state.bonusSettings.closingBonusPerMinute);if(close===null)return;const pin=await askPin("Masukkan PIN admin untuk simpan setting global:");if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const settingsPayload={type:"bonus_settings",transactionBonusRate:Number(trx)/100,transactionBonusPercent:Number(trx),closingBonusPerMinute:parseMoney(close),updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};await setDoc(doc(db,"closings","__bonus_settings"),settingsPayload,{merge:true});state.bonusSettings={transactionBonusRate:settingsPayload.transactionBonusRate,closingBonusPerMinute:settingsPayload.closingBonusPerMinute};finishLocalWrite();toast("Setting global tersimpan")}catch(e){toast(e.message||"Gagal setting global",true)}finally{setBusy(false)}};
-  function renderTeam(){const list=state.users.slice().sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));return`<div class="wrap">${header("User","Manajemen user simple")}<button class="btn primary full mb" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Tambah User</button><div class="list">${list.map(u=>`<div class="item"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} · ${esc(u.role||"staff")}</div></div><span class="chip ${isActive(u)?"ok":"bad"}">${isActive(u)?"Aktif":"Off"}</span><button class="btn" onclick="editUser('${esc(u.username)}')"><i class="fas fa-pen"></i></button></div>`).join("")||`<div class="empty">Belum ada user</div>`}</div></div>`}window.openUserModal=()=>{$("userTitle").textContent="Tambah User";$("uUsername").disabled=false;$("uUsername").value="";$("uName").value="";$("uPin").value="";$("uRole").value="staff";$("uActive").value="true";modal("userModal")};window.editUser=username=>{const u=userBy(username);if(!u)return;$("userTitle").textContent="Edit User";$("uUsername").value=u.username;$("uUsername").disabled=true;$("uName").value=u.name||"";$("uPin").value=u.pin||"";$("uRole").value=u.role||"staff";$("uActive").value=String(isActive(u));modal("userModal")};window.saveUser=async()=>{const username=cleanUser($("uUsername").value),name=String($("uName").value||username).trim(),pin=String($("uPin").value||"").trim(),role=$("uRole").value,active=$("uActive").value==="true";if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const userPayload={username,name,pin,role,active,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username};await setDoc(doc(db,"users",username),userPayload,{merge:true});localUpsert("users",{id:username,...(userBy(username)||{}),...userPayload});closeModal("userModal");finishLocalWrite();toast("User tersimpan")}catch(e){toast(e.message||"Gagal simpan user",true)}finally{setBusy(false)}};
-  function renderOps(){const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),activeClosing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing,delay=activeClosing?Number(activeClosing.delayMinutes||0):closingDelayMinutes(),built=buildClosingBonusByUser(delay,targetUsername),attList=state.att.filter(a=>!isDeleted(a)&&extractDateKey(a)===state.attendanceDate);return`<div class="wrap">${header("Ops","Closing & absen seperti admin")}<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Closing</div><div class="meta">Target bisa Global / per user</div></div><span class="chip ${activeClosing?"ok":"warn"}">${activeClosing?"Sudah Closing":"Belum Closing"}</span></div><div class="sep"></div><select class="input mb" onchange="setClosingTarget(this.value)">${optionClosingUsers()}</select><div class="ops-hero mb"><div class="grid3"><div><div class="tiny">Lewat</div><div class="amt num">${delay} mnt</div></div><div><div class="tiny">Target</div><div class="amt num">${built.targetUsers.length}</div></div><div><div class="tiny">Bonus</div><div class="amt num">${rp(activeClosing?.totalBonus??built.totalBonus)}</div></div></div><div class="meta" style="margin-top:8px">${targetUsername?`Target: ${esc(target?.name||targetUsername)}${lockedByGlobal?" · terkunci global":""}`:"Global: staff yang sudah absen + harian"}</div></div><div class="grid2 mb"><button class="btn primary full" ${activeClosing?"disabled":""} onclick="handleClosingToday()"><i class="fas fa-lock"></i> Closing</button><button class="btn amber full" ${activeClosing?"":"disabled"} onclick="handleEditClosingTime()"><i class="fas fa-clock"></i> Edit Jam</button></div><button class="btn red full" ${activeClosing?"":"disabled"} onclick="handleCancelClosingToday()"><i class="fas fa-unlock"></i> Batal Closing</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Absen</div><div class="meta">Tambah, edit, hapus absen pakai PIN</div></div><button class="btn green" onclick="openAdminAttendanceModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="sep"></div><div class="filter-row mb"><input class="input" type="date" value="${esc(state.attendanceDate)}" onchange="setAttendanceDate(this.value)"><button class="btn" onclick="setAttendanceDate('${dateKey()}')">Hari Ini</button></div>${renderAttendanceList(attList)}</div></div>`}window.setClosingTarget=val=>{state.closingTarget=val||"global";render()};window.setAttendanceDate=val=>{const dk=String(val||dateKey()).slice(0,10);state.attendanceDate=dk;loadAttendanceForDate(dk)};function renderAttendanceList(list){if(!list.length)return`<div class="empty">Belum ada absen di tanggal ini</div>`;return`<div class="list">${list.map(a=>`<div class="item"><div class="ico"><i class="fas fa-user-clock"></i></div><div class="grow"><div class="name">${esc(a.name||userName(a.user))}</div><div class="meta">@${esc(a.user||"")} · ${extractDateKey(a)} · ${formatAttendanceTime(a)} WIB ${a.manual?"· manual":""}</div></div><div class="att-actions"><button class="btn" onclick="openAdminAttendanceModal('${esc(a.id)}')"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteAdminAttendance('${esc(a.id)}')"><i class="fas fa-trash"></i></button></div></div>`).join("")}</div>`}window.openAdminAttendanceModal=(id="")=>{const rec=id?state.att.find(a=>String(a.id)===String(id)):null;$("attTitle").textContent=rec?"Edit Absen":"Tambah Absen";$("attId").value=rec?.id||"";$("attUser").innerHTML=optionUsers(rec?.user||state.user?.username);$("attDate").value=rec?extractDateKey(rec):state.attendanceDate||dateKey();$("attTime").value=rec?formatAttendanceTime(rec):currentWibTimeLabel();modal("attendanceModal")};window.saveAdminAttendance=async()=>{const id=String($("attId").value||""),username=cleanUser($("attUser").value),u=userBy(username),dk=String($("attDate").value||"").slice(0,10),tm=String($("attTime").value||"").slice(0,5);if(!username||!u)return toast("User tidak valid",true);if(!/^\d{4}-\d{2}-\d{2}$/.test(dk))return toast("Tanggal tidak valid",true);if(!/^\d{2}:\d{2}$/.test(tm))return toast("Jam tidak valid",true);const pin=await askPin(`${id?"Simpan edit":"Tambah"} absen untuk ${u.name||username}?\n${dk} ${tm} WIB\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);const createdAtMs=Date.parse(`${dk}T${tm}:00+07:00`);if(!Number.isFinite(createdAtMs))return toast("Jam absen tidak valid",true);const docId=id||getAttendanceDocId(username,dk),payload={user:username,name:u.name||username,dateKey:dk,monthKey:dk.slice(0,7),createdAt:Timestamp.fromMillis(createdAtMs),createdAtMs,manual:true,deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name||state.user.username};if(!id){payload.createdBy=state.user.username;payload.createdByName=state.user.name||state.user.username}setBusy(true);try{await setDoc(doc(db,"attendance",docId),payload,{merge:true});localUpsert("att",{id:docId,...payload});closeModal("attendanceModal");state.attendanceDate=dk;finishLocalWrite();toast("Absen tersimpan")}catch(e){toast(e.message||"Gagal simpan absen",true)}finally{setBusy(false)}};window.deleteAdminAttendance=async id=>{const rec=state.att.find(a=>String(a.id)===String(id));if(!rec)return toast("Data absen tidak ditemukan",true);const pin=await askPin(`Hapus absen ${rec.name||rec.user||""}?\n${extractDateKey(rec)} ${formatAttendanceTime(rec)} WIB\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"attendance",id),patch,{merge:true});localMerge("att",id,patch);finishLocalWrite();toast("Absen dihapus")}catch(e){toast(e.message||"Gagal hapus absen",true)}finally{setBusy(false)}};
-  window.handleClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,today=dateKey(),existingUser=targetUsername?getTodayUserClosing(targetUsername):null,existingGlobal=getTodayGlobalClosing(),existing=targetUsername?(existingUser||(existingGlobal&&!isClosingCanceledForUser(existingGlobal,targetUsername)?existingGlobal:null)):existingGlobal;if(existing)return toast(targetUsername?"User ini sudah closing / terkunci global hari ini":"Global hari ini sudah closing",true);const pin=await askPin(`Closing transaksi ${targetUsername?"untuk "+(target.name||targetUsername):"SEMUA USER"} tanggal ${today}?\n${targetUsername?"Hanya user ini yang terkunci.":"Hanya user yang sudah absen atau karyawan harian yang masuk target closing."}\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);const currentClosingTime=currentWibTimeLabel(),delay=closingDelayMinutes(),built=buildClosingBonusByUser(delay,targetUsername);if(targetUsername&&!built.targetUsers.length)return toast("User belum absen / bukan harian, jadi tidak perlu closing",true);if(!targetUsername&&!built.targetUsers.length)return toast("Belum ada user yang sudah absen atau karyawan harian untuk closing",true);if(!confirm(`Yakin closing ${targetUsername?(target.name||targetUsername):"SEMUA USER"} sekarang?\nLewat deadline: ${delay} menit\nTarget closing valid: ${built.targetUsers.length}\nTotal bonus closing: ${rp(built.totalBonus)}`))return;setBusy(true);try{const docId=getClosingDocId(today,targetUsername),payload={id:docId,closed:true,scope:targetUsername?"user":"global",user:targetUsername||null,name:target?.name||null,dateKey:today,monthKey:monthKey(),closedAt:serverTimestamp(),closedAtMs:Date.now(),closedBy:state.user.username,closedByName:state.user.name,actualClosingTime:currentClosingTime,closingTime:currentClosingTime,manualClosingTime:currentClosingTime,canceled:false,canceledAtMs:null,editedAtMs:null,deadline:"18:00",delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus};await setDoc(doc(db,"closings",docId),payload,{merge:true});localUpsert("closing",payload);finishLocalWrite();toast(delay?`Closing berhasil · bonus ${rp(built.totalBonus)}`:"Closing berhasil")}catch(e){toast(e.message||"Gagal closing",true)}finally{setBusy(false)}};window.handleEditClosingTime=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,closing=targetUsername?getTodayUserClosing(targetUsername):getTodayGlobalClosing();if(!closing)return toast(targetUsername?"User ini belum closing hari ini":"Closing global hari ini belum ada",true);const current=closing.manualClosingTime||closing.closingTime||currentWibTimeLabel(),input=prompt(`Edit jam closing tanggal ${closing.dateKey||dateKey()}\nFormat HH:MM WIB. Contoh 18:10`,current);if(!input)return;const clean=String(input).trim().replace(".",":").slice(0,5);if(!/^\d{1,2}:\d{2}$/.test(clean))return toast("Format jam tidak valid",true);const delay=delayFromTimeLabel(clean);if(delay===null)return toast("Format jam tidak valid",true);const pin=await askPin("Masukkan PIN admin untuk simpan edit jam closing:");if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);const built=buildClosingBonusByUser(delay,targetUsername);if(!confirm(`Simpan jam closing ${clean} WIB?\nLewat deadline: ${delay} menit\nTotal user: ${built.targetUsers.length}\nTotal bonus closing: ${rp(built.totalBonus)}`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(closing.dateKey||dateKey(),targetUsername);const patch={manualClosingTime:clean,closingTime:clean,delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch);finishLocalWrite();toast("Jam closing diperbarui")}catch(e){toast(e.message||"Gagal edit jam closing",true)}finally{setBusy(false)}};window.handleCancelClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),closing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing;if(!closing)return toast(targetUsername?"User ini belum closing hari ini":"Belum ada closing global hari ini",true);const dk=closing.dateKey||dateKey(),pin=await askPin(`Batal closing ${targetUsername?"untuk "+(target?.name||targetUsername):"GLOBAL"} tanggal ${dk}?\n${lockedByGlobal?"User ini akan dibuka dari closing global. User lain tetap terkunci.":"Bonus closing target ini tidak akan dihitung."}\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);if(!confirm(`Yakin batal closing ${targetUsername?(target?.name||targetUsername):"GLOBAL"}?`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(dk,targetUsername);if(lockedByGlobal){const canceledUsers={...(closing.canceledUsers||{}),[targetUsername]:true};const patch={canceledUsers,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}else{const patch={closed:false,canceled:true,canceledAt:serverTimestamp(),canceledAtMs:Date.now(),canceledBy:state.user.username,canceledByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}finishLocalWrite();toast("Closing dibatalkan")}catch(e){toast(e.message||"Gagal batal closing",true)}finally{setBusy(false)}};
+    const monthBadge=state.monthlyLoaded?`<span class="monthly-status loaded"><i class="fas fa-cloud-arrow-down"></i> Selesai Sinkron</span>`:`<span class="monthly-status light"><i class="fas fa-bolt"></i> Mode Ringan Aktif</span>`;
+    
+    const monthCard=state.monthlyLoaded?`<div class="card stat"><div class="tiny">Omzet Bulan Ini</div><div class="val num">${rp(totalMonth)}</div><div class="meta">${monthRows.length} transaksi</div></div>`:`<div class="card stat read-saver-card"><div class="tiny">Bulan Ini</div><div class="val num" style="font-size:18px">Sinkron Manual</div><div class="meta" style="margin-top:6px">Ketuk Laporan Bulanan di bawah untuk melihat.</div></div>`;
+    
+    const monthlyBonusCard=state.monthlyLoaded?`<div class="card pad mb"><div class="row" style="justify-content:space-between; margin-bottom:16px;"><div><div class="title">Laporan Bulanan</div><div class="meta">Rekap periode ini</div></div>${monthBadge}</div><div class="grid2"><div><div class="tiny">Bonus Transaksi</div><div class="amt num">${rp(bonusTrxMonth)}</div></div><div><div class="tiny">Bonus Penyesuaian</div><div class="amt num">${rp(manualMonth)}</div></div></div><div class="sep"></div><div class="row" style="justify-content:space-between;"><div class="meta">Update terakhir ${new Date(state.monthlyLoadedAtMs||Date.now()).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})} WIB</div><button class="btn amber" style="min-height:36px;font-size:12px;padding:6px 12px;" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Muat Ulang</button></div></div>`:`<div class="card pad mb read-saver-card"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><div><div class="title">Laporan Bulanan</div><div class="meta">Data ditangguhkan untuk hemat kuota DB</div></div></div><div class="meta" style="margin-bottom:16px;">Gunakan tombol di bawah ini jika Anda ingin melihat rangkuman bulan ini secara penuh.</div><div class="row" style="justify-content:space-between; align-items:center;">${monthBadge}<button class="btn amber" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Tampilkan Bulanan</button></div></div>`;
+    
+    return`<div class="wrap">${header("Halo, Admin",`Selamat datang kembali, ${esc(state.user.name)}`)}<div class="hero mb"><div class="tiny">Uang Kas Fisik Laci</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Terhitung dari total ${rp(totalToday)} omzet dan ${tToday.length} struk hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Omzet Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} transaksi diproses</div></div></div>${dailyBonusCard()}<div class="grid3 mb"><div class="card stat" style="text-align:center;padding:16px 10px;"><div class="ico" style="margin:0 auto 12px;width:36px;height:36px;border-radius:10px;"><i class="fas fa-wallet"></i></div><div class="tiny">Oprasional</div><div class="val num" style="font-size:16px;">${rp(ded.ops)}</div></div><div class="card stat" style="text-align:center;padding:16px 10px;"><div class="ico" style="margin:0 auto 12px;width:36px;height:36px;border-radius:10px;background:var(--primary-soft);color:var(--primary);"><i class="fas fa-qrcode"></i></div><div class="tiny">QRIS</div><div class="val num" style="font-size:16px;">${rp(ded.qris)}</div></div><div class="card stat" style="text-align:center;padding:16px 10px;"><div class="ico" style="margin:0 auto 12px;width:36px;height:36px;border-radius:10px;background:var(--warning-soft);color:var(--warning);"><i class="fas fa-piggy-bank"></i></div><div class="tiny">Tabungan</div><div class="val num" style="font-size:16px;">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`
+  }
+
+  function renderTxList(list,withActions=true){if(!list.length)return`<div class="empty"><i class="fas fa-box-open" style="font-size:32px;margin-bottom:12px;opacity:0.5;"></i><br>Belum ada data transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item"><div class="ico"><i class="fas fa-receipt"></i></div><div class="grow"><div class="name">${esc(t.note||"Transaksi Tanpa Catatan")}</div><div class="meta"><i class="fas fa-user-tag" style="margin-right:4px;"></i>${esc(t.name||userName(t.user))} &bull; ${txTimeLabel(t)}</div></div><div style="text-align:right;"><div class="amt num">${rp(t.amount)}</div>${withActions?`<div class="miniBtns" style="margin-top:8px; display:flex; justify-content:flex-end; gap:6px;"><button class="btn green" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button></div>`:""}</div></div>`).join("")}</div>`}
+  
+  function renderTrx(){const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb" style="border: 1px dashed var(--line);"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Rekap Keseluruhan</button><div class="meta" style="margin-top:8px; text-align:center;">Gabungkan ${list.length} transaksi ini ke dalam 1 struk panjang.</div></div>`:"";return`<div class="wrap">${header("Riwayat Penjualan","Kelola transaksi kasir hari ini")}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Omzet Valid</div><div class="amt num" style="font-size:22px;">${rp(total)}</div></div><div><div class="tiny">Jumlah Struk</div><div class="amt num" style="font-size:22px;">${list.length}</div></div></div></div><div class="mb"><button class="btn primary full" onclick="openTransactionModal()" style="min-height:56px; font-size:16px;"><i class="fas fa-plus-circle"></i> Tambah Penjualan Baru</button></div>${printAll}${renderTxList(list,true)}</div>`}
+  
+  window.openTransactionModal=()=>{$("trxTitle").textContent="Input Penjualan";$("trxId").value="";$("trxNote").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);modal("trxModal")};window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Penjualan";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);$("trxNote").value=t.note||"";$("trxAmount").value=rupiah(t.amount);modal("trxModal")};window.saveTransaction=async(printAfterSave=false)=>{const id=$("trxId").value,username=cleanUser($("trxUser").value),u=userBy(username),amount=parseMoney($("trxAmount").value),note=String($("trxNote").value||"Transaksi").trim();if(!username||!u)return toast("Pilih staf kasir",true);if(amount<=0)return toast("Nominal wajib lebih dari 0",true);setBusy(true);try{const old=id?state.tx.find(t=>t.id===id):null,createdAtMs=id?Number(old?.createdAtMs||Date.now()):Date.now(),payload={user:username,name:u.name||username,note,amount,dateKey:dateKey(),monthKey:monthKey(),userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",bonusRate:getUserRate(u),bonusPercent:Number((getUserRate(u)*100).toFixed(3)),transactionBonusRate:getUserRate(u),transactionBonusPercent:Number((getUserRate(u)*100).toFixed(3)),bonusLogicVersion:3,deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};let savedId=id;if(id){await setDoc(doc(db,"transactions",id),payload,{merge:true})}else{const ref=await addDoc(collection(db,"transactions"),{...payload,createdAt:serverTimestamp(),createdAtMs,createdBy:state.user.username});savedId=ref.id}const savedTx={id:savedId,...(old||{}),...payload,createdAtMs};localUpsert("tx",savedTx);closeModal("trxModal");finishLocalWrite();if(printAfterSave){toast("Berhasil disimpan, mencetak struk...");setTimeout(()=>directPrintReceiptText(receiptTextForTx(savedTx),"Struk Transaksi Baru"),120)}else toast("Transaksi berhasil dicatat")}catch(e){toast(e.message||"Gagal menyimpan",true)}finally{setBusy(false)}};window.deleteTransaction=async id=>{const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi hilang",true);const pin=await askPin(`Batalkan transaksi ini?\n${t.name||userName(t.user)||"-"} · ${rp(t.amount)}\n${String(t.note||"Transaksi").trim()}`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN Anda Salah",true);setBusy(true);try{const patch={deleted:true,deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"transactions",id),patch,{merge:true});localMerge("tx",id,patch);finishLocalWrite();toast("Transaksi ditarik kembali")}catch(e){toast(e.message||"Sistem menolak aksi",true)}finally{setBusy(false)}};
+  
+  function renderBonus(){const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico" style="border-radius:50%;"><i class="fas fa-user-astronaut"></i></div><div class="grow"><div class="name" style="font-size:15px;">${esc(u.name||u.username)}</div><div class="meta" style="margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"Staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx Rate</div><div class="amt num" style="font-size:14px;margin-top:2px;">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num" style="font-size:14px;margin-top:2px;">${rp(getClosingMinute(u))}<small>/mnt</small></div></div></div></div><button class="btn icon amber" style="width:48px;height:48px;flex:0 0 48px;" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");return`<div class="wrap">${header("Manajemen Bonus","Kustomisasi rate & berikan penghargaan")}<div class="grid2 mb"><button class="btn primary full" onclick="openManualBonus('add')" style="min-height:56px;"><i class="fas fa-gift"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')" style="min-height:56px;"><i class="fas fa-hand-holding-dollar"></i> Kurangi (Potong)</button></div><div class="card pad mb" style="background:var(--warning-soft);border-color:rgba(245, 158, 11, 0.2);"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Parameter Bonus Global</button></div><div class="card pad"><div class="row" style="justify-content:space-between;margin-bottom:16px;"><div><div class="title">Pengaturan Spesifik User</div><div class="meta">Timpa aturan global untuk individu</div></div><span class="chip ok">${users.length} Akun</span></div><div class="list">${rows||`<div class="empty">Tidak ada user aktif ditemukan</div>`}</div></div></div>`}
+  
+  window.openManualBonus=(mode="add")=>{$("bonusUser").innerHTML=optionUsers(state.user?.username);if($("bonusMode"))$("bonusMode").value=mode==="subtract"?"subtract":"add";$("bonusAmount").value="";$("bonusNote").value="";modal("bonusModal")};window.saveManualBonus=async()=>{const username=cleanUser($("bonusUser").value),u=userBy(username),mode=String($("bonusMode")?.value||"add")==="subtract"?"subtract":"add",rawAmount=Math.abs(parseMoney($("bonusAmount").value)),signedAmount=mode==="subtract"?-rawAmount:rawAmount,actionText=mode==="subtract"?"Kurangi":"Tambah",noteDefault=mode==="subtract"?"Penyesuaian negatif":"Hadiah kustom",note=String($("bonusNote").value||noteDefault).trim();if(!u)return toast("Harap pilih user",true);if(rawAmount<=0)return toast("Nilai tidak boleh 0",true);const pin=await askPin(`${actionText} saldo manual ${u.name||username}?\nJumlah: ${mode==="subtract"?"- ":""}${rp(rawAmount)}`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN Ditolak",true);setBusy(true);try{const payload={user:username,name:u.name||username,userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",amount:signedAmount,note,type:"manual",action:mode,dateKey:dateKey(),monthKey:monthKey(),deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now(),createdBy:state.user.username,createdByName:state.user.name};const ref=await addDoc(collection(db,"manualBonuses"),payload);localUpsert("manual",{id:ref.id,...payload});closeModal("bonusModal");finishLocalWrite();toast(mode==="subtract"?"Penyesuaian tercatat":"Bonus ekstra ditambahkan")}catch(e){toast(e.message||"Gagal menghubungi server",true)}finally{setBusy(false)}};window.openBonusControl=username=>{const u=userBy(username);if(!u)return toast("User bermasalah",true);$("bcUsername").value=u.username;$("bcMeta").textContent=`Mengatur milik ${u.name||u.username}`;$("bcTransactionPercent").value=Number((getUserRate(u)*100).toFixed(3));$("bcClosingMinute").value=getClosingMinute(u);modal("bonusControlModal")};window.saveUserBonusControl=async()=>{const username=cleanUser($("bcUsername").value),percent=Number($("bcTransactionPercent").value||0),minute=parseMoney($("bcClosingMinute").value);if(!username)return toast("Sistem tidak mendeteksi ID",true);if(percent<0||minute<0)return toast("Angka tidak boleh negatif",true);const pin=await askPin(`Setujui pembaruan skema bonus ${userName(username)}?\nTrx ${percent}% &bull; Tutup Toko ${rp(minute)}/mnt`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Akses tidak sah",true);setBusy(true);try{await setDoc(doc(db,"users",username),{transactionBonusRate:percent/100,transactionBonusPercent:percent,closingBonusPerMinute:minute,bonusUpdatedAt:serverTimestamp(),bonusUpdatedAtMs:Date.now(),bonusUpdatedBy:state.user.username},{merge:true});localMerge("users",username,{transactionBonusRate:percent/100,transactionBonusPercent:percent,closingBonusPerMinute:minute,bonusUpdatedAtMs:Date.now(),bonusUpdatedBy:state.user.username});closeModal("bonusControlModal");finishLocalWrite();toast("Aturan baru tersimpan")}catch(e){toast(e.message||"Network Error",true)}finally{setBusy(false)}};window.saveGlobalBonusSettings=async()=>{const trx=prompt("Tetapkan standar rate transaksi (%) seluruh staf",Number((state.bonusSettings.transactionBonusRate*100).toFixed(3)));if(trx===null)return;const close=prompt("Tetapkan nilai per-menit saat closing toko",state.bonusSettings.closingBonusPerMinute);if(close===null)return;const pin=await askPin("Dibutuhkan verifikasi untuk mengubah standar pusat:");if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Bukan Admin Tertinggi",true);setBusy(true);try{const settingsPayload={type:"bonus_settings",transactionBonusRate:Number(trx)/100,transactionBonusPercent:Number(trx),closingBonusPerMinute:parseMoney(close),updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};await setDoc(doc(db,"closings","__bonus_settings"),settingsPayload,{merge:true});state.bonusSettings={transactionBonusRate:settingsPayload.transactionBonusRate,closingBonusPerMinute:settingsPayload.closingBonusPerMinute};finishLocalWrite();toast("Paramater sukses disebarkan")}catch(e){toast(e.message||"Gagal konfigurasi",true)}finally{setBusy(false)}};
+  
+  function renderTeam(){const list=state.users.slice().sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));return`<div class="wrap">${header("Anggota Tim","Lihat & kontrol akses sistem")}<button class="btn primary full mb" style="min-height:56px;font-size:15px;" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Daftarkan Akun Baru</button><div class="list">${list.map(u=>`<div class="item"><div class="ico" style="background:${isActive(u)?'var(--primary-soft)':'var(--danger-soft)'}; color:${isActive(u)?'var(--primary)':'var(--danger)'};"><i class="fas ${isActive(u)?'fa-user-check':'fa-user-lock'}"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta" style="margin-top:2px;">@${esc(u.username)} &bull; <b>${esc(u.role||"staff")}</b></div></div><span class="chip ${isActive(u)?"ok":"bad"}" style="margin-right:4px;">${isActive(u)?"Aktif":"Banned"}</span><button class="btn icon" style="box-shadow:none;border:none;" onclick="editUser('${esc(u.username)}')"><i class="fas fa-pen"></i></button></div>`).join("")||`<div class="empty">Basis data personel kosong</div>`}</div></div>`}window.openUserModal=()=>{$("userTitle").textContent="Entri Anggota Baru";$("uUsername").disabled=false;$("uUsername").value="";$("uName").value="";$("uPin").value="";$("uRole").value="staff";$("uActive").value="true";modal("userModal")};window.editUser=username=>{const u=userBy(username);if(!u)return;$("userTitle").textContent="Konfigurasi Profil";$("uUsername").value=u.username;$("uUsername").disabled=true;$("uName").value=u.name||"";$("uPin").value=u.pin||"";$("uRole").value=u.role||"staff";$("uActive").value=String(isActive(u));modal("userModal")};window.saveUser=async()=>{const username=cleanUser($("uUsername").value),name=String($("uName").value||username).trim(),pin=String($("uPin").value||"").trim(),role=$("uRole").value,active=$("uActive").value==="true";if(!username||!pin)return toast("Lengkapi identitas login",true);setBusy(true);try{const userPayload={username,name,pin,role,active,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username};await setDoc(doc(db,"users",username),userPayload,{merge:true});localUpsert("users",{id:username,...(userBy(username)||{}),...userPayload});closeModal("userModal");finishLocalWrite();toast("Profil diperbarui ke server")}catch(e){toast(e.message||"Gagal menyimpan biodata",true)}finally{setBusy(false)}};
+  
+  function renderOps(){const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),activeClosing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing,delay=activeClosing?Number(activeClosing.delayMinutes||0):closingDelayMinutes(),built=buildClosingBonusByUser(delay,targetUsername),attList=state.att.filter(a=>!isDeleted(a)&&extractDateKey(a)===state.attendanceDate);return`<div class="wrap">${header("Pusat Operasional","Kedisiplinan toko & presensi")}<div class="card pad mb"><div class="row" style="justify-content:space-between; margin-bottom:16px;"><div><div class="title">Modul Closing Toko</div><div class="meta">Distribusi bonus telat pulang</div></div><span class="chip ${activeClosing?"ok":"warn"}">${activeClosing?"Terkunci & Selesai":"Berjalan"}</span></div><select class="input mb" onchange="setClosingTarget(this.value)">${optionClosingUsers()}</select><div class="ops-hero mb"><div class="grid3"><div><div class="tiny" style="color:var(--primary);">Kelebihan Waktu</div><div class="amt num" style="font-size:22px;margin-top:6px;">${delay}<small style="font-size:12px;font-weight:600;margin-left:2px;">mnt</small></div></div><div><div class="tiny" style="color:var(--primary);">Penerima</div><div class="amt num" style="font-size:22px;margin-top:6px;">${built.targetUsers.length}<small style="font-size:12px;font-weight:600;margin-left:2px;">org</small></div></div><div><div class="tiny" style="color:var(--primary);">Potensi Cair</div><div class="amt num" style="font-size:20px;margin-top:6px;">${rp(activeClosing?.totalBonus??built.totalBonus)}</div></div></div><div class="meta" style="margin-top:16px;background:var(--surface);padding:10px;border-radius:12px;text-align:center;"><i class="fas fa-crosshairs"></i> ${targetUsername?`Sasaran: ${esc(target?.name||targetUsername)}${lockedByGlobal?" (Tercover Master Global)":""}`:"Master Global (Menyasar semua harian & shift yang hadir)"}</div></div><div class="grid2 mb"><button class="btn primary full" style="min-height:50px;font-size:15px;" ${activeClosing?"disabled":""} onclick="handleClosingToday()"><i class="fas fa-lock"></i> Eksekusi</button><button class="btn amber full" style="min-height:50px;font-size:15px;" ${activeClosing?"":"disabled"} onclick="handleEditClosingTime()"><i class="fas fa-clock-rotate-left"></i> Koreksi Jam</button></div><button class="btn red full" ${activeClosing?"":"disabled"} onclick="handleCancelClosingToday()"><i class="fas fa-unlock-keyhole"></i> Tarik / Batalkan Status Closing</button></div><div class="card pad"><div class="row" style="justify-content:space-between; margin-bottom:16px;"><div><div class="title">Buku Hadir Harian</div><div class="meta">Pencatatan shift bypass Admin</div></div><button class="btn icon green" onclick="openAdminAttendanceModal()"><i class="fas fa-user-plus"></i></button></div><div class="filter-row mb" style="display:flex;gap:12px;"><input class="input" type="date" value="${esc(state.attendanceDate)}" onchange="setAttendanceDate(this.value)" style="flex:1;"><button class="btn" style="flex:0 0 100px;" onclick="setAttendanceDate('${dateKey()}')">Hari Ini</button></div>${renderAttendanceList(attList)}</div></div>`}window.setClosingTarget=val=>{state.closingTarget=val||"global";render()};window.setAttendanceDate=val=>{const dk=String(val||dateKey()).slice(0,10);state.attendanceDate=dk;loadAttendanceForDate(dk)};function renderAttendanceList(list){if(!list.length)return`<div class="empty"><i class="fas fa-clipboard-user" style="font-size:28px;margin-bottom:10px;opacity:0.4;"></i><br>Tidak ada entri presensi di hari ini</div>`;return`<div class="list">${list.map(a=>`<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success);"><i class="fas fa-clock"></i></div><div class="grow"><div class="name">${esc(a.name||userName(a.user))}</div><div class="meta" style="margin-top:2px;">${formatAttendanceTime(a)} WIB ${a.manual?"&bull; <i>Force Input</i>":""}</div></div><div class="miniBtns" style="display:flex; gap:6px;"><button class="btn icon" style="width:36px;height:36px;box-shadow:none;border:none;" onclick="openAdminAttendanceModal('${esc(a.id)}')"><i class="fas fa-pen"></i></button><button class="btn icon red" style="width:36px;height:36px;box-shadow:none;border:none;" onclick="deleteAdminAttendance('${esc(a.id)}')"><i class="fas fa-trash"></i></button></div></div>`).join("")}</div>`}window.openAdminAttendanceModal=(id="")=>{const rec=id?state.att.find(a=>String(a.id)===String(id)):null;$("attTitle").textContent=rec?"Revisi Presensi":"Force Check-In";$("attId").value=rec?.id||"";$("attUser").innerHTML=optionUsers(rec?.user||state.user?.username);$("attDate").value=rec?extractDateKey(rec):state.attendanceDate||dateKey();$("attTime").value=rec?formatAttendanceTime(rec):currentWibTimeLabel();modal("attendanceModal")};window.saveAdminAttendance=async()=>{const id=String($("attId").value||""),username=cleanUser($("attUser").value),u=userBy(username),dk=String($("attDate").value||"").slice(0,10),tm=String($("attTime").value||"").slice(0,5);if(!username||!u)return toast("Karyawan tidak teridentifikasi",true);if(!/^\d{4}-\d{2}-\d{2}$/.test(dk))return toast("Format Kalender Error",true);if(!/^\d{2}:\d{2}$/.test(tm))return toast("Format Waktu Error",true);const pin=await askPin(`${id?"Mengedit":"Menyisipkan"} absensi ${u.name||username}?\nSidik jari digital: ${dk} ${tm} WIB`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Akses diblokir",true);const createdAtMs=Date.parse(`${dk}T${tm}:00+07:00`);if(!Number.isFinite(createdAtMs))return toast("Timeline Invalid",true);const docId=id||getAttendanceDocId(username,dk),payload={user:username,name:u.name||username,dateKey:dk,monthKey:dk.slice(0,7),createdAt:Timestamp.fromMillis(createdAtMs),createdAtMs,manual:true,deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name||state.user.username};if(!id){payload.createdBy=state.user.username;payload.createdByName=state.user.name||state.user.username}setBusy(true);try{await setDoc(doc(db,"attendance",docId),payload,{merge:true});localUpsert("att",{id:docId,...payload});closeModal("attendanceModal");state.attendanceDate=dk;finishLocalWrite();toast("Rekam jejak disahkan")}catch(e){toast(e.message||"Sistem Gagal",true)}finally{setBusy(false)}};window.deleteAdminAttendance=async id=>{const rec=state.att.find(a=>String(a.id)===String(id));if(!rec)return toast("Data telah menguap",true);const pin=await askPin(`Menghilangkan absensi ${rec.name||rec.user||""}?\nPada: ${extractDateKey(rec)} ${formatAttendanceTime(rec)} WIB`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Gagal autentikasi",true);setBusy(true);try{const patch={deleted:true,deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"attendance",id),patch,{merge:true});localMerge("att",id,patch);finishLocalWrite();toast("Log kehadiran dimusnahkan")}catch(e){toast(e.message||"Fatal Error",true)}finally{setBusy(false)}};
+  window.handleClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,today=dateKey(),existingUser=targetUsername?getTodayUserClosing(targetUsername):null,existingGlobal=getTodayGlobalClosing(),existing=targetUsername?(existingUser||(existingGlobal&&!isClosingCanceledForUser(existingGlobal,targetUsername)?existingGlobal:null)):existingGlobal;if(existing)return toast(targetUsername?"Entitas ini telah terkunci":"Sistem global telah tutup buku",true);const pin=await askPin(`Deklarasi Closing ${targetUsername?"Spesifik: "+(target.name||targetUsername):"GLOBAL SELURUH ENTITAS"}?\nTanggal ${today}\n\nPastikan kegiatan kasir sudah beres.`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Tanda tangan tidak valid",true);const currentClosingTime=currentWibTimeLabel(),delay=closingDelayMinutes(),built=buildClosingBonusByUser(delay,targetUsername);if(targetUsername&&!built.targetUsers.length)return toast("Profil ini belum check-in hari ini",true);if(!targetUsername&&!built.targetUsers.length)return toast("Toko kosong, tidak ada orang untuk di-closing",true);if(!confirm(`Buku akan dikunci untuk ${targetUsername?(target.name||targetUsername):"SEMUA"}.\n\nWaktu Lembur Terbaca: ${delay} mnt\nPenerima Manfaat: ${built.targetUsers.length} staf\nDana Keluar: ${rp(built.totalBonus)}\n\nLanjutkan?`))return;setBusy(true);try{const docId=getClosingDocId(today,targetUsername),payload={id:docId,closed:true,scope:targetUsername?"user":"global",user:targetUsername||null,name:target?.name||null,dateKey:today,monthKey:monthKey(),closedAt:serverTimestamp(),closedAtMs:Date.now(),closedBy:state.user.username,closedByName:state.user.name,actualClosingTime:currentClosingTime,closingTime:currentClosingTime,manualClosingTime:currentClosingTime,canceled:false,canceledAtMs:null,editedAtMs:null,deadline:"18:00",delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus};await setDoc(doc(db,"closings",docId),payload,{merge:true});localUpsert("closing",payload);finishLocalWrite();toast(delay?`Sukses cairkan apresiasi ${rp(built.totalBonus)}`:"Toko ditutup tepat waktu")}catch(e){toast(e.message||"Kesalahan mesin closing",true)}finally{setBusy(false)}};window.handleEditClosingTime=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,closing=targetUsername?getTodayUserClosing(targetUsername):getTodayGlobalClosing();if(!closing)return toast(targetUsername?"User ini masih aktif (belum closing)":"Belum ada aktivitas closing global",true);const current=closing.manualClosingTime||closing.closingTime||currentWibTimeLabel(),input=prompt(`Koreksi Waktu Sistem (${closing.dateKey||dateKey()})\nGunakan format 24 Jam HH:MM`,current);if(!input)return;const clean=String(input).trim().replace(".",":").slice(0,5);if(!/^\d{1,2}:\d{2}$/.test(clean))return toast("Format aneh, gunakan HH:MM",true);const delay=delayFromTimeLabel(clean);if(delay===null)return toast("Angka jam mustahil",true);const pin=await askPin("Otorisasi ulang kalkulasi waktu:");if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Autentikasi Gagal",true);const built=buildClosingBonusByUser(delay,targetUsername);if(!confirm(`Menetapkan manual ke pukul ${clean} WIB\n\nLembur Baru: ${delay} mnt\nApresiasi Baru: ${rp(built.totalBonus)}\nSetuju?`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(closing.dateKey||dateKey(),targetUsername);const patch={manualClosingTime:clean,closingTime:clean,delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch);finishLocalWrite();toast("Waktu telah dimanipulasi dengan sukses")}catch(e){toast(e.message||"Timeline crash",true)}finally{setBusy(false)}};window.handleCancelClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),closing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing;if(!closing)return toast(targetUsername?"Memang belum di-closing":"Tidak ada log yang bisa ditarik",true);const dk=closing.dateKey||dateKey(),pin=await askPin(`Tarik mundur status Closing ${targetUsername?"Khusus "+(target?.name||targetUsername):"GLOBAL"}?\n\n${lockedByGlobal?"Profil spesifik ini akan dikecualikan dari hitungan bonus lembur.":"Uang lembur akan dibatalkan."}`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("Sistem menolak PIN",true);if(!confirm(`Peringatan: Aksi ini membatalkan perhitungan finansial ${targetUsername?(target?.name||targetUsername):"keseluruhan"} untuk tanggal ${dk}. Yakin?`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(dk,targetUsername);if(lockedByGlobal){const canceledUsers={...(closing.canceledUsers||{}),[targetUsername]:true};const patch={canceledUsers,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}else{const patch={closed:false,canceled:true,canceledAt:serverTimestamp(),canceledAtMs:Date.now(),canceledBy:state.user.username,canceledByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}finishLocalWrite();toast("Buku kembali terbuka")}catch(e){toast(e.message||"Gagal mengembalikan state",true)}finally{setBusy(false)}};
+  
   async function boot(){applyTheme(initialTheme());const saved=localStorage.getItem(SESSION_KEY);if(saved){try{state.user=JSON.parse(saved);await refreshAll(true);go("home");syncThemeUi();return}catch(e){localStorage.removeItem(SESSION_KEY)}}showLogin();syncThemeUi()}boot();
 </script>
 </body>
 </html>
+
+```
