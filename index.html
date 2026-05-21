@@ -1464,12 +1464,107 @@
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getFirestore, doc, getDocFromServer, setDoc, addDoc, collection, getDocs, getDocsFromServer, query, where, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
   import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-  const firebaseConfig={apiKey:"AIzaSyAqmTEKnLKOXcmOoR9RrXksNe5_Fix42w8",authDomain:"rocky-fd14b.firebaseapp.com",projectId:"rocky-fd14b",storageBucket:"rocky-fd14b.firebasestorage.app",messagingSenderId:"861954349314",appId:"1:861954349314:web:bb8384825daedb8d34ca1b"};
-  const CASH_FISIK_SUPABASE_URL="https://myxrvipyodadnldtomzs.supabase.co",CASH_FISIK_SUPABASE_ANON_KEY="sb_publishable_aG-kyasJNCEk2U9fN5T4qg_GfY0FpPH",CASH_FISIK_OWNER_ID="rocky-hijab",OPS_PREFIX="[OPS] ",CASHOUT_PREFIX="[CASHOUT:",DEFAULT_TRANSACTION_BONUS_RATE=.015,DEFAULT_CLOSING_BONUS_PER_MINUTE=100,CLOSING_HOUR=18,SESSION_KEY="rocky_admin_lite_session_v1",THEME_KEY="rocky_admin_lite_theme_v1";
-  const app=initializeApp(firebaseConfig),db=getFirestore(app),cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
+
+  // === SUPABASE CONFIG - SELARAS SERVER PUSAT ===
+  // Browser hanya boleh pakai anon public key, jangan service_role / sb_secret.
+  const SUPABASE_URL = 'https://ismjupxoiywttkrekmfg.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzbWp1cHhvaXl3dHRrcmVrbWZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNzc4MDEsImV4cCI6MjA5NDg1MzgwMX0.WVwqEdkPQ_x9NWR8QXTm85mIAvN8d9V2FaMJ2NiAMC0';
+  const supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // === FIRESTORE COMPAT LAYER DI ATAS SUPABASE ===
+  // Struktur tabel mengikuti Server Pusat: id text primary key + data jsonb.
+  const SERVER_TIMESTAMP_SENTINEL = { __supabaseServerTimestamp: true };
+  const Timestamp = {
+    fromMillis(ms){
+      return {
+        seconds: Math.floor(Number(ms || 0) / 1000),
+        nanoseconds: (Number(ms || 0) % 1000) * 1000000,
+        toDate(){ return new Date(Number(ms || 0)); },
+        toMillis(){ return Number(ms || 0); }
+      };
+    }
+  };
+  const serverTimestamp = () => SERVER_TIMESTAMP_SENTINEL;
+  const db = { type: 'supabase', client: supabase };
+  const app = db;
+  const doc = (_db, collectionName, id) => ({ kind: 'doc', collectionName, id: String(id || '') });
+  const collection = (_db, collectionName) => ({ kind: 'collection', collectionName });
+  const where = (field, op, value) => ({ kind: 'where', field, op, value });
+  const limit = (count) => ({ kind: 'limit', count: Number(count || 0) });
+  const query = (base, ...constraints) => ({ kind: 'query', collectionName: base.collectionName, constraints });
+  function makeId(prefix = '') { return `${prefix}${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`; }
+  function deepCloneCompat(value) {
+    if (value === null || value === undefined) return value;
+    if (value === SERVER_TIMESTAMP_SENTINEL || value?.__supabaseServerTimestamp) return new Date().toISOString();
+    if (value instanceof Date) return value.toISOString();
+    if (Array.isArray(value)) return value.map(deepCloneCompat);
+    if (typeof value === 'object') {
+      if (typeof value.toDate === 'function') return value.toDate().toISOString();
+      const out = {};
+      Object.entries(value).forEach(([k, v]) => { if (v !== undefined) out[k] = deepCloneCompat(v); });
+      return out;
+    }
+    return value;
+  }
+  function normalizeRow(row) {
+    const data = row?.data && typeof row.data === 'object' ? row.data : {};
+    return { id: row?.id, ...data };
+  }
+  function docSnapshot(id, data) { return { id, exists: () => !!data, data: () => data ? { ...data } : undefined }; }
+  function querySnapshot(rows) {
+    const docs = rows.map((row) => ({ id: row.id, data: () => ({ ...row }) }));
+    return { docs, size: docs.length, empty: docs.length === 0, forEach(cb){ docs.forEach(cb); } };
+  }
+  function getFieldValue(row, field) { return String(field || '').split('.').reduce((acc, key) => acc == null ? undefined : acc[key], row); }
+  function compareWhere(row, c) {
+    const a = getFieldValue(row, c.field);
+    const b = c.value;
+    if (c.op === '==') return String(a) === String(b);
+    if (c.op === '!=') return String(a) !== String(b);
+    if (c.op === '>=') return String(a) >= String(b);
+    if (c.op === '<=') return String(a) <= String(b);
+    if (c.op === '>') return String(a) > String(b);
+    if (c.op === '<') return String(a) < String(b);
+    if (c.op === 'in') return Array.isArray(b) && b.map(String).includes(String(a));
+    return true;
+  }
+  async function getDocFromServer(ref) {
+    const { data, error } = await supabase.from(ref.collectionName).select('id,data').eq('id', ref.id).maybeSingle();
+    if (error) throw error;
+    return docSnapshot(ref.id, data ? normalizeRow(data) : null);
+  }
+  async function setDoc(ref, payload, options = {}) {
+    const nextData = deepCloneCompat(payload || {});
+    let finalData = nextData;
+    if (options?.merge) {
+      const oldSnap = await getDocFromServer(ref).catch(() => docSnapshot(ref.id, null));
+      finalData = { ...(oldSnap.exists() ? oldSnap.data() : {}), ...nextData };
+      delete finalData.id;
+    }
+    const { error } = await supabase.from(ref.collectionName).upsert({ id: ref.id, data: finalData }, { onConflict: 'id' });
+    if (error) throw error;
+    return ref;
+  }
+  async function addDoc(colRef, payload) {
+    const ref = doc(db, colRef.collectionName, makeId());
+    await setDoc(ref, payload || {});
+    return ref;
+  }
+  async function getDocs(qy) {
+    const constraints = qy.constraints || [];
+    const hardLimit = constraints.find((c) => c.kind === 'limit')?.count || 1000;
+    const { data, error } = await supabase.from(qy.collectionName).select('id,data').limit(Math.min(Math.max(hardLimit * 3, hardLimit), 5000));
+    if (error) throw error;
+    let rows = (data || []).map(normalizeRow);
+    constraints.filter((c) => c.kind === 'where').forEach((c) => { rows = rows.filter((row) => compareWhere(row, c)); });
+    rows.sort((a, b) => Number(b.createdAtMs || b.closedAtMs || b.updatedAtMs || 0) - Number(a.createdAtMs || a.closedAtMs || a.updatedAtMs || 0));
+    return querySnapshot(rows.slice(0, hardLimit));
+  }
+  const getDocsFromServer = getDocs;
+
+  const CASH_FISIK_SUPABASE_URL="https://myxrvipyodadnldtomzs.supabase.co",CASH_FISIK_SUPABASE_ANON_KEY="sb_publishable_aG-kyasJNCEk2U9fN5T4qg_GfY0FpPH",CASH_FISIK_OWNER_ID="rocky-hijab",OPS_PREFIX="[OPS] ",CASHOUT_PREFIX="[CASHOUT:",DEFAULT_TRANSACTION_BONUS_RATE=.015,DEFAULT_CLOSING_BONUS_PER_MINUTE=100,CLOSING_HOUR=18,SESSION_KEY="rocky_admin_lite_supabase_session_v1",THEME_KEY="rocky_admin_lite_theme_v1";
+  const cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
   const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE},cashRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{}};
   /* === FIREBASE READ SAVER PATCH === */
