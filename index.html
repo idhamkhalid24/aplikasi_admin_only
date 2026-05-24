@@ -1394,7 +1394,7 @@
       box-shadow:0 10px 18px rgba(59,130,246,.20);
     }
     .cashier-page{
-      min-height:100vh;background:var(--bg);padding:10px 10px 0;
+      min-height:100vh;background:var(--bg);padding:10px 10px 96px;
     }
     .cashier-admin-bar{
       position:sticky;top:0;z-index:5;margin:0 0 8px;
@@ -1404,16 +1404,26 @@
     .cashier-admin-bar .title{font-size:14px;line-height:1.15}
     .cashier-admin-bar .meta{font-size:10px;margin-top:2px}
     .cashier-frame-wrap{
-      height:calc(100vh - 74px);border-radius:22px;overflow:hidden;
+      height:calc(100vh - 154px);border-radius:22px;overflow:hidden;
       border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-md);
     }
     .cashier-frame{width:100%;height:100%;border:0;display:block;background:var(--bg)}
+    .cashier-back-bottom{
+      position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));
+      transform:translateX(-50%);z-index:60;width:min(440px,calc(100% - 28px));
+      padding:10px;border-radius:22px;background:rgba(255,255,255,.88);
+      border:1px solid var(--line);box-shadow:var(--shadow-md);
+      backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    }
+    html[data-theme="dark"] .cashier-back-bottom{background:rgba(21,30,50,.88)}
+    .cashier-back-bottom .btn{height:48px;border-radius:16px}
     .cashier-loading-note{padding:16px;text-align:center;color:var(--text-soft);font-weight:700}
     @media(max-width:520px){
-      .cashier-page{padding:7px 7px 0}
-      .cashier-frame-wrap{height:calc(100svh - 66px);border-radius:18px}
+      .cashier-page{padding:7px 7px calc(92px + env(safe-area-inset-bottom,0px))}
+      .cashier-frame-wrap{height:calc(100svh - 146px);border-radius:18px}
       .cashier-admin-bar{padding:8px;border-radius:16px}
-      .cashier-admin-bar .btn{min-height:36px;padding:7px 10px;font-size:12px}
+      .cashier-back-bottom{bottom:calc(10px + env(safe-area-inset-bottom,0px));width:calc(100% - 16px);padding:8px;border-radius:20px}
+      .cashier-back-bottom .btn{height:46px;font-size:13px}
     }
 
 </style>
@@ -1774,7 +1784,7 @@
   window.loadAttendanceForDate=loadAttendanceForDate;
 
   function adminCashierShortcutCard(){return`<div class="card pad mb cashier-shortcut-card"><div class="row" style="align-items:flex-start"><div class="cashier-shortcut-ico"><i class="fas fa-cash-register"></i></div><div class="grow"><div class="title">Mode Kasir Staff</div><div class="meta">Buka kasir dari link GitHub resmi. Kalau kasir di GitHub diupdate, halaman ini ikut memakai versi terbaru saat dibuka ulang.</div><button class="btn primary full" onclick="openEmbeddedKasir()" style="margin-top:10px"><i class="fas fa-up-right-from-square"></i> Buka Kasir Staff</button></div></div></div>`}
-  function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff · otomatis ikut update dari link</div></div><button class="btn" onclick="go('home')"><i class="fas fa-arrow-left"></i> Admin</button></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div></section>`}
+  function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff · otomatis ikut update dari link</div></div></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div><div class="cashier-back-bottom"><button class="btn primary full" onclick="go('home')"><i class="fas fa-arrow-left"></i> Kembali ke Home Admin</button></div></section>`}
   window.openEmbeddedKasir=()=>{state.page="cashier";render()};
 
   function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>{state.page=page;render()};
