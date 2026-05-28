@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Rocky Admin</title>
+  <title>Admin Only</title>
   
   <!-- Font Awesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1707,6 +1707,699 @@ html[data-theme="dark"] .ks-menu-card:nth-child(3n+2) .ks-menu-ico:before{backgr
   .ks-menu-card strong{font-size:9.5px!important;}
   .ks-bottom-transaction{height:52px!important;font-size:15px!important;}
 }
+
+
+/* === FIX REQUEST: 3 kartu finance + login Admin Only === */
+.ks-deduction-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:18px;
+}
+.ks-deduction-card{
+  min-width:0;
+  border-radius:22px;
+  padding:16px 12px;
+  background:linear-gradient(135deg,#0c1b2f,#101a2c);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 14px 30px rgba(7,20,16,.10);
+  color:#f8fafc;
+}
+.ks-deduction-label{
+  font-size:12px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.12em;
+  color:rgba(226,232,240,.58);
+  margin-bottom:12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ks-deduction-val{
+  font-size:18px;
+  line-height:1.05;
+  font-weight:900;
+  letter-spacing:-.035em;
+  color:#fff;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.ks-login-title{
+  margin-top:6px!important;
+  text-align:center!important;
+}
+@media(max-width:420px){
+  .ks-deduction-grid{gap:8px;margin-top:16px;}
+  .ks-deduction-card{border-radius:19px;padding:14px 10px;}
+  .ks-deduction-label{font-size:10.5px;margin-bottom:10px;letter-spacing:.11em;}
+  .ks-deduction-val{font-size:16px;}
+}
+@media(max-width:360px){
+  .ks-deduction-grid{gap:6px;}
+  .ks-deduction-card{padding:12px 8px;border-radius:17px;}
+  .ks-deduction-label{font-size:9.5px;margin-bottom:9px;}
+  .ks-deduction-val{font-size:14px;}
+}
+
+/* === FINAL FIX USER: 3 card finance dibuat compact + warna disesuaikan === */
+.ks-deduction-grid{
+  gap:7px!important;
+  margin-top:11px!important;
+  margin-bottom:4px!important;
+}
+.ks-deduction-card{
+  border-radius:15px!important;
+  padding:9px 7px!important;
+  min-height:54px!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 8px 18px rgba(13,79,64,.045)!important;
+  color:var(--text-main)!important;
+}
+.ks-deduction-card:nth-child(1){
+  background:linear-gradient(135deg,var(--warning-soft),var(--surface))!important;
+  border-color:rgba(213,155,73,.18)!important;
+}
+.ks-deduction-card:nth-child(2){
+  background:linear-gradient(135deg,var(--primary-soft),var(--surface))!important;
+  border-color:rgba(13,79,64,.13)!important;
+}
+.ks-deduction-card:nth-child(3){
+  background:linear-gradient(135deg,var(--success-soft),var(--surface))!important;
+  border-color:rgba(18,131,95,.15)!important;
+}
+.ks-deduction-label{
+  font-size:8.2px!important;
+  line-height:1!important;
+  letter-spacing:.095em!important;
+  margin-bottom:6px!important;
+  color:var(--text-soft)!important;
+  font-weight:900!important;
+}
+.ks-deduction-val{
+  font-size:12.2px!important;
+  line-height:1.05!important;
+  color:var(--text-main)!important;
+  font-weight:900!important;
+  letter-spacing:-.035em!important;
+}
+html[data-theme="dark"] .ks-deduction-card{
+  background:var(--surface)!important;
+  border-color:var(--line)!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.16)!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(1){
+  background:linear-gradient(135deg,rgba(213,155,73,.12),var(--surface))!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(2){
+  background:linear-gradient(135deg,rgba(40,185,141,.10),var(--surface))!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(3){
+  background:linear-gradient(135deg,rgba(18,131,95,.12),var(--surface))!important;
+}
+@media(max-width:380px){
+  .ks-deduction-grid{gap:6px!important;margin-top:10px!important;}
+  .ks-deduction-card{padding:8px 6px!important;min-height:50px!important;border-radius:14px!important;}
+  .ks-deduction-label{font-size:7.6px!important;margin-bottom:5px!important;letter-spacing:.075em!important;}
+  .ks-deduction-val{font-size:11px!important;}
+}
+@media(max-width:340px){
+  .ks-deduction-grid{gap:5px!important;}
+  .ks-deduction-card{padding:7px 5px!important;min-height:47px!important;border-radius:13px!important;}
+  .ks-deduction-label{font-size:7px!important;}
+  .ks-deduction-val{font-size:10px!important;}
+}
+
+/* Login final: pastikan tanpa logo dan judul benar */
+.ks-login-logo{display:none!important;}
+.ks-login-title{margin-top:8px!important;}
+
+
+/* === FINAL FIX: hapus Versi Admin + 3 card compact di bawah outlet === */
+.ks-version{
+  display:none!important;
+}
+
+/* Karena card versi dihapus, header dibuat lebih ringkas dan rapi */
+.ks-top{
+  min-height:154px!important;
+  padding:18px 20px 18px!important;
+  border-bottom-left-radius:28px!important;
+  border-bottom-right-radius:28px!important;
+}
+.ks-today{
+  margin-top:23px!important;
+}
+.ks-today-title{
+  margin-bottom:8px!important;
+}
+
+/* Posisi terbaik: di bawah card outlet, sebelum menu utama */
+.ks-content{
+  padding-top:0!important;
+}
+.ks-outlet{
+  margin-bottom:0!important;
+}
+.ks-deduction-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;
+  margin:11px 0 3px!important;
+}
+.ks-deduction-card{
+  min-height:43px!important;
+  padding:7px 5px!important;
+  border-radius:13px!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 5px 13px rgba(13,79,64,.035)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+}
+.ks-deduction-card:nth-child(1){
+  background:linear-gradient(135deg,rgba(213,155,73,.10),var(--surface))!important;
+  border-color:rgba(213,155,73,.15)!important;
+}
+.ks-deduction-card:nth-child(2){
+  background:linear-gradient(135deg,rgba(13,79,64,.06),var(--surface))!important;
+  border-color:rgba(13,79,64,.10)!important;
+}
+.ks-deduction-card:nth-child(3){
+  background:linear-gradient(135deg,rgba(18,131,95,.08),var(--surface))!important;
+  border-color:rgba(18,131,95,.12)!important;
+}
+.ks-deduction-label{
+  font-size:6.9px!important;
+  line-height:1!important;
+  letter-spacing:.08em!important;
+  margin:0 0 4px!important;
+  color:var(--text-soft)!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.ks-deduction-val{
+  font-size:10.4px!important;
+  line-height:1!important;
+  color:var(--text-main)!important;
+  font-weight:900!important;
+  letter-spacing:-.04em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.ks-menu-grid{
+  margin-top:14px!important;
+}
+
+html[data-theme="dark"] .ks-deduction-card{
+  box-shadow:0 5px 13px rgba(0,0,0,.16)!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(1){
+  background:linear-gradient(135deg,rgba(213,155,73,.11),var(--surface))!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(2){
+  background:linear-gradient(135deg,rgba(40,185,141,.08),var(--surface))!important;
+}
+html[data-theme="dark"] .ks-deduction-card:nth-child(3){
+  background:linear-gradient(135deg,rgba(18,131,95,.10),var(--surface))!important;
+}
+
+@media(max-width:380px){
+  .ks-top{
+    min-height:150px!important;
+    padding:17px 18px 17px!important;
+  }
+  .ks-today{
+    margin-top:21px!important;
+  }
+  .ks-deduction-grid{
+    gap:6px!important;
+    margin-top:10px!important;
+  }
+  .ks-deduction-card{
+    min-height:40px!important;
+    padding:6px 4px!important;
+    border-radius:12px!important;
+  }
+  .ks-deduction-label{
+    font-size:6.4px!important;
+    margin-bottom:3px!important;
+  }
+  .ks-deduction-val{
+    font-size:9.8px!important;
+  }
+  .ks-menu-grid{
+    margin-top:12px!important;
+  }
+}
+@media(max-width:340px){
+  .ks-deduction-grid{
+    gap:5px!important;
+  }
+  .ks-deduction-card{
+    min-height:38px!important;
+    padding:6px 3px!important;
+    border-radius:11px!important;
+  }
+  .ks-deduction-label{
+    font-size:6px!important;
+  }
+  .ks-deduction-val{
+    font-size:9px!important;
+  }
+}
+
+
+/* === FINAL FIX: pindahkan hamburger ke kanan bawah header === */
+.ks-top{
+  position:relative!important;
+  overflow:hidden!important;
+}
+
+/* Tombol menu yang tadinya di kiri dipindah ke area kanan bawah header */
+.ks-menu-btn{
+  position:absolute!important;
+  right:42px!important;
+  top:118px!important;
+  left:auto!important;
+  z-index:5!important;
+  width:50px!important;
+  height:50px!important;
+  border-radius:20px!important;
+  background:rgba(255,255,255,.12)!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  color:#eefbf6!important;
+  box-shadow:none!important;
+  backdrop-filter:blur(6px)!important;
+  -webkit-backdrop-filter:blur(6px)!important;
+}
+
+/* Biar baris atas tetap rapi setelah tombol menu pindah */
+.ks-top-row{
+  justify-content:center!important;
+}
+.ks-top-row > div:last-child{
+  display:none!important;
+}
+.ks-logo-pill{
+  position:relative!important;
+  left:auto!important;
+  transform:none!important;
+  margin:0 auto!important;
+}
+
+/* Laporan diberi ruang kanan supaya tidak tabrakan dengan hamburger */
+.ks-today{
+  padding-right:104px!important;
+}
+
+@media(max-width:380px){
+  .ks-menu-btn{
+    right:36px!important;
+    top:112px!important;
+    width:48px!important;
+    height:48px!important;
+    border-radius:19px!important;
+  }
+  .ks-today{
+    padding-right:96px!important;
+  }
+}
+@media(max-width:340px){
+  .ks-menu-btn{
+    right:30px!important;
+    top:108px!important;
+    width:44px!important;
+    height:44px!important;
+    border-radius:17px!important;
+  }
+  .ks-today{
+    padding-right:84px!important;
+  }
+}
+
+
+/* === FINAL FIX V4: posisi hamburger dirapikan di kanan header === */
+/* Tombol menu dibuat kecil dan masuk ke area kosong kanan header, bukan melayang aneh */
+.ks-top{
+  min-height:160px!important;
+  padding:18px 20px 20px!important;
+  position:relative!important;
+  overflow:hidden!important;
+}
+
+/* Baris atas hanya untuk logo tengah */
+.ks-top-row{
+  height:42px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  position:relative!important;
+  z-index:3!important;
+}
+.ks-logo-pill{
+  position:relative!important;
+  left:auto!important;
+  transform:none!important;
+  margin:0 auto!important;
+}
+
+/* Hamburger dipindah rapi ke kanan, sejajar area kosong header */
+.ks-menu-btn{
+  position:absolute!important;
+  right:22px!important;
+  top:74px!important;
+  left:auto!important;
+  z-index:6!important;
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  border-radius:16px!important;
+  display:grid!important;
+  place-items:center!important;
+  background:rgba(255,255,255,.10)!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  color:#ecfaf5!important;
+  font-size:21px!important;
+  box-shadow:none!important;
+  backdrop-filter:blur(8px)!important;
+  -webkit-backdrop-filter:blur(8px)!important;
+}
+
+/* Kalau ada spacer kanan bawaan, jangan bikin layout geser */
+.ks-top-row > div:last-child{
+  display:none!important;
+}
+
+/* Laporan tetap di kiri dan tidak terlalu dekat tombol */
+.ks-today{
+  margin-top:24px!important;
+  padding-right:76px!important;
+  position:relative!important;
+  z-index:2!important;
+}
+.ks-today-title{
+  margin-bottom:8px!important;
+}
+.ks-report-row{
+  max-width:250px!important;
+}
+
+/* Garis icon hamburger biar proporsional */
+.ks-menu-btn i,
+.ks-menu-btn .fa-bars{
+  font-size:21px!important;
+  line-height:1!important;
+}
+
+@media(max-width:380px){
+  .ks-top{
+    min-height:156px!important;
+    padding:17px 18px 19px!important;
+  }
+  .ks-menu-btn{
+    right:18px!important;
+    top:72px!important;
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    min-height:40px!important;
+    border-radius:15px!important;
+    font-size:20px!important;
+  }
+  .ks-today{
+    margin-top:23px!important;
+    padding-right:68px!important;
+  }
+  .ks-report-row{
+    max-width:236px!important;
+  }
+}
+@media(max-width:340px){
+  .ks-top{
+    min-height:152px!important;
+    padding:16px 16px 18px!important;
+  }
+  .ks-menu-btn{
+    right:16px!important;
+    top:70px!important;
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    border-radius:14px!important;
+    font-size:19px!important;
+  }
+  .ks-today{
+    padding-right:60px!important;
+  }
+  .ks-report-row{
+    max-width:220px!important;
+  }
+}
+
+
+/* === FINAL FIX V5: hamburger dipindah ke sebelah tombol edit outlet === */
+/* Header kembali bersih, tanpa hamburger melayang */
+.ks-top{
+  overflow:hidden!important;
+}
+.ks-today{
+  padding-right:0!important;
+}
+.ks-report-row{
+  max-width:none!important;
+}
+
+/* Tombol menu akan dipindahkan via JS ke dalam card outlet */
+.ks-outlet-actions{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  flex:0 0 auto!important;
+  margin-left:auto!important;
+}
+.ks-outlet-actions .ks-menu-btn{
+  position:static!important;
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  border-radius:15px!important;
+  background:#eef4f2!important;
+  border:1px solid #dce6e2!important;
+  color:var(--primary)!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  font-size:20px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+html[data-theme="dark"] .ks-outlet-actions .ks-menu-btn{
+  background:var(--surface-inset)!important;
+  border-color:var(--line)!important;
+  color:var(--text-main)!important;
+}
+.ks-outlet-actions .ks-edit-btn,
+.ks-outlet-actions .ks-outlet-edit,
+.ks-outlet-actions [onclick*="openOutlet"],
+.ks-outlet-actions [onclick*="setting"],
+.ks-outlet-actions [onclick*="Settings"]{
+  flex:0 0 auto!important;
+}
+
+/* Kalau JS belum sempat jalan, tombol menu lama disembunyikan agar tidak muncul aneh */
+.ks-top-row > .ks-menu-btn{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+
+/* Setelah pindah, tombol aktif lagi */
+.ks-outlet-actions > .ks-menu-btn{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+
+/* Outlet card diberi ruang agar dua tombol kanan rapi */
+.ks-outlet{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+.ks-outlet-info{
+  min-width:0!important;
+  flex:1!important;
+}
+
+@media(max-width:380px){
+  .ks-outlet-actions{
+    gap:7px!important;
+  }
+  .ks-outlet-actions .ks-menu-btn{
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    min-height:40px!important;
+    border-radius:14px!important;
+    font-size:19px!important;
+  }
+}
+@media(max-width:340px){
+  .ks-outlet-actions{
+    gap:6px!important;
+  }
+  .ks-outlet-actions .ks-menu-btn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    border-radius:13px!important;
+    font-size:18px!important;
+  }
+}
+
+
+/* === FINAL FIX V6: hamburger dipasang langsung di outlet card, tidak pakai pindah JS === */
+.ks-top-row{
+  justify-content:center!important;
+}
+.ks-top-row .ks-menu-btn{
+  display:none!important;
+}
+.ks-outlet-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+  flex:0 0 auto!important;
+  margin-left:auto!important;
+  position:relative!important;
+  z-index:4!important;
+}
+.ks-outlet-actions .ks-menu-btn,
+.ks-outlet-actions .ks-edit{
+  position:static!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  border-radius:15px!important;
+  border:1px solid #dce6e2!important;
+  background:#eef4f2!important;
+  color:var(--primary)!important;
+  font-size:20px!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  transform:none!important;
+}
+.ks-outlet-actions .ks-edit{
+  color:#8f9894!important;
+}
+html[data-theme="dark"] .ks-outlet-actions .ks-menu-btn,
+html[data-theme="dark"] .ks-outlet-actions .ks-edit{
+  background:var(--surface-inset)!important;
+  border-color:var(--line)!important;
+  color:var(--text-main)!important;
+}
+.ks-outlet{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+.ks-outlet-info{
+  min-width:0!important;
+  flex:1 1 auto!important;
+}
+.ks-today{
+  padding-right:0!important;
+}
+.ks-report-row{
+  max-width:none!important;
+}
+
+@media(max-width:380px){
+  .ks-outlet-actions{
+    gap:7px!important;
+  }
+  .ks-outlet-actions .ks-menu-btn,
+  .ks-outlet-actions .ks-edit{
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    min-height:40px!important;
+    border-radius:14px!important;
+    font-size:19px!important;
+  }
+}
+@media(max-width:340px){
+  .ks-outlet-actions{
+    gap:6px!important;
+  }
+  .ks-outlet-actions .ks-menu-btn,
+  .ks-outlet-actions .ks-edit{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    border-radius:13px!important;
+    font-size:18px!important;
+  }
+}
+
+
+/* === FINAL FIX V7: munculkan lagi pill ROCKY ADMIN di header === */
+/* Patch lama sempat menyembunyikan div terakhir di ks-top-row; karena sekarang brand adalah div terakhir, jadi ikut hilang. */
+.ks-top-row > div:last-child,
+.ks-top-row > .ks-brand-pill{
+  display:flex!important;
+}
+.ks-top-row{
+  justify-content:center!important;
+}
+.ks-brand-pill{
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:relative!important;
+  left:auto!important;
+  transform:none!important;
+  margin:0 auto!important;
+  z-index:5!important;
+}
+
+/* Pastikan hanya tombol menu di header yang disembunyikan, bukan brand ROCKY ADMIN */
+.ks-top-row > .ks-menu-btn{
+  display:none!important;
+}
+
+/* Tombol hamburger tetap di card outlet sebelah edit */
+.ks-outlet-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+}
+.ks-outlet-actions .ks-menu-btn,
+.ks-outlet-actions .ks-edit{
+  display:grid!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
 </style>
 </head>
 <body>
@@ -2256,7 +2949,7 @@ header=(title,subtitle)=>`<div class="ks-page-head"><button class="ks-page-back"
 showLogin=function(){
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  $("view").innerHTML=`<section class="ks-login"><div class="ks-login-card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="chip"><i class="fas fa-shield-halved"></i> Admin</span>${themeButton()}</div><div class="ks-login-logo">RH</div><h1 class="ks-login-title">ROCKY ADMIN</h1><div class="ks-login-sub">Koleksi Terbaik Untuk Muslimah Hebat</div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;
+  $("view").innerHTML=`<section class="ks-login"><div class="ks-login-card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="chip"><i class="fas fa-shield-halved"></i> Admin</span>${themeButton()}</div><h1 class="ks-login-title">Admin Only</h1><div class="ks-login-sub">Koleksi Terbaik Untuk Muslimah Hebat</div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;
   syncThemeUi();
 };
 function ksMenu(label,sub,icon,action){return `<button class="ks-menu-card" onclick="${action}"><div class="ks-menu-ico"><i class="fas ${icon}"></i></div><strong>${label}</strong>${sub?`<small>${sub}</small>`:""}</button>`}
@@ -2287,7 +2980,7 @@ renderHome=function(){
     ['Tema',currentTheme()==='dark'?'Terang':'Gelap',currentTheme()==='dark'?'fa-sun':'fa-moon',"toggleTheme();render()"],
     ['Keluar','Akun','fa-right-from-bracket',"logout()"]
   ];
-  return `<section class="ks-home"><div class="ks-top"><div class="ks-top-row"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><div class="ks-brand-pill"><span>ROCKY</span><span>ADMIN</span></div><div style="width:44px"></div></div><div class="ks-version">Versi Admin <i class="fas fa-circle-info"></i></div><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} · ${dateKey()}</span></p></div><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
+  return `<section class="ks-home"><div class="ks-top"><div class="ks-top-row"><div class="ks-brand-pill"><span>ROCKY</span><span>ADMIN</span></div></div><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} · ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div><div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
 };
 render=function(){
   if(!state.user)return showLogin();
@@ -2301,5 +2994,66 @@ render=function(){
 
   async function boot(){applyTheme(initialTheme());const saved=localStorage.getItem(SESSION_KEY);if(saved){try{state.user=JSON.parse(saved);await refreshAll(true);setAppPage("home",{push:true});syncThemeUi();return}catch(e){localStorage.removeItem(SESSION_KEY)}}showLogin();syncThemeUi()}boot();
 </script>
+
+<script>
+/* === FINAL FIX V5: pindahkan hamburger ke card outlet, sebelah tombol edit === */
+(function(){
+  function moveKsMenuToOutlet(){
+    try{
+      const menuBtn = document.querySelector('.ks-menu-btn');
+      const outlet = document.querySelector('.ks-outlet');
+      if(!menuBtn || !outlet) return;
+
+      let editBtn =
+        outlet.querySelector('.ks-edit-btn') ||
+        outlet.querySelector('.ks-outlet-edit') ||
+        outlet.querySelector('button[onclick*="openOutlet"]') ||
+        outlet.querySelector('button[onclick*="Setting"]') ||
+        outlet.querySelector('button[onclick*="setting"]') ||
+        outlet.querySelector('button:last-of-type');
+
+      let actions = outlet.querySelector('.ks-outlet-actions');
+      if(!actions){
+        actions = document.createElement('div');
+        actions.className = 'ks-outlet-actions';
+        if(editBtn){
+          outlet.insertBefore(actions, editBtn);
+          actions.appendChild(menuBtn);
+          actions.appendChild(editBtn);
+        }else{
+          outlet.appendChild(actions);
+          actions.appendChild(menuBtn);
+        }
+      }else if(!actions.contains(menuBtn)){
+        actions.insertBefore(menuBtn, actions.firstChild);
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', moveKsMenuToOutlet);
+  setTimeout(moveKsMenuToOutlet, 80);
+  setTimeout(moveKsMenuToOutlet, 350);
+  setTimeout(moveKsMenuToOutlet, 1000);
+
+  const oldGo = window.go;
+  if(typeof oldGo === 'function'){
+    window.go = function(){
+      const r = oldGo.apply(this, arguments);
+      setTimeout(moveKsMenuToOutlet, 80);
+      return r;
+    };
+  }
+
+  const oldRenderHome = window.renderHome;
+  if(typeof oldRenderHome === 'function'){
+    window.renderHome = function(){
+      const r = oldRenderHome.apply(this, arguments);
+      setTimeout(moveKsMenuToOutlet, 80);
+      return r;
+    };
+  }
+})();
+</script>
+
 </body>
 </html>
