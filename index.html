@@ -1350,7 +1350,7 @@
   
 
     /* === PATCH: Gajian Staff + Status Closing + FAB Home === */
-    .tabs{grid-template-columns:repeat(6,1fr)!important;}
+    .tabs{grid-template-columns:repeat(7,1fr)!important;}
     .closing-status-list{display:flex;flex-direction:column;gap:7px;margin:8px 0 10px;}
     .closing-option-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--line);background:var(--surface);border-radius:15px;padding:10px;box-shadow:var(--shadow-sm);cursor:pointer;}
     .closing-option-row:active{transform:scale(.99);}
@@ -2400,6 +2400,30 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
   pointer-events:auto!important;
 }
 
+
+
+/* === ONLINE ORDERS PATCH - ROCKY ADMIN === */
+.order-bell-wrap{position:relative;display:inline-flex}
+.order-badge-dot{position:absolute;right:-3px;top:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--danger);color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);line-height:1}
+.online-order-home{border-color:rgba(18,131,95,.24)!important;background:linear-gradient(135deg,var(--success-soft),var(--surface))!important;position:relative;overflow:hidden}
+.online-order-home:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--success)}
+.online-order-home .order-home-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--success);color:#fff;font-size:18px;flex:0 0 42px;box-shadow:0 10px 18px rgba(18,131,95,.18)}
+.online-filter-row{display:flex;gap:7px;overflow:auto;padding:2px 0 8px;margin-bottom:8px}
+.online-filter-row .btn{white-space:nowrap;min-height:34px!important;padding:7px 10px!important;border-radius:999px!important}
+.online-filter-row .btn.active{background:var(--primary)!important;color:#fff!important}
+.online-order-card{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:12px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:10px}
+.online-order-card.new-paid{border-color:rgba(18,131,95,.38);background:linear-gradient(135deg,var(--success-soft),var(--surface) 62%)}
+.online-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.online-order-code{font-size:12px;font-weight:900;letter-spacing:-.01em;line-height:1.2;color:var(--text-main);word-break:break-word}
+.online-order-total{font-size:16px;font-weight:900;color:var(--success);white-space:nowrap}
+.online-order-meta{font-size:10.5px;color:var(--text-soft);line-height:1.35;margin-top:3px}
+.online-order-items{display:flex;flex-wrap:wrap;gap:5px}
+.online-order-items span{background:var(--surface-inset);border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:9.5px;font-weight:700;color:var(--text-soft)}
+.online-order-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.online-order-actions .btn{min-height:34px!important;font-size:10px!important;padding:6px 7px!important;border-radius:12px!important}
+.order-count-chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;background:var(--success-soft);color:var(--success);font-size:10px;font-weight:900}
+@media(max-width:380px){.online-order-actions{grid-template-columns:1fr 1fr}.online-order-actions .btn:first-child{grid-column:1/-1}.online-order-total{font-size:14px}.online-order-code{font-size:11px}}
+
 </style>
 </head>
 <body>
@@ -2413,6 +2437,7 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
   <nav id="tabs" class="tabs hide">
     <button class="tab" data-page="home" onclick="go('home')"><i class="fas fa-gauge-high"></i><span>Home</span></button>
     <button class="tab" data-page="trx" onclick="go('trx')"><i class="fas fa-receipt"></i><span>Trx</span></button>
+    <button class="tab" data-page="orders" onclick="go('orders')"><i class="fas fa-bell-concierge"></i><span>Order</span></button>
     <button class="tab" data-page="bonus" onclick="go('bonus')"><i class="fas fa-gift"></i><span>Bonus</span></button>
     <button class="tab" data-page="ops" onclick="go('ops')"><i class="fas fa-list-check"></i><span>Ops</span></button>
     <button class="tab" data-page="gajian" onclick="go('gajian')"><i class="fas fa-wallet"></i><span>Gajian</span></button>
@@ -2651,6 +2676,7 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
   const cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
   const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""}};
+  Object.assign(state,{onlineOrders:[],onlineOrderFilter:"all",onlineOrdersLoadedAtMs:0,onlineOrdersError:"",onlineOrdersInitialLoaded:false});
   /* === FIREBASE READ SAVER PATCH === */
   function nextMonthStartKey(mk=monthKey()){const[y,m]=String(mk||monthKey()).split("-").map(Number),d=new Date(y||new Date().getFullYear(),m||new Date().getMonth()+1,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
   function localSortKey(r){return Number(r?.closedAtMs||r?.createdAtMs||r?.updatedAtMs||r?.deletedAtMs||0)||0}
@@ -2753,6 +2779,7 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
       if(!state.attendanceDate)state.attendanceDate=dk;
       state.lastRefresh=Date.now();
       syncUserSelects();
+      await fetchOnlineOrders({silent:true,notify:true}).catch(()=>{});
       render();
     }catch(e){toast(e.message||"Refresh gagal",true)}finally{setBusy(false)}
   }
@@ -2836,7 +2863,7 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
   function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff · otomatis ikut update dari link. Swipe back Android akan kembali ke halaman admin sebelumnya.</div></div></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div></section>`}
   window.openEmbeddedKasir=()=>go("cashier");
 
-  const APP_PAGES=new Set(["home","trx","bonus","gajian","team","ops","cashier","control","rismaClosing"]);
+  const APP_PAGES=new Set(["home","trx","orders","bonus","gajian","team","ops","cashier","control","rismaClosing"]);
   function normalizePage(page){page=String(page||"home");return APP_PAGES.has(page)?page:"home"}
   function routeFromLocation(){const raw=decodeURIComponent(String(location.hash||"").replace(/^#\/?/,""));return normalizePage(raw||"home")}
   function writeAppHistory(page,{replace=false}={}){page=normalizePage(page);try{const hash="#"+page,stateData={rockyAdminPage:page};if(replace){history.replaceState(stateData,"",hash);return}const current=history.state&&history.state.rockyAdminPage;if(location.hash!==hash||current!==page)history.pushState(stateData,"",hash)}catch(e){}}
@@ -2844,7 +2871,7 @@ html[data-theme="dark"] .ks-outlet-actions .ks-edit{
   window.addEventListener("popstate",e=>{if(modalBackIgnore>0){modalBackIgnore--;if(modalHistoryCleanup&&!visibleModals().length&&e.state?.rockyModalId){requestModalHistoryBack();return}if(!visibleModals().length)modalHistoryCleanup=false;return}if(closeTopModalFromBack())return;state.page=normalizePage(e.state?.rockyAdminPage||routeFromLocation());render()});
   writeAppHistory(routeFromLocation(),{replace:true});
 
-  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});
+  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,orders:renderOrdersPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});
 
   /* === PATCH: Ringkasan Bonus Harian + Receipt Printer === */
   const moneyValue=n=>Math.round(Number(n||0));
@@ -2944,8 +2971,93 @@ function renderTxList(list,withActions=true){if(!list.length)return`<div class="
   window.handleClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,today=dateKey(),existingUser=targetUsername?getTodayUserClosing(targetUsername):null,existingGlobal=getTodayGlobalClosing(),existing=targetUsername?(existingUser||(existingGlobal&&!isClosingCanceledForUser(existingGlobal,targetUsername)?existingGlobal:null)):existingGlobal;if(existing)return toast(targetUsername?"User ini sudah closing / terkunci global hari ini":"Global hari ini sudah closing",true);const pin=await askPin(`Closing transaksi ${targetUsername?"untuk "+(target.name||targetUsername):"SEMUA USER"} tanggal ${today}?\n${targetUsername?"Hanya user ini yang terkunci.":"Hanya user yang sudah absen atau karyawan harian yang masuk target closing."}\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);const currentClosingTime=currentWibTimeLabel(),deadlineSnapshot=getClosingDeadlineSnapshot(),delay=closingDelayMinutes(now(),deadlineSnapshot),built=buildClosingBonusByUser(delay,targetUsername);if(targetUsername&&!built.targetUsers.length)return toast("User belum absen / bukan harian, jadi tidak perlu closing",true);if(!targetUsername&&!built.targetUsers.length)return toast("Belum ada user yang sudah absen atau karyawan harian untuk closing",true);if(!confirm(`Yakin closing ${targetUsername?(target.name||targetUsername):"SEMUA USER"} sekarang?\nDeadline: ${deadlineSnapshot.deadline}\nLewat deadline: ${delay} menit\nTarget closing valid: ${built.targetUsers.length}\nTotal bonus closing: ${rp(built.totalBonus)}`))return;setBusy(true);try{const docId=getClosingDocId(today,targetUsername),payload={id:docId,closed:true,scope:targetUsername?"user":"global",user:targetUsername||null,name:target?.name||null,dateKey:today,monthKey:monthKey(),closedAt:serverTimestamp(),closedAtMs:Date.now(),closedBy:state.user.username,closedByName:state.user.name,actualClosingTime:currentClosingTime,closingTime:currentClosingTime,manualClosingTime:currentClosingTime,canceled:false,canceledAtMs:null,editedAtMs:null,...deadlineSnapshot,delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus};await setDoc(doc(db,"closings",docId),payload,{merge:true});localUpsert("closing",payload);finishLocalWrite();toast(delay?`Closing berhasil · bonus ${rp(built.totalBonus)}`:"Closing berhasil")}catch(e){toast(e.message||"Gagal closing",true)}finally{setBusy(false)}};window.handleEditClosingTime=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,closing=targetUsername?getTodayUserClosing(targetUsername):getTodayGlobalClosing();if(!closing)return toast(targetUsername?"User ini belum closing hari ini":"Closing global hari ini belum ada",true);const current=closing.manualClosingTime||closing.closingTime||currentWibTimeLabel(),input=prompt(`Edit jam closing tanggal ${closing.dateKey||dateKey()}\nFormat HH:MM WIB. Contoh 18:10`,current);if(!input)return;const clean=String(input).trim().replace(".",":").slice(0,5);if(!/^\d{1,2}:\d{2}$/.test(clean))return toast("Format jam tidak valid",true);const delay=delayFromTimeLabel(clean,closing);if(delay===null)return toast("Format jam tidak valid",true);const pin=await askPin("Masukkan PIN admin untuk simpan edit jam closing:");if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);const built=buildClosingBonusByUserForEdit(closing,delay,targetUsername);if(!confirm(`Simpan jam closing ${clean} WIB?\nDeadline snapshot data ini: ${formatClosingDeadline(closing)}\nLewat deadline: ${delay} menit\nTotal user: ${built.targetUsers.length}\nTotal bonus closing: ${rp(built.totalBonus)}`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(closing.dateKey||dateKey(),targetUsername);const patch={manualClosingTime:clean,closingTime:clean,delayMinutes:delay,bonusPerMinute:state.bonusSettings.closingBonusPerMinute,bonusPerMinuteByUser:built.bonusPerMinuteByUser,bonusPerUser:built.bonusPerUser,bonusByUser:built.bonusByUser,bonusLogicVersion:3,totalUsers:built.targetUsers.length,totalBonus:built.totalBonus,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch);finishLocalWrite();toast("Jam closing diperbarui")}catch(e){toast(e.message||"Gagal edit jam closing",true)}finally{setBusy(false)}};window.handleCancelClosingToday=async()=>{const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),closing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing;if(!closing)return toast(targetUsername?"User ini belum closing hari ini":"Belum ada closing global hari ini",true);const dk=closing.dateKey||dateKey(),pin=await askPin(`Batal closing ${targetUsername?"untuk "+(target?.name||targetUsername):"GLOBAL"} tanggal ${dk}?\n${lockedByGlobal?"User ini akan dibuka dari closing global. User lain tetap terkunci.":"Bonus closing target ini tidak akan dihitung."}\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);if(!confirm(`Yakin batal closing ${targetUsername?(target?.name||targetUsername):"GLOBAL"}?`))return;setBusy(true);try{const docId=closing.id||getClosingDocId(dk,targetUsername);if(lockedByGlobal){const canceledUsers={...(closing.canceledUsers||{}),[targetUsername]:true};const patch={canceledUsers,editedAt:serverTimestamp(),editedAtMs:Date.now(),editedBy:state.user.username,editedByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}else{const patch={closed:false,canceled:true,canceledAt:serverTimestamp(),canceledAtMs:Date.now(),canceledBy:state.user.username,canceledByName:state.user.name};await setDoc(doc(db,"closings",docId),patch,{merge:true});localMerge("closing",docId,patch)}finishLocalWrite();toast("Closing dibatalkan")}catch(e){toast(e.message||"Gagal batal closing",true)}finally{setBusy(false)}};
 
 
+
+
+/* === ONLINE ORDERS + ADMIN NOTIFICATION === */
+const ONLINE_ADMIN_FUNCTION = `${SUPABASE_URL}/functions/v1/admin-orders`;
+function onlineOrderRows(){return Array.isArray(state.onlineOrders)?state.onlineOrders:[]}
+function onlinePaidRows(){return onlineOrderRows().filter(o=>String(o.payment_status||"").toUpperCase()==="PAID")}
+function onlineNewPaidRows(){return onlinePaidRows().filter(o=>o.is_new!==false)}
+function onlineOrderShortText(){const n=onlineNewPaidRows().length;return n?`${n} Baru`:"Online"}
+function normalizeOnlineOrder(o){return{...o,id:o.id||o.db_order_id,items:o.online_order_items||o.items||[]}}
+function orderStatusText(s){s=String(s||"NEW").toUpperCase();return({NEW:"Baru",PROCESSING:"Diproses",SHIPPED:"Dikirim",DONE:"Selesai",CANCELLED:"Batal"})[s]||s}
+function paymentStatusClass(s){s=String(s||"").toUpperCase();if(s==="PAID")return"ok";if(["FAILED","EXPIRED","CANCELLED","REFUND"].includes(s))return"bad";return"warn"}
+function orderTimeLabel(ts){try{return new Date(ts||Date.now()).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"}).replace(".",":")}catch(e){return"-"}}
+function normalizePhoneForWa(phone){let p=String(phone||"").replace(/\D/g,"");if(!p)return"";if(p.startsWith("0"))p="62"+p.slice(1);if(!p.startsWith("62"))p="62"+p;return p}
+async function callOnlineAdmin(action,payload={}){
+  const body={action,username:state.user?.username||"",pin:state.user?.pin||"",...payload};
+  const res=await fetch(ONLINE_ADMIN_FUNCTION,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const text=await res.text();let data={};try{data=JSON.parse(text)}catch{data={success:false,message:text||"Response tidak valid"}}
+  if(!res.ok||data.success===false)throw new Error(data.message||`Admin orders error ${res.status}`);
+  return data;
+}
+async function fetchOnlineOrders(opts={}){
+  const {silent=false,notify=false}=opts||{};
+  if(!state.user)return [];
+  if(!silent)setBusy(true);
+  const beforeIds=new Set(onlineNewPaidRows().map(o=>String(o.id)));
+  try{
+    const data=await callOnlineAdmin("list",{limit:100});
+    const rows=(data.orders||[]).map(normalizeOnlineOrder);
+    state.onlineOrders=rows;
+    state.onlineOrdersLoadedAtMs=Date.now();
+    state.onlineOrdersError="";
+    if(notify&&state.onlineOrdersInitialLoaded){
+      const fresh=rows.filter(o=>String(o.payment_status||"").toUpperCase()==="PAID"&&o.is_new!==false&&!beforeIds.has(String(o.id)));
+      if(fresh.length)toast(`${fresh.length} pesanan online baru sudah PAID`);
+    }
+    state.onlineOrdersInitialLoaded=true;
+    return rows;
+  }catch(e){
+    state.onlineOrdersError=e.message||"Gagal load pesanan online";
+    if(!silent)toast(state.onlineOrdersError,true);
+    return onlineOrderRows();
+  }finally{if(!silent)setBusy(false)}
+}
+function onlineOrdersHomeCard(){
+  const paid=onlinePaidRows(),newPaid=onlineNewPaidRows(),pending=onlineOrderRows().filter(o=>String(o.payment_status||"").toUpperCase()==="PENDING");
+  const total=paid.reduce((s,o)=>s+Number(o.total_amount||0),0);
+  return `<div class="card pad mb online-order-home"><div class="row" style="align-items:flex-start"><div class="order-home-icon"><i class="fas fa-bell-concierge"></i></div><div class="grow"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Pesanan Online</div><div class="meta">${newPaid.length} baru perlu dicek · ${pending.length} pending bayar</div></div><span class="order-count-chip"><i class="fas fa-circle"></i> ${paid.length} PAID</span></div><div class="grid2" style="margin-top:10px"><div><div class="tiny">Omzet Online</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Update</div><div class="amt" style="font-size:12px">${state.onlineOrdersLoadedAtMs?new Date(state.onlineOrdersLoadedAtMs).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}):"-"}</div></div></div><button class="btn primary full" onclick="go('orders')" style="margin-top:10px"><i class="fas fa-list"></i> Buka Pesanan Online</button></div></div></div>`;
+}
+function orderButton(){
+  const n=onlineNewPaidRows().length,active=state.page==="orders";
+  return `<span class="order-bell-wrap"><button class="btn icon ${active?"primary":""}" onclick="go('orders')" title="Pesanan Online"><i class="fas fa-bell-concierge"></i></button>${n?`<span class="order-badge-dot">${n>9?"9+":n}</span>`:""}</span>`;
+}
+function filteredOnlineOrders(){
+  const f=state.onlineOrderFilter||"all",rows=onlineOrderRows();
+  if(f==="paid")return rows.filter(o=>String(o.payment_status||"").toUpperCase()==="PAID");
+  if(f==="new")return rows.filter(o=>String(o.payment_status||"").toUpperCase()==="PAID"&&o.is_new!==false);
+  if(f==="pending")return rows.filter(o=>String(o.payment_status||"").toUpperCase()==="PENDING");
+  if(f==="done")return rows.filter(o=>String(o.order_status||"").toUpperCase()==="DONE");
+  return rows;
+}
+function renderOnlineOrderCard(o){
+  const pay=String(o.payment_status||"PENDING").toUpperCase(),status=String(o.order_status||"NEW").toUpperCase(),items=o.items||[];
+  const itemHtml=items.length?items.map(it=>`<span>${esc(it.product_name||"Produk")} × ${Number(it.qty||1)}</span>`).join(""):`<span>Item belum terbaca</span>`;
+  const addr=o.customer_address?`<div class="online-order-meta"><i class="fas fa-location-dot"></i> ${esc(o.customer_address)}</div>`:"";
+  const note=o.customer_note?`<div class="online-order-meta"><i class="fas fa-note-sticky"></i> ${esc(o.customer_note)}</div>`:"";
+  const canProcess=pay==="PAID"&&status==="NEW",canDone=["PROCESSING","SHIPPED"].includes(status),isNew=pay==="PAID"&&o.is_new!==false;
+  return `<div class="online-order-card ${isNew?"new-paid":""}"><div class="online-order-head"><div class="grow"><div class="online-order-code">${esc(o.order_id||o.id||"Order")}</div><div class="online-order-meta"><i class="fas fa-clock"></i> ${orderTimeLabel(o.created_at)} · ${esc(o.customer_name||"Customer")} · ${esc(o.customer_phone||"")}</div>${addr}${note}</div><div class="online-order-total num">${rp(o.total_amount||0)}</div></div><div class="row" style="gap:6px;flex-wrap:wrap"><span class="chip ${paymentStatusClass(pay)}"><i class="fas fa-credit-card"></i> ${esc(pay)}</span><span class="chip ${status==="DONE"?"ok":status==="CANCELLED"?"bad":"warn"}"><i class="fas fa-box"></i> ${esc(orderStatusText(status))}</span>${isNew?`<span class="chip ok"><i class="fas fa-bell"></i> Baru</span>`:""}</div><div class="online-order-items">${itemHtml}</div><div class="online-order-actions"><button class="btn green" onclick="openOnlineOrderWhatsApp('${esc(o.id)}')"><i class="fab fa-whatsapp"></i> WA</button>${canProcess?`<button class="btn primary" onclick="updateOnlineOrderStatus('${esc(o.id)}','PROCESSING')"><i class="fas fa-spinner"></i> Proses</button>`:""}${canDone?`<button class="btn primary" onclick="updateOnlineOrderStatus('${esc(o.id)}','DONE')"><i class="fas fa-check"></i> Selesai</button>`:""}${isNew?`<button class="btn" onclick="markOnlineOrderRead('${esc(o.id)}')"><i class="fas fa-eye"></i> Dibaca</button>`:""}${!isNew&&!canProcess&&!canDone?`<button class="btn" onclick="openOnlineOrderDetail('${esc(o.id)}')"><i class="fas fa-circle-info"></i> Detail</button>`:""}</div></div>`;
+}
+function renderOrdersPage(){
+  const rows=filteredOnlineOrders();
+  const summary=onlineOrderRows();
+  const paid=summary.filter(o=>String(o.payment_status||"").toUpperCase()==="PAID"),newPaid=onlineNewPaidRows(),pending=summary.filter(o=>String(o.payment_status||"").toUpperCase()==="PENDING");
+  const buttons=[["all","Semua"],["new","Baru"],["paid","PAID"],["pending","Pending"],["done","Selesai"]].map(([v,l])=>`<button class="btn ${state.onlineOrderFilter===v?"active":""}" onclick="setOnlineOrderFilter('${v}')">${l}</button>`).join("");
+  const list=rows.length?`<div class="list">${rows.map(renderOnlineOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan online untuk filter ini.</div>`;
+  const err=state.onlineOrdersError?`<div class="card pad mb" style="border-color:rgba(216,72,72,.28);background:var(--danger-soft)"><div class="title">Gagal load pesanan</div><div class="meta">${esc(state.onlineOrdersError)}</div><div class="meta" style="margin-top:6px">Pastikan Edge Function <b>admin-orders</b> sudah dibuat dan Verify JWT OFF.</div></div>`:"";
+  return `<div class="wrap">${header("Pesanan Online",`${newPaid.length} baru · ${paid.length} paid · ${pending.length} pending`)}${err}<div class="card pad mb"><div class="grid3"><div><div class="tiny">Baru</div><div class="amt num">${newPaid.length}</div></div><div><div class="tiny">PAID</div><div class="amt num">${paid.length}</div></div><div><div class="tiny">Pending</div><div class="amt num">${pending.length}</div></div></div><button class="btn primary full" onclick="refreshOnlineOrders()" style="margin-top:10px"><i class="fas fa-rotate"></i> Refresh Pesanan Online</button></div><div class="online-filter-row">${buttons}</div>${list}</div>`;
+}
+window.setOnlineOrderFilter=v=>{state.onlineOrderFilter=v||"all";render()};
+window.refreshOnlineOrders=async()=>{await fetchOnlineOrders({silent:false,notify:false});render()};
+window.markOnlineOrderRead=async id=>{try{setBusy(true);await callOnlineAdmin("mark_read",{order_uuid:id});await fetchOnlineOrders({silent:true});render();toast("Pesanan ditandai dibaca")}catch(e){toast(e.message||"Gagal update pesanan",true)}finally{setBusy(false)}};
+window.updateOnlineOrderStatus=async(id,status)=>{const label=orderStatusText(status);if(!confirm(`Ubah status pesanan jadi ${label}?`))return;try{setBusy(true);await callOnlineAdmin("update_status",{order_uuid:id,order_status:status});await fetchOnlineOrders({silent:true});render();toast(`Status pesanan: ${label}`)}catch(e){toast(e.message||"Gagal update status",true)}finally{setBusy(false)}};
+window.openOnlineOrderWhatsApp=id=>{const o=onlineOrderRows().find(x=>String(x.id)===String(id));if(!o)return toast("Pesanan tidak ditemukan",true);const p=normalizePhoneForWa(o.customer_phone);if(!p)return toast("No WA customer kosong",true);const items=(o.items||[]).map(it=>`- ${it.product_name||"Produk"} x${it.qty||1}`).join("\n");const msg=`Halo ${o.customer_name||"kak"}, pesanan Rocky Hijab kamu sudah kami terima.\n\nOrder: ${o.order_id}\nTotal: ${rp(o.total_amount||0)}\nStatus bayar: ${o.payment_status}\n\n${items}\n\nTerima kasih.`;window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`,"_blank")};
+window.openOnlineOrderDetail=id=>{const o=onlineOrderRows().find(x=>String(x.id)===String(id));if(!o)return toast("Pesanan tidak ditemukan",true);const items=(o.items||[]).map(it=>`<div class="item"><div class="ico"><i class="fas fa-box"></i></div><div class="grow"><div class="name">${esc(it.product_name||"Produk")}</div><div class="meta">${Number(it.qty||1)} x ${rp(it.product_price||0)}</div></div><div class="amt">${rp(it.total||0)}</div></div>`).join("")||`<div class="empty">Item kosong</div>`;openDynamicSheet("onlineOrderDetailModal","Detail Pesanan",o.order_id||"Order",`<div class="card pad mb"><div class="title">${esc(o.customer_name||"Customer")}</div><div class="meta">${esc(o.customer_phone||"")}</div><div class="meta">${esc(o.customer_address||"")}</div></div>${items}<button class="btn green full" style="margin-top:10px" onclick="openOnlineOrderWhatsApp('${esc(o.id)}')"><i class="fab fa-whatsapp"></i> Hubungi WhatsApp</button>`)};
+setInterval(()=>{if(state.user)fetchOnlineOrders({silent:true,notify:true}).then(()=>{if(state.page==="orders")render()}).catch(()=>{})},30000);
+
 /* === KASMINI STYLE HOME MENU OVERRIDE - ROCKY ADMIN === */
-header=(title,subtitle)=>`<div class="ks-page-head"><button class="ks-page-back" onclick="go('home')" title="Kembali"><i class="fas fa-chevron-left"></i></button><div class="ks-page-title"><h1>${esc(title)}</h1><div class="sub">${esc(subtitle||'')}</div></div><button class="ks-page-action" onclick="refreshFromHeader()" title="Refresh"><i class="fas fa-rotate"></i></button></div>`;
+header=(title,subtitle)=>`<div class="ks-page-head"><button class="ks-page-back" onclick="go('home')" title="Kembali"><i class="fas fa-chevron-left"></i></button><div class="ks-page-title"><h1>${esc(title)}</h1><div class="sub">${esc(subtitle||'')}</div></div>${orderButton()}<button class="ks-page-action" onclick="refreshFromHeader()" title="Refresh"><i class="fas fa-rotate"></i></button></div>`;
 showLogin=function(){
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
@@ -2955,7 +3067,7 @@ showLogin=function(){
 function ksMenu(label,sub,icon,action){return `<button class="ks-menu-card" onclick="${action}"><div class="ks-menu-ico"><i class="fas ${icon}"></i></div><strong>${label}</strong>${sub?`<small>${sub}</small>`:""}</button>`}
 function openKasminiMenu(){
   const loaded=state.monthlyLoaded;
-  const body=`<div class="ks-quick-grid"><button class="btn primary" onclick="closeDynamicSheet('kasminiQuickMenu');refreshFromHeader()"><i class="fas fa-rotate"></i> Refresh</button><button class="btn amber" onclick="closeDynamicSheet('kasminiQuickMenu');loadMonthlyLite(${loaded?'true':'false'})"><i class="fas fa-cloud-arrow-down"></i> ${loaded?'Reload':'Load'} Bulanan</button><button class="btn" onclick="closeDynamicSheet('kasminiQuickMenu');toggleTheme();render()"><i class="fas ${currentTheme()==='dark'?'fa-sun':'fa-moon'}"></i> Tema</button><button class="btn red" onclick="closeDynamicSheet('kasminiQuickMenu');logout()"><i class="fas fa-right-from-bracket"></i> Keluar</button></div>`;
+  const body=`<div class="ks-quick-grid"><button class="btn primary" onclick="closeDynamicSheet('kasminiQuickMenu');refreshFromHeader()"><i class="fas fa-rotate"></i> Refresh</button><button class="btn green" onclick="closeDynamicSheet('kasminiQuickMenu');go('orders')"><i class="fas fa-bell-concierge"></i> Pesanan Online</button><button class="btn amber" onclick="closeDynamicSheet('kasminiQuickMenu');loadMonthlyLite(${loaded?'true':'false'})"><i class="fas fa-cloud-arrow-down"></i> ${loaded?'Reload':'Load'} Bulanan</button><button class="btn" onclick="closeDynamicSheet('kasminiQuickMenu');toggleTheme();render()"><i class="fas ${currentTheme()==='dark'?'fa-sun':'fa-moon'}"></i> Tema</button><button class="btn red" onclick="closeDynamicSheet('kasminiQuickMenu');logout()"><i class="fas fa-right-from-bracket"></i> Keluar</button></div>`;
   openDynamicSheet('kasminiQuickMenu','Menu Admin','Aksi cepat Rocky Admin',body);
 }
 window.openKasminiMenu=openKasminiMenu;
@@ -2968,6 +3080,7 @@ renderHome=function(){
   const totalMonth=monthRows.reduce((sum,t)=>sum+Number(t.amount||0),0);
   const menus=[
     ['Riwayat','Transaksi','fa-receipt',"go('trx')"],
+    ['Order',onlineOrderShortText(),'fa-bell-concierge',"go('orders')"],
     ['Bonus','Harian','fa-gift',"go('bonus')"],
     ['Ops','Closing','fa-list-check',"go('ops')"],
     ['Gajian','Staff','fa-wallet',"go('gajian')"],
@@ -2980,13 +3093,13 @@ renderHome=function(){
     ['Tema',currentTheme()==='dark'?'Terang':'Gelap',currentTheme()==='dark'?'fa-sun':'fa-moon',"toggleTheme();render()"],
     ['Keluar','Akun','fa-right-from-bracket',"logout()"]
   ];
-  return `<section class="ks-home"><div class="ks-top"><div class="ks-top-row"><div class="ks-brand-pill"><span>ROCKY</span><span>ADMIN</span></div></div><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} · ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div><div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
+  return `<section class="ks-home"><div class="ks-top"><div class="ks-top-row"><div class="ks-brand-pill"><span>ROCKY</span><span>ADMIN</span></div></div><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} · ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div>${onlineOrdersHomeCard()}<div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
 };
 render=function(){
   if(!state.user)return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage};
+  const map={home:renderHome,trx:renderTrx,orders:renderOrdersPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
