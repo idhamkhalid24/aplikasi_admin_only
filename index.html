@@ -2712,7 +2712,9 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
   function notifyStaffManualBonus(row={}){
     const username=cleanUser(row.user||row.username||'');
     if(!username||Number(row.amount||0)<=0||String(row.action||'add')==='subtract')return Promise.resolve(null);
-    return notifyRockyStaff(ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL,{targetUsername:username,username,user:username,name:row.name||username,amount:Number(row.amount||0),note:String(row.note||''),action:String(row.action||'add'),dateKey:String(row.dateKey||''),bonusId:String(row.id||row.docId||''),createdByName:state.user?.name||state.user?.username||''},'Notif bonus staff');
+    const role=String(row.userRole||row.role||userBy(username)?.role||'staff');
+    const bonusGroup=String(row.bonusGroup||(isDaily(userBy(username))?'harian':'staff'));
+    return notifyRockyStaff(ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL,{targetUsername:username,username,user:username,name:row.name||username,amount:Number(row.amount||0),note:String(row.note||''),action:String(row.action||'add'),dateKey:String(row.dateKey||''),bonusId:String(row.id||row.docId||''),role,userRole:role,bonusGroup,isDaily:bonusGroup==='harian'||role==='harian',createdByName:state.user?.name||state.user?.username||''},'Notif bonus staff');
   }
   function notifyStaffHomeNote(payload={}){
     return notifyRockyStaff(ROCKY_STAFF_NOTIFY_HOME_NOTE_URL,{note:String(payload.note||''),enabled:payload.enabled!==false,updatedByName:payload.updatedByName||state.user?.name||state.user?.username||'',updatedAtMs:Number(payload.updatedAtMs||Date.now())},'Notif catatan staff');
