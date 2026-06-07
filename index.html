@@ -2699,6 +2699,7 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
   const ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-manual-bonus';
   const ROCKY_STAFF_NOTIFY_HOME_NOTE_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-home-note';
   const ROCKY_STAFF_NOTIFY_UNLOCK_REVIEW_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-unlock-review';
+  const ROCKY_NOTIFY_SETTINGS_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-settings';
 
   function notifyRockyStaff(url,payload={},label='Notif staff'){
     try{
@@ -2726,6 +2727,53 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
     if(!username)return Promise.resolve(null);
     return notifyRockyStaff(ROCKY_STAFF_NOTIFY_UNLOCK_REVIEW_URL,{targetUsername:username,username,user:username,name:row.name||userName(username)||username,status:String(status||row.status||''),unlockId:String(row.id||row.docId||''),lockId:String(row.lockId||row.parentLockId||''),missedDate:String(row.missedDate||''),targetDate:String(row.targetDate||row.dateKey||''),dateKey:String(row.dateKey||''),reason:String(row.reason||row.note||''),updatedByName:state.user?.name||state.user?.username||''},'Notif review buka fitur staff');
   }
+  function normalizeCloudflareNotifySettings(data={}){
+    const raw=data?.settings||data||{},modeRaw=String(raw.mode||'admin').toLowerCase();
+    const mode=['admin','server','both','off'].includes(modeRaw)?modeRaw:'admin';
+    return{mode,adminEnabled:mode==='admin'||mode==='both',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
+  }
+  async function loadCloudflareNotifySettings(showToast=false){
+    try{
+      if(!ROCKY_NOTIFY_SETTINGS_URL||!ROCKY_ADMIN_NOTIFY_SECRET)return state.cloudflareNotifySettings;
+      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({action:'get',secret:ROCKY_ADMIN_NOTIFY_SECRET})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok||data?.ok===false)throw new Error(data?.error||'Gagal baca setting Cloudflare');
+      state.cloudflareNotifySettings=normalizeCloudflareNotifySettings(data?.settings||data);
+      if(showToast)toast('Mode notifikasi Cloudflare dimuat');
+    }catch(e){
+      state.cloudflareNotifySettings={...(state.cloudflareNotifySettings||{}),error:e?.message||'Gagal baca setting Cloudflare'};
+      if(showToast)toast(state.cloudflareNotifySettings.error,true);
+    }
+    return state.cloudflareNotifySettings;
+  }
+  async function saveCloudflareNotifyMode(mode){
+    mode=String(mode||'admin').toLowerCase();
+    if(!['admin','server','both','off'].includes(mode))return toast('Mode notifikasi tidak valid',true);
+    const label=cloudflareNotifyModeLabel(mode);
+    const pin=await askPin(`Ubah mode notifikasi Cloudflare ke ${label}?\nMasukkan PIN admin:`);
+    if(!pin)return;
+    if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
+    setBusy(true);
+    try{
+      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({action:'set',mode,updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET})});
+      const data=await res.json().catch(()=>null);
+      if(!res.ok||data?.ok===false)throw new Error(data?.error||'Gagal simpan setting Cloudflare');
+      state.cloudflareNotifySettings=normalizeCloudflareNotifySettings(data?.settings||data);
+      toast(`Mode Cloudflare: ${label}`);
+      render();
+    }catch(e){toast(e.message||'Gagal simpan setting Cloudflare',true)}
+    finally{setBusy(false)}
+  }
+  function cloudflareNotifyModeLabel(mode){
+    return mode==='server'?'Server Token':mode==='both'?'Admin + Server':mode==='off'?'Nonaktif':'Admin Token';
+  }
+  function renderCloudflareNotifyControl(){
+    const s=normalizeCloudflareNotifySettings(state.cloudflareNotifySettings),updated=s.updatedAtMs?formatConfigTime(s.updatedAtMs):'Belum pernah diupdate',err=state.cloudflareNotifySettings?.error||'',modes=[['admin','Admin Token','fa-user-shield'],['server','Server Token','fa-server'],['both','Keduanya','fa-layer-group'],['off','Nonaktif','fa-bell-slash']];
+    const buttons=modes.map(([mode,label,icon])=>{const active=s.mode===mode,cls=active?(mode==='off'?'red':'primary'):'';return`<button class="btn ${cls} full" onclick="saveCloudflareNotifyMode('${mode}')"><i class="fas ${icon}"></i> ${label}</button>`}).join('');
+    return`<div class="card pad"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-cloud"></i> Cloudflare Notif</div><div class="title" style="margin-top:4px">Mode ${cloudflareNotifyModeLabel(s.mode)}</div><div class="meta">Pilih jalur token untuk notifikasi admin/server. Mode Nonaktif membuat worker melewati pengiriman Cloudflare.</div></div><span class="chip ${s.cloudflareEnabled?'ok':'bad'}">${s.cloudflareEnabled?'Aktif':'Off'}</span></div><div class="sep"></div><div class="grid2 mb">${buttons}</div><button class="btn full" onclick="loadCloudflareNotifySettings(true).then(render)"><i class="fas fa-rotate"></i> Refresh Status</button><div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName?` - ${esc(s.updatedByName)}`:''}${s.storageBinding?` - KV ${esc(s.storageBinding)}`:''}</div>${err?`<div class="meta" style="margin-top:8px;color:var(--danger)">${esc(err)}</div>`:''}</div>`;
+  }
+  window.loadCloudflareNotifySettings=loadCloudflareNotifySettings;
+  window.saveCloudflareNotifyMode=saveCloudflareNotifyMode;
 
   // === SUPABASE CONFIG - SELARAS SERVER PUSAT ===
   // Browser hanya boleh pakai anon public key, jangan service_role / sb_secret.
@@ -2850,7 +2898,7 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
   const STAFF_DAILY_NOTE_DOC_ID="__staff_daily_home_note",DEFAULT_STAFF_DAILY_NOTE="Semangat bekerja hari ini. Pastikan transaksi dicatat dengan benar dan refresh jika data belum masuk.",RISMA_MANUAL_CLOSING_DOC_ID="__risma_manual_closing",RISMA_MANUAL_CLOSING_COLLECTION="closings",STAFF_UNLOCK_TABLE="staff_leave_requests";
   const cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
-  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],unlockRequests:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""}};
+  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],unlockRequests:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""},cloudflareNotifySettings:{mode:"admin",adminEnabled:true,serverEnabled:false,cloudflareEnabled:true,updatedAtMs:0,updatedByName:""}};
   /* === FIREBASE READ SAVER PATCH === */
   function nextMonthStartKey(mk=monthKey()){const[y,m]=String(mk||monthKey()).split("-").map(Number),d=new Date(y||new Date().getFullYear(),m||new Date().getMonth()+1,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
   function localSortKey(r){return Number(r?.closedAtMs||r?.createdAtMs||r?.updatedAtMs||r?.deletedAtMs||0)||0}
@@ -2977,6 +3025,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       }
       state.staffDailyHomeNote=staffNoteSnap?.exists()?{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:"",...(staffNoteSnap.data()||{})}:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""};
       state.rismaManualClosing=rismaManualSnap?.exists()?{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:"",...(rismaManualSnap.data()||{})}:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""};
+      await loadCloudflareNotifySettings(false);
       state.dayLoadedKey=dk;
       state.monthlyLoaded=false;
       state.monthlyLoadedAtMs=0;
@@ -3142,7 +3191,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   async function closeRismaManualTargetsNow(){const selectedUsers=rismaSelectedTargetsFromDom();if(!selectedUsers.length)return toast("Pilih minimal 1 target dulu",true);let data=rismaTargetData(selectedUsers);if(!data.open.length)return toast("Semua target terpilih sudah closing hari ini",true);const today=dateKey(),deadlineSnapshot=getClosingDeadlineSnapshot(),delay=closingDelayMinutes(now(),deadlineSnapshot),currentClosingTime=currentWibTimeLabel();let totalBonus=0,validCount=0;for(const u of data.open){const built=buildClosingBonusByUser(delay,cleanUser(u.username));if(built.targetUsers.length){validCount+=1;totalBonus+=Number(built.totalBonus||0)}}if(!validCount)return toast("Tidak ada target valid untuk diclosing",true);const pin=await askPin(`Closing sekaligus sesuai arahan Risma?\nDeadline: ${deadlineSnapshot.deadline}\nTarget dipilih: ${data.selected.length} user\nAkan diclosing sekarang: ${validCount} user\nSudah closing/dilewati: ${data.closed.length} user\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user?.pin||""))return toast("PIN salah",true);if(!confirm(`Yakin closing SEKALIGUS ${validCount} target terpilih?\nJam closing: ${currentClosingTime} WIB\nDeadline: ${deadlineSnapshot.deadline}\nLewat deadline: ${delay} menit\nTotal bonus closing: ${rp(totalBonus)}\n\nUser yang sudah closing tidak akan dibuat ulang.`))return;setBusy(true);try{await persistRismaManualClosingConfig(selectedUsers);let success=0,skipped=0,finalBonus=0;for(const u of data.open){const username=cleanUser(u.username);if(todayClosingStatusForUser(username).closed){skipped++;continue}const built=buildClosingBonusByUser(delay,username);if(!built.targetUsers.length){skipped++;continue}const payload=buildRismaClosingPayload(u,today,currentClosingTime,delay,built,deadlineSnapshot);await setDoc(doc(db,"closings",payload.id),payload,{merge:true});localUpsert("closing",payload);success++;finalBonus+=Number(built.totalBonus||0)}finishLocalWrite();if(success)toast(`Closing ${success} target berhasil · ${rp(finalBonus)}${skipped?` · ${skipped} dilewati`:""}`);else toast("Tidak ada target baru yang diclosing",true)}catch(e){toast(e.message||"Gagal closing target Risma",true)}finally{setBusy(false)}}
   window.closeRismaManualTargetsNow=closeRismaManualTargetsNow;
 
-  function renderControlPage(){return`<div class="wrap">${header("Catatan Staff","Catatan Home Staff & Harian")}<div class="control-stack">${renderStaffDailyHomeNoteControl()}</div></div>`}
+  function renderControlPage(){return`<div class="wrap">${header("Catatan Staff","Catatan Home Staff & Harian")}<div class="control-stack">${renderCloudflareNotifyControl()}${renderStaffDailyHomeNoteControl()}</div></div>`}
   function renderRismaManualClosingShortcut(){const allowed=rismaAllowedUsers();const users=activeUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin"&&(isDaily(u)||hasAttendanceToday(u.username)));const closedCount=users.filter(u=>allowed.includes(cleanUser(u.username))&&todayClosingStatusForUser(u.username).closed).length;const updated=formatConfigTime(state.rismaManualClosing?.updatedAtMs);return`<div class="card pad mb risma-shortcut-card" onclick="go('rismaClosing')" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-route"></i> Arahan Closing</div><div class="title" style="margin-top:4px">Arahan Closing untuk Risma</div><div class="meta">Klik buka untuk masuk ke halaman khusus tujuan closing manual Risma.</div></div><span class="chip warn"><i class="fas fa-chevron-right"></i> Buka</span></div><div class="sep"></div><div class="grid2"><div><div class="tiny">Target dipilih</div><div class="amt num">${allowed.length} user</div></div><div><div class="tiny">Sudah closing</div><div class="amt num" style="color:${closedCount?"var(--success)":"var(--text-soft)"}">${closedCount} user</div></div></div><div class="meta" style="margin-top:10px">Update terakhir: ${esc(updated)}</div></div>`}
   function renderRismaManualClosingPage(){return`<div class="wrap">${header("Arahan Closing Risma","Halaman khusus tujuan closing manual")}<div class="control-stack">${renderRismaManualClosingControl()}</div></div>`}
 
