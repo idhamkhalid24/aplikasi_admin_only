@@ -3691,6 +3691,27 @@ async function adminInsertIfAbsent(table,id,payload){
 async function adminNotifyTarget(summary,plan){
   try{await fetch(ADMIN_NOTIFY_TARGET_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({secret:ROCKY_ADMIN_NOTIFY_SECRET,dateKey:summary.dateKey,targetAmount:summary.targetAmount,totalAmount:summary.totalAmount,activeUsers:plan.activeUsers,rewardedUsers:plan.rewardedUsers})})}catch(e){console.warn('notify target admin gagal',e?.message||e)}
 }
+async function adminEnsureStaffTargetBonusNotification(summary,user,amount){
+  const username=cleanUser(user?.username||user?.id||'');
+  if(!username||Number(amount||0)<=0)return false;
+  const bonusId=adminTargetBonusId(summary.dateKey,username),rewardId=adminTargetRewardId(summary.dateKey,username);
+  try{
+    const rewardSnap=await getDocFromServer(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId)).catch(()=>null),reward=rewardSnap?.exists()?rewardSnap.data()||{}:{};
+    if(reward.staffNotificationSent===true||Number(reward.staffNotifiedAtMs||0)>0)return false;
+    const fallback={id:bonusId,user:username,targetUsername:username,name:user.name||username,userRole:user.role||'staff',role:user.role||'staff',bonusGroup:'staff',amount,dateKey:summary.dateKey,monthKey:summary.dateKey.slice(0,7),type:'daily_target_bonus',source:'daily_target',note:'Bonus target omzet harian tercapai',description:'Bonus otomatis karena target omzet harian gabungan tercapai',action:'add',deleted:false};
+    const bonusSnap=await getDocFromServer(doc(db,'manualBonuses',bonusId)).catch(()=>null),row=bonusSnap?.exists()?{...fallback,...(bonusSnap.data()||{}),id:bonusId,docId:bonusId}:fallback;
+    const notifyResult=await notifyStaffManualBonus(row),sent=!!notifyResult&&notifyResult.ok!==false;
+    if(!sent)return false;
+    await setDoc(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId),{id:rewardId,dateKey:summary.dateKey,user:username,targetUsername:username,amount,manualBonusId:bonusId,type:'daily_target_bonus',source:'daily_target',staffNotificationSent:true,staffNotificationStatus:'sent',staffNotifiedAt:serverTimestamp(),staffNotifiedAtMs:Date.now()},{merge:true}).catch(()=>{});
+    return true;
+  }catch(e){console.warn('ensure notif bonus target admin gagal',e?.code||e?.message||e);return false}
+}
+async function adminEnsureStaffTargetBonusNotifications(summary,plan,amount){
+  const sent=[];
+  if(Number(amount||0)<=0)return sent;
+  for(const user of plan.users||[]){const ok=await adminEnsureStaffTargetBonusNotification(summary,user,amount);if(ok)sent.push(cleanUser(user.username||user.id))}
+  return sent;
+}
 async function adminSaveTargetStatus(summary,plan,extra={}){
   const current=state.dailyTarget||{},payload={dateKey:summary.dateKey,targetAmount:summary.targetAmount,totalAmount:summary.totalAmount,progressPercent:summary.progressPercent,reached:summary.reached,reachedAt:summary.reached?(current.reachedAt||serverTimestamp()):null,reachedAtMs:summary.reached?Number(current.reachedAtMs||Date.now()):0,bonusApplied:summary.reached?Boolean(extra.bonusApplied??current.bonusApplied):false,bonusAppliedAt:extra.bonusApplied?(current.bonusAppliedAt||serverTimestamp()):(current.bonusAppliedAt||null),bonusAppliedAtMs:extra.bonusApplied?Number(current.bonusAppliedAtMs||Date.now()):Number(current.bonusAppliedAtMs||0),activeUsers:plan.activeUsers,rewardedUsers:extra.rewardedUsers||current.rewardedUsers||[],updatedAt:serverTimestamp(),updatedAtMs:Date.now()};
   state.dailyTarget={...current,...payload};
@@ -3711,9 +3732,9 @@ async function adminApplyDailyTarget(){
     if(targetSnap?.exists())state.dailyTarget={...(targetSnap.data()||{})};
     if(notifSnap?.exists())state.targetNotification={id:notifSnap.id,...(notifSnap.data()||{})};
     if(!summary.reached){await adminSaveTargetStatus(summary,plan,{});return}
-    if(state.dailyTarget?.bonusApplied===true){await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:state.dailyTarget.rewardedUsers||[]});return}
-    await adminSaveTargetStatus(summary,plan,{});
     const amount=Number(summary.bonusAmount||0);
+    if(state.dailyTarget?.bonusApplied===true){await adminEnsureStaffTargetBonusNotifications(summary,plan,amount);await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:state.dailyTarget.rewardedUsers||[]});return}
+    await adminSaveTargetStatus(summary,plan,{});
     if(amount<=0)return;
     const rewarded=[];
     for(const user of plan.users){
@@ -3723,7 +3744,7 @@ async function adminApplyDailyTarget(){
       const existing=await getDocFromServer(doc(db,'manualBonuses',bonusId)).catch(()=>null);
       let staffNotificationSent=false;
       const payload={user:username,targetUsername:username,name:user.name||username,userRole:user.role||'staff',role:user.role||'staff',bonusGroup:'staff',amount,dateKey:summary.dateKey,monthKey:summary.dateKey.slice(0,7),type:'daily_target_bonus',source:'daily_target',note:'Bonus target omzet harian tercapai',description:'Bonus otomatis karena target omzet harian gabungan tercapai',action:'add',deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now()};
-      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload});const notifyResult=await notifyStaffManualBonus({id:bonusId,docId:bonusId,...payload});staffNotificationSent=!!notifyResult&&notifyResult.ok!==false}
+      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload});const notifyResult=await notifyStaffManualBonus({id:bonusId,docId:bonusId,...payload});staffNotificationSent=!!notifyResult&&notifyResult.ok!==false}else{staffNotificationSent=await adminEnsureStaffTargetBonusNotification(summary,user,amount)}
       rewarded.push(username);
       await setDoc(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId),{id:rewardId,dateKey:summary.dateKey,user:username,targetUsername:username,amount,manualBonusId:bonusId,type:'daily_target_bonus',source:'daily_target',rewardedAt:serverTimestamp(),rewardedAtMs:Date.now(),...(staffNotificationSent?{staffNotificationSent:true,staffNotificationStatus:'sent',staffNotifiedAt:serverTimestamp(),staffNotifiedAtMs:Date.now()}: {})},{merge:true}).catch(()=>{});
     }
