@@ -3721,10 +3721,11 @@ async function adminApplyDailyTarget(){
       if(!username)continue;
       const bonusId=adminTargetBonusId(summary.dateKey,username),rewardId=adminTargetRewardId(summary.dateKey,username);
       const existing=await getDocFromServer(doc(db,'manualBonuses',bonusId)).catch(()=>null);
+      let staffNotificationSent=false;
       const payload={user:username,targetUsername:username,name:user.name||username,userRole:user.role||'staff',role:user.role||'staff',bonusGroup:'staff',amount,dateKey:summary.dateKey,monthKey:summary.dateKey.slice(0,7),type:'daily_target_bonus',source:'daily_target',note:'Bonus target omzet harian tercapai',description:'Bonus otomatis karena target omzet harian gabungan tercapai',action:'add',deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now()};
-      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload});await notifyStaffManualBonus({id:bonusId,docId:bonusId,...payload})}
+      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload});const notifyResult=await notifyStaffManualBonus({id:bonusId,docId:bonusId,...payload});staffNotificationSent=!!notifyResult&&notifyResult.ok!==false}
       rewarded.push(username);
-      await setDoc(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId),{id:rewardId,dateKey:summary.dateKey,user:username,targetUsername:username,amount,manualBonusId:bonusId,type:'daily_target_bonus',source:'daily_target',rewardedAt:serverTimestamp(),rewardedAtMs:Date.now()},{merge:true}).catch(()=>{});
+      await setDoc(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId),{id:rewardId,dateKey:summary.dateKey,user:username,targetUsername:username,amount,manualBonusId:bonusId,type:'daily_target_bonus',source:'daily_target',rewardedAt:serverTimestamp(),rewardedAtMs:Date.now(),...(staffNotificationSent?{staffNotificationSent:true,staffNotificationStatus:'sent',staffNotifiedAt:serverTimestamp(),staffNotifiedAtMs:Date.now()}: {})},{merge:true}).catch(()=>{});
     }
     await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:rewarded});
     await adminEnsureTargetNotification(summary,{...plan,rewardedUsers:rewarded});
