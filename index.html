@@ -2721,7 +2721,7 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
     const bonusGroup=String(row.bonusGroup||(isDaily(userBy(username))?'harian':'staff'));
     const actualRoleKey=actualRole.toLowerCase().replace(/\s+/g,'_');
     const actualDaily=String(bonusGroup).toLowerCase()==='harian'||actualRoleKey==='harian'||actualRoleKey==='daily'||actualRoleKey==='karyawan_harian';
-    return notifyRockyStaff(ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL,{targetUsername:username,username,user:username,name:row.name||username,amount:Number(row.amount||0),note:String(row.note||''),action:String(row.action||'add'),dateKey:String(row.dateKey||''),bonusId:String(row.id||row.docId||''),role:actualRole||'staff',userRole:actualRole,actualRole,bonusGroup,isDaily:actualDaily,dailyMode:actualDaily,actualDaily,canReceiveStaffNotifications:true,notificationAudience:'staff',createdByName:state.user?.name||state.user?.username||''},'Notif bonus staff');
+    return notifyRockyStaff(ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL,{targetUsername:username,username,user:username,name:row.name||username,amount:Number(row.amount||0),note:String(row.note||''),action:String(row.action||'add'),dateKey:String(row.dateKey||''),monthKey:String(row.monthKey||''),bonusId:String(row.id||row.docId||''),type:String(row.type||''),source:String(row.source||'admin_manual_bonus'),role:actualRole||'staff',userRole:actualRole,actualRole,bonusGroup,isDaily:actualDaily,dailyMode:actualDaily,actualDaily,canReceiveStaffNotifications:true,notificationAudience:'staff',createdByName:state.user?.name||state.user?.username||''},'Notif bonus staff');
   }
   function notifyStaffHomeNote(payload={}){
     return notifyRockyStaff(ROCKY_STAFF_NOTIFY_HOME_NOTE_URL,{note:String(payload.note||''),enabled:payload.enabled!==false,updatedByName:payload.updatedByName||state.user?.name||state.user?.username||'',updatedAtMs:Number(payload.updatedAtMs||Date.now())},'Notif catatan staff');
@@ -3722,7 +3722,7 @@ async function adminApplyDailyTarget(){
       const bonusId=adminTargetBonusId(summary.dateKey,username),rewardId=adminTargetRewardId(summary.dateKey,username);
       const existing=await getDocFromServer(doc(db,'manualBonuses',bonusId)).catch(()=>null);
       const payload={user:username,targetUsername:username,name:user.name||username,userRole:user.role||'staff',role:user.role||'staff',bonusGroup:'staff',amount,dateKey:summary.dateKey,monthKey:summary.dateKey.slice(0,7),type:'daily_target_bonus',source:'daily_target',note:'Bonus target omzet harian tercapai',description:'Bonus otomatis karena target omzet harian gabungan tercapai',action:'add',deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now()};
-      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload})}
+      if(!existing?.exists()){await setDoc(doc(db,'manualBonuses',bonusId),payload,{merge:false});localUpsert('manual',{id:bonusId,...payload});await notifyStaffManualBonus({id:bonusId,docId:bonusId,...payload})}
       rewarded.push(username);
       await setDoc(doc(db,ADMIN_TARGET_REWARDS_TABLE,rewardId),{id:rewardId,dateKey:summary.dateKey,user:username,targetUsername:username,amount,manualBonusId:bonusId,type:'daily_target_bonus',source:'daily_target',rewardedAt:serverTimestamp(),rewardedAtMs:Date.now()},{merge:true}).catch(()=>{});
     }
