@@ -3729,7 +3729,8 @@ function adminDailyTargetSummary(dk=dateKey()){const settings=adminTargetSetting
 function adminTargetRewardPlan(dk=dateKey()){
   const d=String(dk||dateKey()).slice(0,10),attUsers=new Set(state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===d).map(a=>cleanUser(a.user)).filter(Boolean));
   const users=realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>({...u,username:cleanUser(u.username||u.id)})).filter(u=>u.username);
-  const active=users.map(u=>u.username),rewarded=users.filter(u=>!isDaily(u)&&attUsers.has(u.username)).map(u=>u.username),map=new Map(users.map(u=>[u.username,u]));
+  const hasRismaTx=adminTargetTxRows(d).some(t=>cleanUser(t.user||t.username||t.kasir||t.createdBy||'')==='risma'&&Number(t.amount||0)>0);
+  const active=users.map(u=>u.username),rewarded=users.filter(u=>u.username==='risma'?hasRismaTx:(!isDaily(u)&&attUsers.has(u.username))).map(u=>u.username),map=new Map(users.map(u=>[u.username,u]));
   return{activeUsers:active,rewardedUsers:rewarded,users:rewarded.map(u=>map.get(u)).filter(Boolean)};
 }
 async function adminLoadTargetSettings(){
@@ -3816,12 +3817,12 @@ window.openAdminDailyTargetSettings=async function(){
   const s=adminDailyTargetSummary();
   const targetRaw=prompt('Target omzet hari ini',rp(s.targetAmount));
   if(targetRaw===null)return;
-  const bonusRaw=prompt('Bonus target per staff absen',rp(s.bonusAmount));
+  const bonusRaw=prompt('Bonus target per staff hadir',rp(s.bonusAmount));
   if(bonusRaw===null)return;
   const targetAmount=parseMoney(targetRaw),bonusAmount=parseMoney(bonusRaw);
   if(targetAmount<=0)return toast('Target harus lebih dari 0',true);
   if(bonusAmount<0)return toast('Bonus tidak boleh minus',true);
-  const pin=await askPin(`Simpan target hari ini?\nTarget: ${rp(targetAmount)}\nBonus staff absen: ${rp(bonusAmount)}\n\nMasukkan PIN admin:`);
+  const pin=await askPin(`Simpan target hari ini?\nTarget: ${rp(targetAmount)}\nBonus staff hadir: ${rp(bonusAmount)}\n\nMasukkan PIN admin:`);
   if(!pin)return;
   if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
   setBusy(true);
