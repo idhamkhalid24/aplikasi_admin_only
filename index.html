@@ -3020,7 +3020,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
 Status: ${unlockStatusText(row)}
 
 Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);if(!confirm("Yakin hapus riwayat buka fitur ini? Data dibuat soft-delete dan tidak mengubah status fitur staff yang sudah dibuka/ditolak."))return;setBusy(true);try{const nowMs=Date.now(),patch={deleted:true,adminRead:true,deletedAt:serverTimestamp(),deletedAtMs:nowMs,deletedBy:state.user.username,deletedByName:state.user.name,updatedAt:serverTimestamp(),updatedAtMs:nowMs,updatedBy:state.user.username,updatedByName:state.user.name};await setDoc(doc(db,STAFF_UNLOCK_TABLE,id),patch,{merge:true});localMerge("unlockRequests",id,patch);finishLocalWrite();toast("Riwayat buka fitur dihapus");render()}catch(e){toast(e.message||"Gagal hapus request",true)}finally{setBusy(false)}};
-  function askPin(message="Masukkan PIN admin:"){return new Promise(resolve=>{const old=document.getElementById("pinModal");if(old)rawCloseModal("pinModal",{runCallback:true});const wrap=document.createElement("div");wrap.id="pinModal";wrap.className="modal show";wrap.style.zIndex="150";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">Konfirmasi PIN</div><div class="meta">${esc(message).replace(/\n/g,"<br>")}</div></div><button class="btn icon" id="pinCancel"><i class="fas fa-xmark"></i></button></div><input id="pinInput" class="input" type="password" inputmode="numeric" placeholder="PIN admin" style="text-align:center;font-size:18px;letter-spacing:.12em"><div class="grid2" style="margin-top:10px"><button class="btn" id="pinNo">Batal</button><button class="btn primary" id="pinOk">Lanjut</button></div></div>`;document.body.appendChild(wrap);let settled=false;const done=v=>{if(settled)return;settled=true;modalCloseCallbacks.delete("pinModal");closeModalWithBack("pinModal",{runCallback:false});resolve(v)};modalCloseCallbacks.set("pinModal",()=>{if(settled)return;settled=true;resolve(null)});pushModalHistory("pinModal");wrap.querySelector("#pinCancel").onclick=()=>done(null);wrap.querySelector("#pinNo").onclick=()=>done(null);wrap.querySelector("#pinOk").onclick=()=>done(String(wrap.querySelector("#pinInput").value||"").trim());wrap.onclick=e=>{if(e.target===wrap)done(null)};setTimeout(()=>wrap.querySelector("#pinInput")?.focus(),50)})}
+  function askPin(message="Masukkan PIN admin:"){return new Promise(resolve=>{const old=document.getElementById("pinModal");if(old)rawCloseModal("pinModal",{runCallback:true});const wrap=document.createElement("div");wrap.id="pinModal";wrap.className="modal show";wrap.style.zIndex="900";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">Konfirmasi PIN</div><div class="meta">${esc(message).replace(/\n/g,"<br>")}</div></div><button class="btn icon" id="pinCancel"><i class="fas fa-xmark"></i></button></div><input id="pinInput" class="input" type="password" inputmode="numeric" placeholder="PIN admin" style="text-align:center;font-size:18px;letter-spacing:.12em"><div class="grid2" style="margin-top:10px"><button class="btn" id="pinNo">Batal</button><button class="btn primary" id="pinOk">Lanjut</button></div></div>`;document.body.appendChild(wrap);let settled=false;const done=v=>{if(settled)return;settled=true;modalCloseCallbacks.delete("pinModal");closeModalWithBack("pinModal",{runCallback:false});resolve(v)};modalCloseCallbacks.set("pinModal",()=>{if(settled)return;settled=true;resolve(null)});pushModalHistory("pinModal");wrap.querySelector("#pinCancel").onclick=()=>done(null);wrap.querySelector("#pinNo").onclick=()=>done(null);wrap.querySelector("#pinOk").onclick=()=>done(String(wrap.querySelector("#pinInput").value||"").trim());wrap.onclick=e=>{if(e.target===wrap)done(null)};setTimeout(()=>wrap.querySelector("#pinInput")?.focus(),50)})}
   function controlButton(){const active=state.page==="control";return`<button class="btn icon controlBtn ${active?"active":""}" onclick="go('control')" title="Catatan Home Staff & Harian"><i class="fas fa-clipboard-list"></i></button>`}function header(title,subtitle){return`<div class="top"><div class="brand"><div><h1>${title}</h1><div class="sub">${subtitle}</div></div></div><div class="row">${themeButton()}${controlButton()}<button class="btn icon" onclick="refreshFromHeader()" title="Refresh data halaman ini"><i class="fas fa-rotate"></i></button><button class="btn icon red" onclick="logout()"><i class="fas fa-right-from-bracket"></i></button></div></div>`}function optionUsers(selected=""){return activeUsers().map(u=>`<option value="${esc(u.username)}" ${cleanUser(selected)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function optionClosingUsers(){const globalStatus=getTodayGlobalClosing()?"SUDAH CLOSING":"GLOBAL";return`<option value="global" ${state.closingTarget==="global"?"selected":""}>Semua / Global · ${globalStatus}</option>`+realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>`<option value="${esc(u.username)}" ${cleanUser(state.closingTarget)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)}) · ${closingStatusLabelForUser(u)}</option>`).join("")}function syncUserSelects(){for(const id of["trxUser","bonusUser","attUser"]){const el=$(id);if(el)el.innerHTML=optionUsers(state.user?.username)}}
   function showLogin(){$("tabs").classList.add("hide");$("fab").classList.add("hide");$("view").innerHTML=`<section class="login"><div class="card loginBox loginCardFancy"><div class="loginThemeRow"><span class="chip"><i class="fas fa-palette"></i> <span class="themeLabel">${themeLabel()}</span></span>${themeButton()}</div><div class="loginHero"><h1 style="text-align:center;font-size:24px">Only Admin</h1><div class="sub" style="text-align:center;margin-bottom:16px">Koleksi Terbaik Untuk Muslimah Hebat</div></div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;syncThemeUi()}async function login(){const username=cleanUser($("loginUser").value),pin=String($("loginPin").value||"").trim();if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const snap=await getDocFromServer(doc(db,"users",username));if(!snap.exists())throw new Error("User tidak ditemukan");const u={id:snap.id,username:snap.id,...snap.data()};if(String(u.pin||"")!==pin)throw new Error("PIN salah");if(!isActive(u))throw new Error("User nonaktif");if(String(u.role||"").toLowerCase()!=="admin"&&cleanUser(u.username)!=="admin")throw new Error("Panel ini khusus admin");state.user={username:cleanUser(u.username||snap.id),name:u.name||u.username||snap.id,role:u.role||"admin",pin:String(u.pin||"")};localStorage.setItem(SESSION_KEY,JSON.stringify(state.user));await refreshAll(true);go("home")}catch(e){toast(e.message||"Login gagal",true)}finally{setBusy(false)}}window.login=login;window.logout=()=>{localStorage.removeItem(SESSION_KEY);Object.assign(state,{user:null,tx:[],att:[],closing:[],manual:[],unlockRequests:[]});showLogin()};
   async function fetchCashFisik(){try{const{data,error}=await cashDb.from("transactions").select("id,date,description,amount,type").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date",dateKey()).order("id",{ascending:false});if(error)throw error;state.cashRows=data||[]}catch(e){console.warn("cash fisik supabase gagal",e);state.cashRows=[]}}
@@ -3740,9 +3740,13 @@ const ADMIN_NOTIFY_TARGET_URL=ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL+'/notify-target
 let adminTargetApplying=false;
 
 function adminTargetDocId(dk=dateKey()){return`daily_target_${String(dk||dateKey()).slice(0,10)}`}
+function adminTargetSettingDocId(dk=dateKey()){return`daily_target_${String(dk||dateKey()).slice(0,10)}`}
 function adminTargetBonusId(dk,username){return`targetbonus_${String(dk||dateKey()).slice(0,10)}_${cleanUser(username)}`}
 function adminTargetRewardId(dk,username){return`targetreward_${String(dk||dateKey()).slice(0,10)}_${cleanUser(username)}`}
 function adminTargetNotifId(dk=dateKey()){return`targetnotif_${String(dk||dateKey()).slice(0,10)}`}
+function adminNormalizeTargetDateKey(value,fallback=dateKey()){const raw=String(value||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(raw.slice(0,10)))return raw.slice(0,10);let m=raw.match(/^(\d{1,2})$/);if(m){const day=Number(m[1]);if(day>=1&&day<=31){const base=dateKey().slice(0,7);return`${base}-${String(day).padStart(2,'0')}`}}m=raw.match(/^(\d{1,2})[\/-](\d{1,2})$/);if(m){const day=Number(m[1]),month=Number(m[2]);if(day>=1&&day<=31&&month>=1&&month<=12){const year=dateKey().slice(0,4);return`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`}}return fallback}
+function adminTargetSettingDate(row={}){const idDate=String(row.id||'').match(/^daily_target_(\d{4}-\d{2}-\d{2})$/);return adminNormalizeTargetDateKey(row.effectiveDate||row.dateKey||row.startDate||row.targetDate||(idDate?idDate[1]:''),'')}
+function adminIsDailyTargetSettingRow(row={}){const id=String(row.id||'');return id==='daily_target'||id==='__daily_target'||id==='default'||id.startsWith('daily_target_')||String(row.type||'')==='daily_target_setting'||String(row.targetSettingType||'')==='daily_target'}
 async function resetAdminTargetAutoBonusAfterDelete(row={}){
   if(!isTargetAutoBonusRow(row))return;
   const username=cleanUser(row.user||row.targetUsername||row.username||''),dk=String(row.dateKey||extractDateKey(row)||dateKey()).slice(0,10);
@@ -3773,9 +3777,13 @@ async function revokeAdminDailyTargetBonuses(summary,plan,previous={}){
   await adminSaveTargetStatus(summary,plan,{bonusApplied:false,rewardedUsers:[]});
 }
 function adminTargetNumber(data,keys,fallback){for(const k of keys){const n=Number(data?.[k]);if(Number.isFinite(n)&&n>=0)return n}return fallback}
-function adminTargetSettings(){const d=state.targetSettings||{};return{targetAmount:adminTargetNumber(d,['targetAmount','dailyTargetAmount','dailyOmzetTarget','omzetTarget'],ADMIN_DAILY_TARGET_AMOUNT),bonusAmount:adminTargetNumber(d,['bonusAmount','bonusTargetAmount','dailyTargetBonusAmount','targetBonusAmount','BONUS_TARGET_AMOUNT'],ADMIN_BONUS_TARGET_AMOUNT)}}
+function adminNormalizeTargetSettings(data={},fallbackDate=dateKey()){const activeDate=adminTargetSettingDate(data)||adminNormalizeTargetDateKey(fallbackDate,dateKey());return{id:String(data.id||''),dateKey:activeDate,effectiveDate:activeDate,targetAmount:adminTargetNumber(data,['targetAmount','dailyTargetAmount','dailyOmzetTarget','omzetTarget'],ADMIN_DAILY_TARGET_AMOUNT),bonusAmount:adminTargetNumber(data,['bonusAmount','bonusTargetAmount','dailyTargetBonusAmount','targetBonusAmount','BONUS_TARGET_AMOUNT'],ADMIN_BONUS_TARGET_AMOUNT),updatedAtMs:Number(data.updatedAtMs||0)}}
+function adminPickTargetSettings(rows=[],dk=dateKey()){const targetDate=adminNormalizeTargetDateKey(dk,dateKey());let best=null,bestDate='',bestUpdated=0;rows.filter(adminIsDailyTargetSettingRow).forEach(row=>{const rowDate=adminTargetSettingDate(row);if(rowDate&&rowDate>targetDate)return;const scoreDate=rowDate||'0000-00-00',updated=Number(row.updatedAtMs||0);if(!best||scoreDate>bestDate||(scoreDate===bestDate&&updated>=bestUpdated)){best=row;bestDate=scoreDate;bestUpdated=updated}});return best?adminNormalizeTargetSettings(best,targetDate):null}
+function adminTargetScheduleRows(){const map=new Map();(state.targetSettingRows||[]).filter(adminIsDailyTargetSettingRow).forEach(row=>{const normalized=adminNormalizeTargetSettings(row,adminTargetSettingDate(row)||dateKey()),dk=normalized.effectiveDate||normalized.dateKey;if(!dk)return;const old=map.get(dk);if(!old||old.id==='daily_target'||(normalized.id!=='daily_target'&&Number(normalized.updatedAtMs||0)>=Number(old.updatedAtMs||0)))map.set(dk,normalized)});return[...map.values()].sort((a,b)=>String(b.effectiveDate||b.dateKey).localeCompare(String(a.effectiveDate||a.dateKey)))}
+function renderAdminTargetScheduleList(){const rows=adminTargetScheduleRows().slice(0,12);if(!rows.length)return`<div class="card pad" style="box-shadow:none"><div class="tiny">Jadwal Target Tersimpan</div><div class="meta" style="margin-top:6px">Belum ada jadwal target bertanggal.</div></div>`;return`<div class="card pad" style="box-shadow:none"><div class="tiny">Jadwal Target Tersimpan</div><div style="display:grid;gap:7px;margin-top:8px">${rows.map(r=>{const dk=adminNormalizeTargetDateKey(r.effectiveDate||r.dateKey,''),rowId=String(r.id||adminTargetSettingDocId(dk)).replace(/[^a-zA-Z0-9_-]/g,'');return`<div style="display:grid;grid-template-columns:minmax(70px,.85fr) minmax(0,1fr) minmax(0,1fr) auto;gap:7px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface)"><b style="font-size:11px;white-space:nowrap">${displayDateKey(dk)}</b><span class="meta" style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Target ${rp(r.targetAmount)}</span><span class="meta" style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Bonus ${rp(r.bonusAmount)}</span><button class="btn red" style="min-height:34px;width:34px;height:34px;padding:0;border-radius:10px" title="Hapus target tanggal ini" onclick="deleteAdminTargetSchedule('${dk}','${rowId}')"><i class="fas fa-trash"></i></button></div>`}).join('')}</div><div class="meta" style="margin-top:7px">Tanggal yang belum diset akan memakai target terakhir sebelumnya.</div></div>`}
+function adminTargetSettings(dk=dateKey()){const d=state.targetSettings||{};return adminNormalizeTargetSettings(d,dk)}
 function adminTargetTxRows(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),activeSet=new Set(realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>cleanUser(u.username||u.id)).filter(Boolean));return todayTx().filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))))}
-function adminDailyTargetSummary(dk=dateKey()){const settings=adminTargetSettings(),targetAmount=Math.max(1,Number(settings.targetAmount||ADMIN_DAILY_TARGET_AMOUNT)),rows=adminTargetTxRows(dk),totalAmount=rows.reduce((s,t)=>s+Number(t.amount||0),0),progressPercent=Number(((totalAmount/targetAmount)*100).toFixed(2));return{dateKey:String(dk||dateKey()).slice(0,10),targetAmount,totalAmount,progressPercent,reached:totalAmount>=targetAmount,remainingAmount:Math.max(0,targetAmount-totalAmount),bonusAmount:Number(settings.bonusAmount||0)}}
+function adminDailyTargetSummary(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),settings=adminTargetSettings(d),targetAmount=Math.max(1,Number(settings.targetAmount||ADMIN_DAILY_TARGET_AMOUNT)),rows=adminTargetTxRows(d),totalAmount=rows.reduce((s,t)=>s+Number(t.amount||0),0),progressPercent=Number(((totalAmount/targetAmount)*100).toFixed(2));return{dateKey:d,targetSettingDate:settings.effectiveDate||settings.dateKey||d,targetAmount,totalAmount,progressPercent,reached:totalAmount>=targetAmount,remainingAmount:Math.max(0,targetAmount-totalAmount),bonusAmount:Number(settings.bonusAmount||0)}}
 function adminTargetRewardPlan(dk=dateKey()){
   const d=String(dk||dateKey()).slice(0,10),attUsers=new Set(state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===d).map(a=>cleanUser(a.user)).filter(Boolean));
   const users=realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>({...u,username:cleanUser(u.username||u.id)})).filter(u=>u.username);
@@ -3783,9 +3791,17 @@ function adminTargetRewardPlan(dk=dateKey()){
   const active=users.map(u=>u.username),rewarded=users.filter(u=>u.username==='risma'?hasRismaTx:(!isDaily(u)&&attUsers.has(u.username))).map(u=>u.username),map=new Map(users.map(u=>[u.username,u]));
   return{activeUsers:active,rewardedUsers:rewarded,users:rewarded.map(u=>map.get(u)).filter(Boolean)};
 }
-async function adminLoadTargetSettings(){
+async function adminLoadTargetSettings(dk=dateKey()){
+  const targetDate=adminNormalizeTargetDateKey(dk,dateKey());
+  try{
+    const snap=await getDocsFromServer(query(collection(db,ADMIN_TARGET_SETTINGS_TABLE),limit(1000)));
+    const rows=snap.docs.map(x=>({id:x.id,...x.data()}));
+    state.targetSettingRows=rows.filter(adminIsDailyTargetSettingRow);
+    const picked=adminPickTargetSettings(rows,targetDate);
+    if(picked){state.targetSettings=picked;return}
+  }catch(e){console.warn('jadwal target admin belum terbaca',e?.code||e?.message||e)}
   for(const id of['daily_target','__daily_target','default']){
-    try{const snap=await getDocFromServer(doc(db,ADMIN_TARGET_SETTINGS_TABLE,id));if(snap.exists()){state.targetSettings=snap.data()||{};return}}catch(e){break}
+    try{const snap=await getDocFromServer(doc(db,ADMIN_TARGET_SETTINGS_TABLE,id));if(snap.exists()){const data={id:snap.id,...(snap.data()||{})};state.targetSettingRows=[...(state.targetSettingRows||[]).filter(r=>String(r.id)!==String(data.id)),data];const rowDate=adminTargetSettingDate(data);if(!rowDate||rowDate<=targetDate){state.targetSettings=adminNormalizeTargetSettings(data,targetDate);return}}}catch(e){break}
   }
 }
 async function adminInsertIfAbsent(table,id,payload){
@@ -3857,39 +3873,103 @@ async function adminApplyDailyTarget(){
 }
 function renderAdminDailyTargetCard(){
   const s=adminDailyTargetSummary(),pct=Math.max(0,Math.min(100,s.progressPercent||0)),pctText=(Math.round((s.progressPercent||0)*10)/10).toLocaleString('id-ID'),reached=!!s.reached,unread=reached&&state.targetNotification?.read===false;
-  return`<div class="card pad admin-target-card" style="margin:14px 0 18px;padding:14px 14px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} · ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div>${unread?`<button class="btn green full" style="margin-top:12px" onclick="markAdminDailyTargetRead()"><i class="fas fa-check"></i> Tandai dibaca</button>`:''}</div>`;
+  return`<div class="card pad admin-target-card" style="margin:14px 0 18px;padding:14px 14px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} · Berlaku sejak ${displayDateKey(s.targetSettingDate)} · ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div>${unread?`<button class="btn green full" style="margin-top:12px" onclick="markAdminDailyTargetRead()"><i class="fas fa-check"></i> Tandai dibaca</button>`:''}</div>`;
 }
 window.markAdminDailyTargetRead=async function(){
   const dk=dateKey(),id=adminTargetNotifId(dk);
   try{await setDoc(doc(db,ADMIN_TARGET_NOTIFICATIONS_TABLE,id),{read:true,readAt:serverTimestamp(),readAtMs:Date.now(),readBy:state.user?.username||'admin'},{merge:true});state.targetNotification={...(state.targetNotification||{}),read:true};render()}catch(e){toast(e.message||'Gagal tandai notif',true)}
 };
 window.openAdminDailyTargetSettings=async function(){
+  await adminLoadTargetSettings().catch(e=>console.warn('refresh jadwal target gagal',e?.code||e?.message||e));
   const s=adminDailyTargetSummary();
-  const targetRaw=prompt('Target omzet hari ini',rp(s.targetAmount));
-  if(targetRaw===null)return;
-  const bonusRaw=prompt('Bonus target per staff hadir',rp(s.bonusAmount));
-  if(bonusRaw===null)return;
+  const body=`<div class="card pad mb" style="box-shadow:none">
+    <div class="tiny">Tanggal Berlaku</div>
+    <input id="adminTargetEffectiveDate" class="input" value="${esc(dateKey())}" placeholder="Contoh: 21 atau ${esc(dateKey())}" inputmode="numeric">
+    <div class="meta" style="margin-top:6px">Isi 21 untuk tanggal 21 bulan ini. Kalau tanggal belum tiba, target hari ini tetap memakai setting terakhir.</div>
+  </div>
+  <div class="card pad mb" style="box-shadow:none">
+    <div class="tiny">Target Omzet</div>
+    <input id="adminTargetAmountInput" class="input" value="${rupiah(s.targetAmount)}" inputmode="numeric" placeholder="Target omzet">
+  </div>
+  <div class="card pad mb" style="box-shadow:none">
+    <div class="tiny">Bonus per Staff Hadir</div>
+    <input id="adminTargetBonusInput" class="input" value="${rupiah(s.bonusAmount)}" inputmode="numeric" placeholder="Bonus target">
+  </div>${renderAdminTargetScheduleList()}`;
+  const footer=`<div class="grid2"><button class="btn" onclick="closeDynamicSheet('adminDailyTargetSettingsModal')"><i class="fas fa-xmark"></i> Batal</button><button class="btn primary" onclick="saveAdminDailyTargetSettingsFromForm()"><i class="fas fa-check"></i> Simpan</button></div>`;
+  openDynamicSheet('adminDailyTargetSettingsModal','Atur Target Harian','Bisa dijadwalkan untuk tanggal tertentu',body,footer);
+  setTimeout(()=>$("adminTargetEffectiveDate")?.focus?.(),80);
+};
+window.saveAdminDailyTargetSettingsFromForm=async function(){
+  const s=adminDailyTargetSummary();
+  const effectiveRaw=$("adminTargetEffectiveDate")?.value||dateKey();
+  const effectiveDate=adminNormalizeTargetDateKey(effectiveRaw,'');
+  if(!effectiveDate)return toast('Tanggal target tidak valid',true);
+  const targetRaw=$("adminTargetAmountInput")?.value||s.targetAmount;
+  const bonusRaw=$("adminTargetBonusInput")?.value||s.bonusAmount;
   const targetAmount=parseMoney(targetRaw),bonusAmount=parseMoney(bonusRaw);
   if(targetAmount<=0)return toast('Target harus lebih dari 0',true);
   if(bonusAmount<0)return toast('Bonus tidak boleh minus',true);
-  const pin=await askPin(`Simpan target hari ini?\nTarget: ${rp(targetAmount)}\nBonus staff hadir: ${rp(bonusAmount)}\n\nMasukkan PIN admin:`);
+  const today=dateKey(),future=effectiveDate>today;
+  const pin=await askPin(`Simpan target untuk ${effectiveDate}?\nTarget: ${rp(targetAmount)}\nBonus staff hadir: ${rp(bonusAmount)}\n${future?'\nTarget hari ini tetap memakai setting terakhir sampai tanggal itu tiba.':''}\n\nMasukkan PIN admin:`);
   if(!pin)return;
   if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
   setBusy(true);
   try{
-    const payload={id:'daily_target',dateKey:dateKey(),targetAmount,bonusAmount,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user?.username||'admin',updatedByName:state.user?.name||state.user?.username||'Admin'};
-    await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target'),payload,{merge:true});
-    state.targetSettings=payload;
+    const scheduleId=adminTargetSettingDocId(effectiveDate);
+    const payload={id:scheduleId,type:'daily_target_setting',targetSettingType:'daily_target',dateKey:effectiveDate,effectiveDate,targetAmount,bonusAmount,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user?.username||'admin',updatedByName:state.user?.name||state.user?.username||'Admin'};
+    await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,scheduleId),payload,{merge:true});
+    if(effectiveDate===today)await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target'),{...payload,id:'daily_target'},{merge:true});
     state.dailyTarget=null;
     await adminApplyDailyTarget();
+    closeDynamicSheet('adminDailyTargetSettingsModal');
     render();
-    toast('Target dan bonus disimpan');
+    toast(future?`Target dijadwalkan untuk ${effectiveDate}`:'Target dan bonus disimpan');
   }catch(e){toast(e.message||'Gagal simpan target',true)}
+  finally{setBusy(false)}
+};
+window.deleteAdminTargetSchedule=async function(rawDate,rawId=''){
+  const effectiveDate=adminNormalizeTargetDateKey(rawDate,'');
+  if(!effectiveDate)return toast('Tanggal target tidak valid',true);
+  const scheduleId=adminTargetSettingDocId(effectiveDate);
+  const rowId=String(rawId||'').replace(/[^a-zA-Z0-9_-]/g,'');
+  const pin=await askPin(`Hapus target untuk ${effectiveDate}?\nTanggal ini akan kembali mengikuti target terakhir sebelumnya.\n\nMasukkan PIN admin:`);
+  if(!pin)return;
+  if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
+  setBusy(true);
+  try{
+    const ids=new Set([scheduleId]);
+    if(rowId)ids.add(rowId);
+    try{
+      const snap=await getDocFromServer(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target'));
+      if(snap?.exists()){
+        const legacy={id:'daily_target',...(snap.data()||{})},legacyDate=adminTargetSettingDate(legacy);
+        if(rowId==='daily_target'||legacyDate===effectiveDate||(!legacyDate&&effectiveDate===dateKey()))ids.add('daily_target');
+      }
+    }catch(e){}
+    for(const id of ids){if(id)await deleteDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,id))}
+    state.targetSettingRows=(state.targetSettingRows||[]).filter(r=>!ids.has(String(r.id||'')));
+    state.targetSettings={};
+    state.dailyTarget=null;
+    await adminLoadTargetSettings();
+    const todayKey=dateKey(),active=adminPickTargetSettings(state.targetSettingRows||[],todayKey);
+    if(active){
+      const legacy={...active,id:'daily_target',updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user?.username||'admin',updatedByName:state.user?.name||state.user?.username||'Admin'};
+      await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target'),legacy,{merge:true});
+      state.targetSettings=active;
+    }else{
+      await deleteDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target')).catch(()=>{});
+      state.targetSettings={};
+    }
+    await adminApplyDailyTarget();
+    closeDynamicSheet('adminDailyTargetSettingsModal');
+    render();
+    toast(`Target tanggal ${effectiveDate} dihapus`);
+  }catch(e){toast(e.message||'Gagal hapus target',true)}
   finally{setBusy(false)}
 };
 renderAdminDailyTargetCard=function(){
   const s=adminDailyTargetSummary(),pct=Math.max(0,Math.min(100,s.progressPercent||0)),pctText=(Math.round((s.progressPercent||0)*10)/10).toLocaleString('id-ID'),reached=!!s.reached,unread=reached&&state.targetNotification?.read===false;
-  return`<div class="card pad admin-target-card" style="margin:14px 0 18px;padding:14px 14px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} · Bonus ${rp(s.bonusAmount)} · ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div><div class="grid2" style="margin-top:12px"><button class="btn full" onclick="openAdminDailyTargetSettings()"><i class="fas fa-sliders"></i> Atur Target</button>${unread?`<button class="btn green full" onclick="markAdminDailyTargetRead()"><i class="fas fa-check"></i> Tandai dibaca</button>`:`<button class="btn full" onclick="refreshAll(true)"><i class="fas fa-rotate"></i> Refresh</button>`}</div></div>`;
+  return`<div class="card pad admin-target-card" style="margin:14px 0 18px;padding:14px 14px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} · Bonus ${rp(s.bonusAmount)} · Berlaku sejak ${displayDateKey(s.targetSettingDate)} · ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div><div class="grid2" style="margin-top:12px"><button class="btn full" onclick="openAdminDailyTargetSettings()"><i class="fas fa-sliders"></i> Atur Target</button>${unread?`<button class="btn green full" onclick="markAdminDailyTargetRead()"><i class="fas fa-check"></i> Tandai dibaca</button>`:`<button class="btn full" onclick="refreshAll(true)"><i class="fas fa-rotate"></i> Refresh</button>`}</div></div>`;
 };
 const __baseRenderHomeDailyTargetPatch=renderHome;
 renderHome=function(){
