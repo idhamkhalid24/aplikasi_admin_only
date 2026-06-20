@@ -3923,13 +3923,28 @@ async function adminReevaluateDailyTarget(d) {
       return;
     }
     
-    if(currentTarget.bonusApplied===true){
+    // Cek apakah ada user yang harusnya dapat bonus tapi rewardnya sudah di-revoke/deleted
+    // Ini fix bug 'harus edit 2x': saat bonusApplied=true tapi reward sudah dicabut, harus grant ulang
+    let needsRegrant = false;
+    if(currentTarget.bonusApplied===true && summary.bonusAmount>0 && plan.users.length>0){
+      for(const user of plan.users){
+        const username=cleanUser(user?.username||user?.id||'');
+        if(!username) continue;
+        const bonusId=adminTargetBonusId(d,username);
+        const snap=await getDocFromServer(doc(db,'manualBonuses',bonusId)).catch(()=>null);
+        const data=snap?.exists()?snap.data()||{}:null;
+        if(!data||isDeleted(data)){needsRegrant=true;break;} // bonus sudah deleted → perlu grant ulang
+      }
+    }
+    
+    if(currentTarget.bonusApplied===true && !needsRegrant){
       const rw = await adminEnsureStaffTargetBonusNotifications(summary,plan,summary.bonusAmount);
       await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:[...new Set([...(currentTarget.rewardedUsers||[]).map(cleanUser),...rw.map(cleanUser)].filter(Boolean))]});
       return;
     }
     
-    await adminSaveTargetStatus(summary,plan,{});
+    // Grant (atau re-grant setelah revoke)
+    await adminSaveTargetStatus(summary,plan,{bonusApplied:false});
     if(summary.bonusAmount<=0)return;
     const rw2 = await adminEnsureStaffTargetBonusNotifications(summary,plan,summary.bonusAmount);
     await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:rw2});
