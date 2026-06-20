@@ -3885,6 +3885,58 @@ async function adminEnsureTargetNotification(summary,plan){
   const inserted=await adminInsertIfAbsent(ADMIN_TARGET_NOTIFICATIONS_TABLE,adminTargetNotifId(summary.dateKey),payload);
   if(inserted){state.targetNotification={id:adminTargetNotifId(summary.dateKey),...payload};await adminNotifyTarget(summary,plan)}
 }
+async function adminReevaluateDailyTarget(d) {
+  if (!state.user) return;
+  try {
+    const [txSnap, attSnap, targetSnap] = await Promise.all([
+      getDocsFromServer(query(collection(db,'transactions'),where('dateKey','==',d),limit(500))),
+      getDocsFromServer(query(collection(db,'attendance'),where('dateKey','==',d),limit(100))),
+      getDocFromServer(doc(db,ADMIN_DAILY_TARGETS_TABLE,adminTargetDocId(d))).catch(()=>null)
+    ]);
+    const tx = txSnap.docs.map(x=>({id:x.id,...x.data()}));
+    const att = attSnap.docs.map(x=>({id:x.id,...x.data()}));
+    
+    const activeSet = new Set(realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>cleanUser(u.username||u.id)).filter(Boolean));
+    const validTx = tx.filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))));
+    const totalAmount = validTx.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    
+    const settings = adminNormalizeTargetSettings(state.targetSettingRows?.find(r=>r.effectiveDate===d||r.dateKey===d)||adminPickTargetSettings(state.targetSettingRows||[],d)||{}, d);
+    const targetAmount = Math.max(1,Number(settings.targetAmount||ADMIN_DAILY_TARGET_AMOUNT));
+    const bonusAmount = Number(settings.bonusAmount||0);
+    const reached = totalAmount >= targetAmount;
+    
+    const summary = {dateKey:d,targetSettingDate:settings.effectiveDate||settings.dateKey||d,targetAmount,totalAmount,progressPercent:Number(((totalAmount/targetAmount)*100).toFixed(2)),reached,remainingAmount:Math.max(0,targetAmount-totalAmount),bonusAmount};
+    
+    const attUsers = new Set(att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===d).map(a=>cleanUser(a.user)).filter(Boolean));
+    const users = realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>({...u,username:cleanUser(u.username||u.id)})).filter(u=>u.username);
+    const hasRismaTx = validTx.some(t=>cleanUser(t.user||t.username||t.kasir||t.createdBy||'')==='risma'&&Number(t.amount||0)>0);
+    const active = users.map(u=>u.username);
+    const rewarded = users.filter(u=>u.username==='risma'?hasRismaTx:(!isDaily(u)&&attUsers.has(u.username))).map(u=>u.username);
+    const map = new Map(users.map(u=>[u.username,u]));
+    const plan = {activeUsers:active,rewardedUsers:rewarded,users:rewarded.map(u=>map.get(u)).filter(Boolean)};
+    
+    const currentTarget = targetSnap?.exists()?{...(targetSnap.data()||{})}:{};
+    
+    if(!summary.reached){
+      await revokeAdminDailyTargetBonuses(summary,plan,currentTarget);
+      return;
+    }
+    
+    if(currentTarget.bonusApplied===true){
+      const rw = await adminEnsureStaffTargetBonusNotifications(summary,plan,summary.bonusAmount);
+      await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:[...new Set([...(currentTarget.rewardedUsers||[]).map(cleanUser),...rw.map(cleanUser)].filter(Boolean))]});
+      return;
+    }
+    
+    await adminSaveTargetStatus(summary,plan,{});
+    if(summary.bonusAmount<=0)return;
+    const rw2 = await adminEnsureStaffTargetBonusNotifications(summary,plan,summary.bonusAmount);
+    await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:rw2});
+    await adminEnsureTargetNotification(summary,{...plan,rewardedUsers:rw2});
+  } catch(e) {
+    console.warn('adminReevaluateDailyTarget error', e);
+  }
+}
 async function adminApplyDailyTarget(){
   if(adminTargetApplying||!state.user)return;
   adminTargetApplying=true;
@@ -3954,10 +4006,14 @@ window.saveAdminDailyTargetSettingsFromForm=async function(){
     await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,scheduleId),payload,{merge:true});
     if(effectiveDate===today)await setDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target'),{...payload,id:'daily_target'},{merge:true});
     state.dailyTarget=null;
-    await adminApplyDailyTarget();
+    const idx = (state.targetSettingRows||[]).findIndex(r=>r.id===scheduleId);
+    if(idx>=0) state.targetSettingRows[idx] = payload;
+    else state.targetSettingRows = [...(state.targetSettingRows||[]), payload];
+    await adminReevaluateDailyTarget(effectiveDate);
+    if(effectiveDate===today) await adminApplyDailyTarget();
     closeDynamicSheet('adminDailyTargetSettingsModal');
     render();
-    toast(future?`Target dijadwalkan untuk ${effectiveDate}`:'Target dan bonus disimpan');
+    toast(future?`Target dijadwalkan untuk ${effectiveDate}`:'Target dan bonus dievaluasi & disimpan');
   }catch(e){toast(e.message||'Gagal simpan target',true)}
   finally{setBusy(false)}
 };
@@ -3994,10 +4050,11 @@ window.deleteAdminTargetSchedule=async function(rawDate,rawId=''){
       await deleteDoc(doc(db,ADMIN_TARGET_SETTINGS_TABLE,'daily_target')).catch(()=>{});
       state.targetSettings={};
     }
-    await adminApplyDailyTarget();
+    await adminReevaluateDailyTarget(effectiveDate);
+    if(effectiveDate===todayKey) await adminApplyDailyTarget();
     closeDynamicSheet('adminDailyTargetSettingsModal');
     render();
-    toast(`Target tanggal ${effectiveDate} dihapus`);
+    toast(`Target tanggal ${effectiveDate} dihapus dan dievaluasi ulang`);
   }catch(e){toast(e.message||'Gagal hapus target',true)}
   finally{setBusy(false)}
 };
