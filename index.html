@@ -2724,6 +2724,7 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
   const ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL = 'https://rocky-notif-worker.alfajrihanif24.workers.dev';
   const ROCKY_ADMIN_NOTIFY_SECRET = 'rockyNotifRahasia2026';
   const ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-manual-bonus';
+  const ROCKY_STAFF_NOTIFY_BONUS_WITHDRAWAL_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-bonus-withdrawal';
   const ROCKY_STAFF_NOTIFY_HOME_NOTE_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-home-note';
   const ROCKY_STAFF_NOTIFY_UNLOCK_REVIEW_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-unlock-review';
   const ROCKY_NOTIFY_SETTINGS_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-settings';
@@ -2745,6 +2746,21 @@ button.online-head-action.notify i{display:block!important;visibility:visible!im
     const actualRoleKey=actualRole.toLowerCase().replace(/\s+/g,'_');
     const actualDaily=String(bonusGroup).toLowerCase()==='harian'||actualRoleKey==='harian'||actualRoleKey==='daily'||actualRoleKey==='karyawan_harian';
     return notifyRockyStaff(ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL,{targetUsername:username,username,user:username,name:row.name||username,amount:Number(row.amount||0),note:String(row.note||''),action:String(row.action||'add'),dateKey:String(row.dateKey||''),monthKey:String(row.monthKey||''),bonusId:String(row.id||row.docId||''),type:String(row.type||''),source:String(row.source||'admin_manual_bonus'),role:actualRole||'staff',userRole:actualRole,actualRole,bonusGroup,isDaily:actualDaily,dailyMode:actualDaily,actualDaily,canReceiveStaffNotifications:true,notificationAudience:'staff',createdByName:state.user?.name||state.user?.username||''},'Notif bonus staff');
+  }
+  function notifyStaffBonusWithdrawal(row={},balance={}){
+    const username=cleanUser(row.user||row.username||'');
+    const amount=bonusWithdrawalAmount(row);
+    if(!username||amount<=0)return Promise.resolve(null);
+    const actualRole=String(row.userRole||row.role||userBy(username)?.role||'staff');
+    const bonusGroup=String(row.bonusGroup||(isDaily(userBy(username))?'harian':'staff'));
+    const actualRoleKey=actualRole.toLowerCase().replace(/\s+/g,'_');
+    const actualDaily=String(bonusGroup).toLowerCase()==='harian'||actualRoleKey==='harian'||actualRoleKey==='daily'||actualRoleKey==='karyawan_harian';
+    const earned=Number(row.bonusEarned??balance.earned??0);
+    const withdrawnBefore=Number(row.withdrawnBefore??balance.withdrawn??0);
+    const remainingBefore=Number(row.remainingBefore??balance.remaining??0);
+    const withdrawnAfter=Number(row.withdrawnAfter??(withdrawnBefore+amount));
+    const remainingAfter=Number(row.remainingAfter??Math.max(0,remainingBefore-amount));
+    return notifyRockyStaff(ROCKY_STAFF_NOTIFY_BONUS_WITHDRAWAL_URL,{targetUsername:username,username,user:username,name:row.name||username,amount,withdrawalAmount:amount,paidAmount:amount,bonusEarned:earned,withdrawnBefore,withdrawnAfter,remainingBefore,remainingAfter,note:String(row.note||'Ambil bonus sebagian'),action:'withdraw',dateKey:String(row.dateKey||''),monthKey:String(row.monthKey||''),bonusId:String(row.id||row.docId||''),type:BONUS_WITHDRAWAL_TYPE,source:BONUS_WITHDRAWAL_TYPE,role:actualRole||'staff',userRole:actualRole,actualRole,bonusGroup,isDaily:actualDaily,dailyMode:actualDaily,actualDaily,canReceiveStaffNotifications:true,notificationAudience:'staff',createdByName:state.user?.name||state.user?.username||''},'Notif ambil bonus staff');
   }
   function notifyStaffHomeNote(payload={}){
     return notifyRockyStaff(ROCKY_STAFF_NOTIFY_HOME_NOTE_URL,{note:String(payload.note||''),enabled:payload.enabled!==false,updatedByName:payload.updatedByName||state.user?.name||state.user?.username||'',updatedAtMs:Number(payload.updatedAtMs||Date.now())},'Notif catatan staff');
@@ -3292,7 +3308,29 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
   function bonusHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&!isBonusWithdrawalRow(b)&&String(b.type||"manual").toLowerCase()==="manual"&&!isTargetAutoBonusRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
   function targetAutoBonusRows(){return visibleManual().filter(b=>!isDeleted(b)&&isTargetAutoBonusRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
   window.openBonusWithdrawal=()=>{const body=`<div class="card pad mb" style="box-shadow:none"><div class="tiny">Ambil Bonus Sebagian</div><div class="meta" style="margin-top:6px">Catat uang bonus yang sudah diambil. Bonus terhitung tetap utuh, sisa bonus otomatis berkurang.</div></div><div class="form"><select id="bonusWithdrawalUser" class="input">${optionUsers(state.user?.username)}</select><input id="bonusWithdrawalAmount" class="input" inputmode="numeric" placeholder="Nominal diambil" oninput="this.value=rupiah(parseMoney(this.value))"><input id="bonusWithdrawalNote" class="input" placeholder="Catatan, contoh: ambil dulu sebagian"><button class="btn green full" onclick="saveBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Simpan Ambil Bonus</button></div>`;openDynamicSheet("bonusWithdrawalModal","Ambil Bonus","Bulan "+monthKey(),body)}
-  window.saveBonusWithdrawal=async()=>{const username=cleanUser($("bonusWithdrawalUser")?.value),u=userBy(username),amount=Math.abs(parseMoney($("bonusWithdrawalAmount")?.value||"")),note=String($("bonusWithdrawalNote")?.value||"Ambil bonus sebagian").trim()||"Ambil bonus sebagian";if(!u)return toast("Pilih user",true);if(amount<=0)return toast("Nominal ambil bonus wajib",true);const mk=monthKey(),earned=state.monthlyLoaded?monthlyStaffPayrollRows().find(r=>cleanUser(r.username)===username)?.totalBonus:0,withdrawn=bonusWithdrawnMonth(username,mk),remaining=Math.max(0,Number(earned||0)-withdrawn);if(earned&&amount>remaining&&!confirm(`Nominal melebihi sisa bonus terbaca.\nSisa: ${rp(remaining)}\nTetap simpan?`))return;const pin=await askPin(`Catat ambil bonus untuk ${u.name||username}?\nNominal: ${rp(amount)}\nBulan: ${mk}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const payload={...trialFlagsForUser(u),user:username,name:u.name||username,userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",amount:-amount,withdrawalAmount:amount,paidAmount:amount,note,type:BONUS_WITHDRAWAL_TYPE,action:"withdraw",source:BONUS_WITHDRAWAL_TYPE,dateKey:dateKey(),monthKey:mk,deleted:false,createdAt:serverTimestamp(),createdAtMs:Date.now(),createdBy:state.user.username,createdByName:state.user.name};const ref=await addDoc(collection(db,"manualBonuses"),payload);localUpsert("manual",{id:ref.id,...payload});closeDynamicSheet("bonusWithdrawalModal");finishLocalWrite();toast("Ambil bonus disimpan")}catch(e){toast(e.message||"Gagal simpan ambil bonus",true)}finally{setBusy(false)}}
+  window.saveBonusWithdrawal=async()=>{
+    const username=cleanUser($("bonusWithdrawalUser")?.value),u=userBy(username),amount=Math.abs(parseMoney($("bonusWithdrawalAmount")?.value||"")),note=String($("bonusWithdrawalNote")?.value||"Ambil bonus sebagian").trim()||"Ambil bonus sebagian";
+    if(!u)return toast("Pilih user",true);
+    if(amount<=0)return toast("Nominal ambil bonus wajib",true);
+    const mk=monthKey(),payrollRow=state.monthlyLoaded?monthlyStaffPayrollRows().find(r=>cleanUser(r.username)===username):null,earned=Number(payrollRow?.totalBonus||0),withdrawn=bonusWithdrawnMonth(username,mk),remaining=Math.max(0,Number(earned||0)-withdrawn);
+    if(earned&&amount>remaining&&!confirm(`Nominal melebihi sisa bonus terbaca.\nSisa: ${rp(remaining)}\nTetap simpan?`))return;
+    const pin=await askPin(`Catat ambil bonus untuk ${u.name||username}?\nNominal: ${rp(amount)}\nBulan: ${mk}\n\nMasukkan PIN admin:`);
+    if(!pin)return;
+    if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);
+    setBusy(true);
+    try{
+      const nowMs=Date.now(),withdrawnAfter=withdrawn+amount,remainingAfter=Math.max(0,remaining-amount);
+      const payload={...trialFlagsForUser(u),user:username,name:u.name||username,userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",amount:-amount,withdrawalAmount:amount,paidAmount:amount,bonusEarned:earned,withdrawnBefore:withdrawn,withdrawnAfter,remainingBefore:remaining,remainingAfter,note,type:BONUS_WITHDRAWAL_TYPE,action:"withdraw",source:BONUS_WITHDRAWAL_TYPE,dateKey:dateKey(),monthKey:mk,deleted:false,createdAt:serverTimestamp(),createdAtMs:nowMs,createdBy:state.user.username,createdByName:state.user.name};
+      const ref=await addDoc(collection(db,"manualBonuses"),payload);
+      const saved={id:ref.id,...payload};
+      localUpsert("manual",saved);
+      await notifyStaffBonusWithdrawal(saved,{earned,withdrawn,remaining});
+      closeDynamicSheet("bonusWithdrawalModal");
+      finishLocalWrite();
+      toast("Ambil bonus disimpan");
+    }catch(e){toast(e.message||"Gagal simpan ambil bonus",true)}
+    finally{setBusy(false)}
+  }
   window.deleteBonusWithdrawal=async id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||!isBonusWithdrawalRow(row))return toast("Riwayat ambil bonus tidak ditemukan",true);const pin=await askPin(`Hapus riwayat ambil bonus ${userName(row.user)}?\nNominal: ${rp(bonusWithdrawalAmount(row))}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,status:"deleted",deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"manualBonuses",id),patch,{merge:true});localMerge("manual",id,patch);finishLocalWrite();toast("Riwayat ambil bonus dihapus")}catch(e){toast(e.message||"Gagal hapus ambil bonus",true)}finally{setBusy(false)}}
   function bonusWithdrawalHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&isBonusWithdrawalRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
   function renderBonusWithdrawalHistory(){const rows=bonusWithdrawalHistoryRows(),total=rows.reduce((s,r)=>s+bonusWithdrawalAmount(r),0),list=rows.map(r=>{const raw=bonusWithdrawalAmount(r),id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success)"><i class="fas fa-money-bill-wave"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Ambil bonus sebagian")}</div></div><div class="right" style="text-align:right"><span class="chip ok">Sudah diambil</span><div class="amt num" style="margin-top:5px;color:var(--success)">- ${rp(raw)}</div><div class="miniBtns"><button class="btn red" onclick="deleteBonusWithdrawal('${id}')" title="Hapus ambil bonus"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Ambil Bonus</div><div class="meta">Uang bonus yang sudah diambil sebagian. Tidak mengubah bonus manual.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada ambil bonus hari ini</div>`}</div></div>`}
@@ -3843,7 +3881,7 @@ async function adminInsertIfAbsent(table,id,payload){
   try{const{error}=await supabase.from(table).insert({id,data:deepCloneCompat(payload||{})});if(error){if(error.code==='23505'||/duplicate/i.test(error.message||''))return false;throw error}return true}catch(e){console.warn(`${table} insert dilewati`,e?.code||e?.message||e);return false}
 }
 async function adminNotifyTarget(summary,plan){
-  try{await fetch(ADMIN_NOTIFY_TARGET_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({secret:ROCKY_ADMIN_NOTIFY_SECRET,dateKey:summary.dateKey,targetAmount:summary.targetAmount,totalAmount:summary.totalAmount,bonusAmount:summary.bonusAmount,activeUsers:plan.activeUsers,rewardedUsers:plan.rewardedUsers})})}catch(e){console.warn('notify target admin gagal',e?.message||e)}
+  try{await fetch(ADMIN_NOTIFY_TARGET_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({secret:ROCKY_ADMIN_NOTIFY_SECRET,dedupeKey:`target_achieved:${summary.dateKey}:${summary.targetAmount}`,dateKey:summary.dateKey,targetAmount:summary.targetAmount,totalAmount:summary.totalAmount,bonusAmount:summary.bonusAmount,activeUsers:plan.activeUsers,rewardedUsers:plan.rewardedUsers})})}catch(e){console.warn('notify target admin gagal',e?.message||e)}
 }
 async function adminEnsureStaffTargetBonusNotification(summary,user,amount){
   const username=cleanUser(user?.username||user?.id||'');
