@@ -1640,18 +1640,18 @@ window.refreshAll=refreshAll;
 /* === PATCH V11: ANDROID KEYBOARD FIX === */
 document.addEventListener('focusin', function(e) {
   if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-    const sheet = e.target.closest('.sheet');
-    if(sheet) {
-      sheet.style.paddingBottom = '45vh'; /* Push content up so it's not hidden by keyboard */
+    const container = e.target.closest('.sheet, .ks-login-card');
+    if(container) {
+      container.style.paddingBottom = '45vh'; /* Push content up so it's not hidden by keyboard */
       setTimeout(() => e.target.scrollIntoView({behavior: 'smooth', block: 'center'}), 300);
     }
   }
 });
 document.addEventListener('focusout', function(e) {
   if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-    const sheet = e.target.closest('.sheet');
-    if(sheet) {
-      sheet.style.paddingBottom = '';
+    const container = e.target.closest('.sheet, .ks-login-card');
+    if(container) {
+      container.style.paddingBottom = '';
     }
   }
 });

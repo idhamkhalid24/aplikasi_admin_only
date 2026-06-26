@@ -1740,8 +1740,8 @@ html[data-theme="dark"] .ks-menu-card:nth-child(3n+2) .ks-menu-ico:before{backgr
 .ks-page-title{min-width:0;flex:1;}
 .ks-page-title h1{font-size:21px!important;color:#fff!important;margin:0!important;letter-spacing:-.035em!important;}
 .ks-page-title .sub{font-size:12px!important;color:#dcefe8!important;margin-top:3px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ks-login{min-height:100vh;background:var(--primary-grad);display:flex;align-items:center;justify-content:center;padding:22px;}
-.ks-login-card{width:100%;max-width:430px;background:var(--surface);border-radius:30px;padding:24px;box-shadow:0 26px 70px rgba(0,0,0,.24);}
+.ks-login{min-height:100vh;background:var(--primary-grad);display:flex;flex-direction:column;padding:22px;overflow-y:auto;}
+.ks-login-card{margin:auto;width:100%;max-width:430px;background:var(--surface);border-radius:30px;padding:24px;box-shadow:0 26px 70px rgba(0,0,0,.24);}
 .ks-login-logo{width:76px;height:76px;margin:0 auto 14px;border-radius:25px;background:var(--primary);display:grid;place-items:center;color:#fff;font-size:27px;font-weight:900;box-shadow:0 14px 30px rgba(13,79,64,.24);}
 .ks-login-title{text-align:center;margin:0;font-size:28px!important;color:var(--primary)!important;font-weight:900!important;}
 .ks-login-sub{text-align:center;color:var(--text-soft);font-size:13px;margin:7px 0 24px;font-weight:700;}
