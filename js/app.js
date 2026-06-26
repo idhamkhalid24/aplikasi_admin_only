@@ -212,7 +212,27 @@
     const readLimit = whereConstraints.length ? Math.min(Math.max(hardLimit * 6, hardLimit), 5000) : Math.min(Math.max(hardLimit * 3, hardLimit), 5000);
     let request = supabase.from(qy.collectionName).select('id,data');
     whereConstraints.forEach((c) => { request = applySupabaseWhere(request, c); });
-    const { data, error } = await request.limit(readLimit);
+    let allData = [];
+    let from = 0;
+    const pageSize = 1000;
+    let error = null;
+
+    while (allData.length < readLimit) {
+      let to = Math.min(from + pageSize - 1, readLimit - 1);
+      let res = await request.range(from, to);
+      if (res.error) {
+        error = res.error;
+        break;
+      }
+      if (res.data && res.data.length > 0) {
+        allData.push(...res.data);
+      }
+      if (!res.data || res.data.length < (to - from + 1)) {
+        break;
+      }
+      from += (to - from + 1);
+    }
+
     if (error) throw error;
     let rows = (data || []).map(normalizeRow);
     whereConstraints.forEach((c) => { rows = rows.filter((row) => compareWhere(row, c)); });
