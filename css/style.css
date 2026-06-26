@@ -2814,7 +2814,7 @@ html[data-theme="dark"] .ks-menu-ico i {
   background: #ff5400 !important;
   border: 2px solid #111716 !important;
   box-shadow: 4px 4px 0px #111716 !important;
-  color: #111716 !important;
+  color: #ffffff !important;
   transform: translate(-2px, -2px) !important;
   transition: transform 0.1s !important;
 }
@@ -2825,11 +2825,11 @@ html[data-theme="dark"] .ks-menu-ico i {
 .item-qris .name, 
 .item-qris .meta, 
 .item-qris .amt {
-  color: #111716 !important;
+  color: #ffffff !important;
   font-weight: 900 !important;
 }
 .item-qris .ico {
-  background: #111716 !important;
+  background: #ffffff !important;
   color: #ff5400 !important;
 }
 html[data-theme="dark"] .item-qris {
@@ -2840,9 +2840,17 @@ html[data-theme="dark"] .item-qris {
 html[data-theme="dark"] .item-qris .name, 
 html[data-theme="dark"] .item-qris .meta, 
 html[data-theme="dark"] .item-qris .amt {
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 html[data-theme="dark"] .item-qris .ico {
-  background: #000000 !important;
+  background: #ffffff !important;
   color: #ff5400 !important;
+}
+
+/* === PATCH V10 UNIFORM BUTTONS IN DARK MODE TRX LIST === */
+html[data-theme="dark"] .list .item .btn.green,
+html[data-theme="dark"] .list .item .btn.red,
+html[data-theme="dark"] .list .item .btn.amber {
+  background: var(--surface-inset) !important;
+  color: var(--text-main) !important;
 }
