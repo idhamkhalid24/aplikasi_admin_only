@@ -2812,18 +2812,11 @@ html[data-theme="dark"] .ks-menu-ico i {
   color: #ffffff !important;
 }
 
-/* === PATCH V9 QRIS HIGHLIGHT NEOBRUTALISM === */
+/* === PATCH V9 QRIS HIGHLIGHT (CLEAN) === */
 .item-qris {
   background: #ff5400 !important;
-  border: 2px solid #111716 !important;
-  box-shadow: 4px 4px 0px #111716 !important;
+  border: none !important;
   color: #ffffff !important;
-  transform: translate(-2px, -2px) !important;
-  transition: transform 0.1s !important;
-}
-.item-qris:active {
-  transform: translate(0, 0) !important;
-  box-shadow: 0px 0px 0px #111716 !important;
 }
 .item-qris .name, 
 .item-qris .meta, 
@@ -2837,8 +2830,7 @@ html[data-theme="dark"] .ks-menu-ico i {
 }
 html[data-theme="dark"] .item-qris {
   background: #ff5400 !important;
-  border: 2px solid #000000 !important;
-  box-shadow: 4px 4px 0px #000000 !important;
+  border: none !important;
 }
 html[data-theme="dark"] .item-qris .name, 
 html[data-theme="dark"] .item-qris .meta, 
