@@ -234,7 +234,7 @@
     }
 
     if (error) throw error;
-    let rows = (data || []).map(normalizeRow);
+    let rows = (allData || []).map(normalizeRow);
     whereConstraints.forEach((c) => { rows = rows.filter((row) => compareWhere(row, c)); });
     rows.sort((a, b) => Number(b.createdAtMs || b.closedAtMs || b.updatedAtMs || 0) - Number(a.createdAtMs || a.closedAtMs || a.updatedAtMs || 0));
     return querySnapshot(rows.slice(0, hardLimit));
