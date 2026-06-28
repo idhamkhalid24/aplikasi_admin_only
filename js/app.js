@@ -1024,10 +1024,31 @@ renderHome=function(){
   html=html.replace('<div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3">','<div class="card pad home-trx-summary" onclick="go(\'trx\')" title="Buka Riwayat Transaksi" style="margin-top:18px;border-radius:24px"><div class="grid3">');
   return html;
 };
+
+let txRealtimeChannel = null;
+let txRealtimeDebounceTimer = null;
+function startTransactionsRealtime(){
+  if(txRealtimeChannel || !supabase?.channel) return;
+  try {
+    txRealtimeChannel = supabase
+      .channel('rocky_admin_tx_realtime_v1')
+      .on('postgres_changes',{event:'*',schema:'public',table:'transactions'}, payload=>{
+         clearTimeout(txRealtimeDebounceTimer);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'drawer_withdrawals'}, payload=>{
+         clearTimeout(txRealtimeDebounceTimer);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+      })
+      .subscribe();
+  }catch(e){ console.warn('Realtime tx belum aktif', e); }
+}
+
 const __oldRefreshAllForOnlineOrdersV6 = refreshAll;
 refreshAll = async function(force=false){
   await __oldRefreshAllForOnlineOrdersV6(force);
   startOnlineOrderRealtime();
+  startTransactionsRealtime();
   await loadOnlineOrders(false);
 };
 window.refreshAll = refreshAll;
