@@ -386,11 +386,12 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function askPin(message="Masukkan PIN admin:"){return new Promise(resolve=>{const old=document.getElementById("pinModal");if(old)rawCloseModal("pinModal",{runCallback:true});const wrap=document.createElement("div");wrap.id="pinModal";wrap.className="modal show";wrap.style.zIndex="900";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">Konfirmasi PIN</div><div class="meta">${esc(message).replace(/\n/g,"<br>")}</div></div><button class="btn icon" id="pinCancel"><i class="fas fa-xmark"></i></button></div><input id="pinInput" class="input" type="password" inputmode="numeric" placeholder="PIN admin" style="text-align:center;font-size:18px;letter-spacing:.12em"><div class="grid2" style="margin-top:10px"><button class="btn" id="pinNo">Batal</button><button class="btn primary" id="pinOk">Lanjut</button></div></div>`;document.body.appendChild(wrap);let settled=false;const done=v=>{if(settled)return;settled=true;modalCloseCallbacks.delete("pinModal");closeModalWithBack("pinModal",{runCallback:false});resolve(v)};modalCloseCallbacks.set("pinModal",()=>{if(settled)return;settled=true;resolve(null)});pushModalHistory("pinModal");wrap.querySelector("#pinCancel").onclick=()=>done(null);wrap.querySelector("#pinNo").onclick=()=>done(null);wrap.querySelector("#pinOk").onclick=()=>done(String(wrap.querySelector("#pinInput").value||"").trim());wrap.onclick=e=>{if(e.target===wrap)done(null)};setTimeout(()=>wrap.querySelector("#pinInput")?.focus(),50)})}
   function controlButton(){const active=state.page==="control";return`<button class="btn icon controlBtn ${active?"active":""}" onclick="go('control')" title="Catatan Home Staff & Harian"><i class="fas fa-clipboard-list"></i></button>`}function header(title,subtitle){return`<div class="top"><div class="brand"><div><h1>${title}</h1><div class="sub">${subtitle}</div></div></div><div class="row">${themeButton()}${controlButton()}<button class="btn icon" onclick="refreshFromHeader()" title="Refresh data halaman ini"><i class="fas fa-rotate"></i></button><button class="btn icon red" onclick="logout()"><i class="fas fa-right-from-bracket"></i></button></div></div>`}function optionUsers(selected=""){return activeUsers().map(u=>`<option value="${esc(u.username)}" ${cleanUser(selected)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function optionClosingUsers(){const globalStatus=getTodayGlobalClosing()?"SUDAH CLOSING":"GLOBAL";return`<option value="global" ${state.closingTarget==="global"?"selected":""}>Semua / Global - ${globalStatus}</option>`+realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>`<option value="${esc(u.username)}" ${cleanUser(state.closingTarget)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)}) - ${closingStatusLabelForUser(u)}</option>`).join("")}function syncUserSelects(){for(const id of["trxUser","bonusUser","attUser"]){const el=$(id);if(el)el.innerHTML=optionUsers(state.user?.username)}}
   function showLogin(){$("tabs").classList.add("hide");$("fab").classList.add("hide");$("view").innerHTML=`<section class="login"><div class="card loginBox loginCardFancy"><div class="loginThemeRow"><span class="chip"><i class="fas fa-palette"></i> <span class="themeLabel">${themeLabel()}</span></span>${themeButton()}</div><div class="loginHero"><h1 style="text-align:center;font-size:24px">Only Admin</h1><div class="sub" style="text-align:center;margin-bottom:16px">Koleksi Terbaik Untuk Muslimah Hebat</div></div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;syncThemeUi()}async function login(){const username=cleanUser($("loginUser").value),pin=String($("loginPin").value||"").trim();if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const snap=await getDocFromServer(doc(db,"users",username));if(!snap.exists())throw new Error("User tidak ditemukan");const u={id:snap.id,username:snap.id,...snap.data()};if(String(u.pin||"")!==pin)throw new Error("PIN salah");if(!isActive(u))throw new Error("User nonaktif");if(String(u.role||"").toLowerCase()!=="admin"&&cleanUser(u.username)!=="admin")throw new Error("Panel ini khusus admin");state.user={username:cleanUser(u.username||snap.id),name:u.name||u.username||snap.id,role:u.role||"admin",pin:String(u.pin||"")};localStorage.setItem(SESSION_KEY,JSON.stringify(state.user));await refreshAll(true);go("home")}catch(e){toast(e.message||"Login gagal",true)}finally{setBusy(false)}}window.login=login;window.logout=()=>{localStorage.removeItem(SESSION_KEY);Object.assign(state,{user:null,tx:[],att:[],closing:[],manual:[],unlockRequests:[]});showLogin()};
-  async function fetchCashFisik(){const dk=dateKey();try{const{data,error}=await cashDb.from("transactions").select("id,date,description,amount,type,category_id,category_name").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date",dk).order("id",{ascending:false});if(error)throw error;state.cashRows=data||[]}catch(e){console.warn("cash fisik supabase gagal",e);state.cashRows=[]}try{const{data,error}=await cashDb.from(CASH_DRAWER_TABLE).select("*").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date_key",dk).order("created_at",{ascending:false}).limit(20);if(error)throw error;state.cashAuditRows=(data||[]).map(normalizeAdminCashDrawerAudit)}catch(e){console.warn("audit laci cash read-only gagal",e);state.cashAuditRows=[]}}
+  async function fetchCashFisik(){const dk=state.txDate||dateKey();try{const{data,error}=await cashDb.from("transactions").select("id,date,description,amount,type,category_id,category_name").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date",dk).order("id",{ascending:false});if(error)throw error;state.cashRows=data||[]}catch(e){console.warn("cash fisik supabase gagal",e);state.cashRows=[]}try{const{data,error}=await cashDb.from(CASH_DRAWER_TABLE).select("*").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date_key",dk).order("created_at",{ascending:false}).limit(20);if(error)throw error;state.cashAuditRows=(data||[]).map(normalizeAdminCashDrawerAudit)}catch(e){console.warn("audit laci cash read-only gagal",e);state.cashAuditRows=[]}}
   async function refreshAll(force=false){
     if(!state.user)return;
     const dk=state.txDate || dateKey();
     if(!force&&Date.now()-state.lastRefresh<12000&&state.dayLoadedKey===dk)return render();
+    state.tx=[];state.drawerWithdrawals=[];state.cashRows=[];state.cashAuditRows=[];
     setBusy(true);
     try{
       const mk=monthKey();
@@ -402,13 +403,13 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const unlockQ=query(collection(db,STAFF_UNLOCK_TABLE),where("requestKind","==","unlock"),limit(160));
       const drawerWithdrawalsQ=query(collection(db,"drawer_withdrawals"),where("dateKey","==",dk),limit(50));
       const[txSnap,attSnap,closingSnap,manualSnap,userSnap,unlockSnap,drawerWithdrawalSnap,bonusSnap,staffNoteSnap,rismaManualSnap,receiptSnap]=await Promise.all([
-        getDocsFromServer(txQ).catch(()=>getDocs(txQ)),
-        getDocsFromServer(attQ).catch(()=>getDocs(attQ)),
-        getDocsFromServer(closingQ).catch(()=>getDocs(closingQ)),
-        getDocsFromServer(manualQ).catch(()=>getDocs(manualQ)),
-        getDocsFromServer(usersQ).catch(()=>getDocs(usersQ)),
-        getDocsFromServer(unlockQ).catch(()=>getDocs(unlockQ)),
-        getDocsFromServer(drawerWithdrawalsQ).catch(()=>getDocs(drawerWithdrawalsQ)).catch(()=>({docs:[]})),
+        getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)),
+        getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ)),
+        getDocs(closingQ, {source:'server'}).catch(()=>getDocs(closingQ)),
+        getDocs(manualQ, {source:'server'}).catch(()=>getDocs(manualQ)),
+        getDocs(usersQ, {source:'server'}).catch(()=>getDocs(usersQ)),
+        getDocs(unlockQ, {source:'server'}).catch(()=>getDocs(unlockQ)),
+        getDocs(drawerWithdrawalsQ, {source:'server'}).catch(()=>getDocs(drawerWithdrawalsQ)).catch(()=>({docs:[]})),
         getDocFromServer(doc(db,"closings","__bonus_settings")).catch(()=>null),
         getDocFromServer(doc(db,"closings",STAFF_DAILY_NOTE_DOC_ID)).catch(()=>null),
         getDocFromServer(doc(db,RISMA_MANUAL_CLOSING_COLLECTION,RISMA_MANUAL_CLOSING_DOC_ID)).catch(()=>null),
@@ -482,10 +483,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const manualTargetIdQ=query(collection(db,"manualBonuses"),where("id",">=","targetbonus_"+monthStart),where("id","<","targetbonus_"+nextStart),limit(500));
       const manualTrialIdQ=query(collection(db,"manualBonuses"),where("id",">=","trial_targetbonus_"+monthStart),where("id","<","trial_targetbonus_"+nextStart),limit(500));
       const[txSnap,attSnap,closingSnap,manualSnap]=await Promise.all([
-        getDocsFromServer(txQ).catch(()=>getDocs(txQ)),
-        getDocsFromServer(attQ).catch(()=>getDocs(attQ)),
-        getDocsFromServer(closingQ).catch(()=>getDocs(closingQ)),
-        getDocsFromServer(manualQ).catch(()=>getDocs(manualQ))
+        getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)),
+        getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ)),
+        getDocs(closingQ, {source:'server'}).catch(()=>getDocs(closingQ)),
+        getDocs(manualQ, {source:'server'}).catch(()=>getDocs(manualQ))
       ]);
       const[manualDateSnap,manualTargetSnap,manualTrialSnap]=await Promise.all([
         getDocsFromServer(manualDateQ).catch(()=>getDocs(manualDateQ)),
@@ -525,7 +526,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     setBusy(true);
     try{
       const attQ=query(collection(db,"attendance"),where("dateKey","==",cleanDk),limit(80));
-      const attSnap=await getDocsFromServer(attQ).catch(()=>getDocs(attQ));
+      const attSnap=await getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ));
       warnLargeSnapshot("attendance_selected_date",attSnap,80);
       attSnap.docs.forEach(d=>localUpsert("att",{id:d.id,...d.data()}));
       state.loadedAttendanceDates={...(state.loadedAttendanceDates||{}),[cleanDk]:true};
@@ -734,8 +735,7 @@ renderTxList=function(list,withActions=true){if(!list.length)return`<div class="
 renderTrx=function(){
   const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>`:"";
   const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
-  const dateInput = `<div class="filter-row mb" style="margin-top:14px;"><input class="input" type="date" value="${esc(state.txDate || dateKey())}" onchange="state.txDate=this.value; refreshAll(true)"></div>`;
-  return`<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${dateInput}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${printAll}${renderTxList(list,true)}</div>`
+  return`<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${printAll}${renderTxList(list,true)}</div>`
 };
 window.openTransactionModal=()=>{$("trxTitle").textContent="Tambah Transaksi";$("trxId").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);resetAdminLiteProductItems("");modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
 window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Transaksi";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);resetAdminLiteProductItems(t.note||"");$("trxAmount").value=rupiah(t.amount);modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
@@ -1832,7 +1832,7 @@ window.deleteDrawerWithdrawal = async (id) => {
 
 window.calculateDrawerEstimate = function(dk = dateKey()) {
   const dws = (state.drawerWithdrawals || []).filter(w => !w.deleted && String(w.dateKey || "").slice(0, 10) === dk);
-  const txList = todayTx().filter(t => String(t.dateKey || "").slice(0, 10) === dk);
+  const txList = visibleTx().filter(t => String(t.dateKey || "").slice(0, 10) === dk);
 
   if (!dws.length) {
     let cashSum = 0;
@@ -1876,31 +1876,85 @@ window.calculateDrawerEstimate = function(dk = dateKey()) {
   };
 };
 
-window.renderDrawerWithdrawalCard = function() {
-  const dk = state.txDate || dateKey();
-  const drawerEst = window.calculateDrawerEstimate(dk);
-  
-  if (!drawerEst.active) return ""; 
+// state untuk date picker estimasi laci
+if (!state.drawerDate) state.drawerDate = dateKey();
 
-  const { latestDw, latestTime, leftAmount, withdrawnAmount, cashTxAfterWithdrawal, estimate } = drawerEst;
-  const timeLabel = new Date(latestTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + " WIB";
+window.setDrawerDate = async function(val) {
+  state.drawerDate = String(val || dateKey()).slice(0, 10);
+  // fetch drawer_withdrawals untuk tanggal ini dari Firestore
+  try {
+    const dk = state.drawerDate;
+    const { query: q, collection: col, where: wh, limit: lim, getDocs: gd } = window.__firestoreRefs || {};
+    // gunakan Firebase yang sudah ada di scope
+    const dwQ = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', dk), limit(50));
+    const snap = await getDocs(dwQ, {source:'server'}).catch(() => getDocs(dwQ));
+    state.drawerWithdrawalsForDate = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    // fetch transaksi untuk tanggal ini
+    const txQ2 = query(collection(db, 'transactions'), where('dateKey', '==', dk), limit(180));
+    const txSnap = await getDocs(txQ2, {source:'server'}).catch(() => getDocs(txQ2));
+    state.txForDrawerDate = txSnap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
+  } catch(e) {
+    state.drawerWithdrawalsForDate = [];
+    state.txForDrawerDate = [];
+  }
+  render();
+};
+
+window.renderDrawerWithdrawalCard = function() {
+  const dk = state.drawerDate || dateKey();
+  const isToday = dk === dateKey();
+
+  // Gunakan data khusus per tanggal jika tersedia, fallback ke state hari ini
+  const dws = dk === dateKey()
+    ? (state.drawerWithdrawals || []).filter(w => !w.deleted && String(w.dateKey || '').slice(0, 10) === dk)
+    : (state.drawerWithdrawalsForDate || []).filter(w => !w.deleted);
+
+  const txList = dk === dateKey()
+    ? visibleTx().filter(t => String(t.dateKey || '').slice(0, 10) === dk)
+    : (state.txForDrawerDate || []).filter(t => String(t.dateKey || '').slice(0, 10) === dk);
+
+  // Hitung estimasi
+  let estHtml = '';
+  if (!dws.length) {
+    estHtml = `<div class="meta" style="margin-top:8px;color:var(--text-soft)">Tidak ada data tarikan laci pada tanggal ini.</div>`;
+  } else {
+    let latestDw = dws[0];
+    for (const w of dws) { if ((w.createdAtMs||0) > (latestDw.createdAtMs||0)) latestDw = w; }
+    const latestTime = Number(latestDw.createdAtMs || 0);
+    const leftAmount = Number(latestDw.remainingAmount || 0);
+    const withdrawnAmount = Number(latestDw.amount || 0);
+    const timeLabel = new Date(latestTime).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB';
+    let cashTxAfter = 0;
+    for (const t of txList) {
+      if (Number(t.createdAtMs||0) > latestTime) {
+        const p = String(t.paymentMethod||t.paymentLabel||t.payment||'').toLowerCase();
+        if (!p.includes('qris') && !p.includes('transfer')) cashTxAfter += Number(t.amount||0);
+      }
+    }
+    const estimate = leftAmount + cashTxAfter;
+    estHtml = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <div>
+          <div class="tiny">Estimasi Uang Laci</div>
+          <div class="amt num" style="color:#10b981;font-size:18px;margin-top:2px">${rp(estimate)}</div>
+          <div class="meta" style="margin-top:4px">Tarikan terakhir: ${timeLabel}</div>
+        </div>
+        ${isToday ? `<button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteDrawerWithdrawal('${latestDw.id}')" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
+      </div>
+      <div class="meta" style="margin-top:6px;line-height:1.4">
+        Sisa laci (Rp ${rupiah(leftAmount)}) + Cash setelah tarikan (Rp ${rupiah(cashTxAfter)})
+        <br><span style="font-size:11px;opacity:0.8">Owner menarik Rp ${rupiah(withdrawnAmount)}</span>
+      </div>`;
+  }
 
   return `
-    <div class="card pad mb" style="border:1px solid #10b981; background:rgba(16,185,129,0.05)">
-      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
-        <div>
-          <div class="title" style="color:#10b981">Estimasi Uang Laci</div>
-          <div class="meta">Berdasarkan tarikan terakhir (${timeLabel})</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="amt num" style="color:#10b981">${rp(estimate)}</div>
-          <button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteDrawerWithdrawal('${latestDw.id}')" title="Hapus Data Ini"><i class="fas fa-trash"></i></button>
-        </div>
+    <div class="card pad mb" style="border:1px solid #10b981;background:rgba(16,185,129,0.05)">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div class="title" style="color:#10b981">Estimasi Uang Laci</div>
+        <button class="btn" style="padding:0 8px;min-height:28px;font-size:11px;border-radius:6px;" onclick="setDrawerDate('${dateKey()}')">Hari Ini</button>
       </div>
-      <div class="meta" style="line-height:1.4">
-        Sisa uang laci owner (Rp ${rupiah(leftAmount)}) + Transaksi Cash baru (Rp ${rupiah(cashTxAfterWithdrawal)})
-        <br><span style="font-size:11px; opacity:0.8">Hanya menghitung transaksi tunai/cash setelah owner menarik uang (Rp ${rupiah(withdrawnAmount)}).</span>
-      </div>
+      <input class="input" type="date" value="${esc(dk)}" onchange="setDrawerDate(this.value)" style="margin-bottom:0">
+      ${estHtml}
     </div>
   `;
 };
