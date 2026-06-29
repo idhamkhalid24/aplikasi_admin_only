@@ -1,4 +1,4 @@
-﻿/* === FINAL FIX V5: pindahkan hamburger ke card outlet, sebelah tombol edit === */
+/* === FINAL FIX V5: pindahkan hamburger ke card outlet, sebelah tombol edit === */
 (function(){
   function moveKsMenuToOutlet(){
     try{
