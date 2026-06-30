@@ -765,12 +765,17 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   const label = list.previousElementSibling;
 if(!adminLiteProductItems.length){list.innerHTML='';if(label&&label.textContent.includes('Daftar Barang'))label.style.display='none';return}
 if(label)label.style.display='';
-list.innerHTML=adminLiteProductItems.map((item,i)=>`<div class="admin-trx-product-row"><span class="admin-trx-product-no">&gt;</span><span class="admin-trx-product-name">${esc(item)}</span><button type="button" class="admin-trx-product-remove" onclick="removeAdminLiteProductItem(${i})">Hapus</button></div>`).join("")}
+list.innerHTML=adminLiteProductItems.map((item,i)=>{const parts=item.split(" qty "),namePart=parts[0]||item,qtyPart=parts[1]||"";return `<div class="admin-trx-product-row" style="grid-template-columns:minmax(0,1fr) 50px auto !important;padding-left:8px"><span class="admin-trx-product-name">${esc(namePart)}</span><span style="text-align:center;font-weight:700;color:var(--primary)">${qtyPart?esc(qtyPart):''}</span><button type="button" class="admin-trx-product-remove" onclick="removeAdminLiteProductItem(${i})">Hapus</button></div>`}).join("")}
 function resetAdminLiteProductItems(note=""){const text=String(note||"").trim();adminLiteProductItems=text&&text!=="Transaksi"?adminLiteProductItemsFromText(text,"Transaksi"):[];renderAdminLiteProductItems()}
-function updateAdminLiteProductAddButton(){renderAdminLiteProductItems()}
-function addAdminLiteProductItem(){const input=$("adminTrxProductInput"),value=adminLiteProductName(input?.value||"");if(!value){renderAdminLiteProductItems();input?.focus?.();return}adminLiteProductItems.push(value);if(input)input.value="";renderAdminLiteProductItems();setTimeout(()=>input?.focus?.(),0)}
+function updateAdminLiteProductAddButton(){renderAdminLiteProductItems();showAdminTrxProductSuggest($("adminTrxProductInput")?.value||"")}
+function addAdminLiteProductItem(){const input=$("adminTrxProductInput"),qtyInput=$("adminTrxProductQty"),value=adminLiteProductName(input?.value||""),qty=parseInt(qtyInput?.value||"1")||1;if(!value){renderAdminLiteProductItems();input?.focus?.();return}if(state.adminProducts&&state.adminProducts.length>0&&!state.adminProducts.some(p=>p.nama_produk===value)){toast("Nama barang tidak terdaftar di sistem!");input?.focus?.();return}adminLiteProductItems.push(`${value} qty ${qty}`);if(input)input.value="";if(qtyInput)qtyInput.value="1";hideAdminTrxProductSuggest();renderAdminLiteProductItems();setTimeout(()=>input?.focus?.(),0)}
 function removeAdminLiteProductItem(index){const i=Number(index);if(Number.isInteger(i)&&i>=0&&i<adminLiteProductItems.length)adminLiteProductItems.splice(i,1);renderAdminLiteProductItems();setTimeout(()=>$("adminTrxProductInput")?.focus?.(),0)}
-function handleAdminLiteProductKey(e){if(e?.key==="Enter"){e.preventDefault();addAdminLiteProductItem()}}
+function handleAdminLiteProductKey(e){if(e?.key==="Enter"||e?.keyCode===13){e.preventDefault();if(adminTrxProductSuggestActiveIndex>=0&&adminTrxProductSuggestItems[adminTrxProductSuggestActiveIndex]){pickAdminTrxProductSuggest(adminTrxProductSuggestActiveIndex);return}addAdminLiteProductItem()}else if(e?.key==="ArrowDown"){if(adminTrxProductSuggestItems.length){e.preventDefault();moveAdminTrxProductSuggestActive(1)}}else if(e?.key==="ArrowUp"){if(adminTrxProductSuggestItems.length){e.preventDefault();moveAdminTrxProductSuggestActive(-1)}}}
+let adminTrxProductSuggestItems=[];let adminTrxProductSuggestActiveIndex=-1;let adminTrxProductSuggestTouching=false;
+function showAdminTrxProductSuggest(query){const q=String(query||"").trim().toLowerCase(),list=$("adminTrxProductSuggest");if(!list)return;if(!q){hideAdminTrxProductSuggest();return}if(!state.adminProducts||!state.adminProducts.length){hideAdminTrxProductSuggest();return}const all=state.adminProducts.map(p=>p.nama_produk).filter(Boolean);let matches=all.filter(x=>x.toLowerCase().includes(q));if(!matches.length){hideAdminTrxProductSuggest();return}matches=matches.slice(0,50);adminTrxProductSuggestItems=matches;adminTrxProductSuggestActiveIndex=-1;list.innerHTML=matches.map((name,i)=>`<div class="admin-trx-product-suggest-item" onclick="pickAdminTrxProductSuggest(${i});event.preventDefault();event.stopPropagation()"><div style="flex:1">${esc(name)}</div></div>`).join("");list.style.display="block"}
+function hideAdminTrxProductSuggest(){const list=$("adminTrxProductSuggest");if(list){list.style.display="none";list.innerHTML=""}adminTrxProductSuggestItems=[];adminTrxProductSuggestActiveIndex=-1}
+function pickAdminTrxProductSuggest(index){adminTrxProductSuggestTouching=false;const name=adminTrxProductSuggestItems[Number(index)],input=$("adminTrxProductInput"),qtyInput=$("adminTrxProductQty");if(!name||!input)return;adminTrxProductSuggestItems=[];adminTrxProductSuggestActiveIndex=-1;hideAdminTrxProductSuggest();const val=adminLiteProductName(name);if(val){input.value=val;renderAdminLiteProductItems()}setTimeout(()=>{if(qtyInput){qtyInput.focus();qtyInput.select()}},0)}
+function moveAdminTrxProductSuggestActive(dir){if(!adminTrxProductSuggestItems.length)return;const max=adminTrxProductSuggestItems.length-1;adminTrxProductSuggestActiveIndex+=dir;if(adminTrxProductSuggestActiveIndex<0)adminTrxProductSuggestActiveIndex=max;if(adminTrxProductSuggestActiveIndex>max)adminTrxProductSuggestActiveIndex=0;const list=$("adminTrxProductSuggest");if(!list)return;const items=list.querySelectorAll(".admin-trx-product-suggest-item");items.forEach(el=>el.classList.remove("active"));const active=items[adminTrxProductSuggestActiveIndex];if(active){active.classList.add("active");active.scrollIntoView({block:"nearest"})}}
 function adminLiteProductReceiptHtml(items){const rows=(Array.isArray(items)?items:[]).map(x=>String(x||"").trim()).filter(Boolean),safeRows=rows.length?rows:["Transaksi"],sep=receiptLine();return`<div class="tx-product-receipt-list">${safeRows.map(x=>`<div class="tx-product-receipt-row">${esc("> "+x)}</div><div class="tx-product-receipt-sep">${sep}</div>`).join("")}</div>`}
 function adminLiteProductHtml(note){const items=adminLiteProductItemsFromText(note,"Transaksi");return items.length===1?esc(items[0]):adminLiteProductReceiptHtml(items)}
 function adminLiteProductDetailHtml(note){return adminLiteProductReceiptHtml(receiptProductItems(note))}
@@ -781,7 +786,8 @@ receiptTextForTx=function(t){const kasir=t?.name||userName(t?.user)||state.user?
 receiptTextForTodayTransactions=function(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    Produk:\n${receiptProductNumbered(t.note,"    ")}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL BAYAR",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`};
 function openAdminLiteTxDetail(id){const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const name=String(t.name||userName(t.user)||"-"),items=receiptProductItems(t.note),pay=txPaymentLabel(t);const body=`<div class="card pad mb" style="box-shadow:none"><div class="tiny">Total Bayar</div><div class="amt num">${rp(t.amount)}</div><div class="meta" style="margin-top:6px">${esc(name)} - ${txTimeLabel(t)} - ${esc(pay)}</div></div><div class="card pad" style="box-shadow:none"><div class="tiny">Daftar Barang</div>${adminLiteProductDetailHtml(t.note||"Transaksi")}</div>`;const footer=`<button class="btn full" onclick="closeDynamicSheet('adminLiteTxDetailModal')"><i class="fas fa-arrow-left"></i> Kembali</button>`;openDynamicSheet("adminLiteTxDetailModal","Detail Transaksi",`${name} - ${txTimeLabel(t)} - ${items.length} item`,body,footer)}
 window.openAdminLiteTxDetail=openAdminLiteTxDetail;
-renderTxList=function(list,withActions=true){if(!list.length)return`<div class="empty">Belum ada transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item ${txPaymentLabel(t).toLowerCase().includes('qris')?'item-qris':''}" style="align-items:center;padding:12px 14px;${isTxAfterLatestWithdrawal(t)?'border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;':''}"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">${esc(t.name||userName(t.user))}</div><div class="meta" style="font-size:11px;margin-top:2px">${txTimeLabel(t)} - ${receiptProductItems(t.note).length} item - ${txPaymentLabel(t)}</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">${withActions?`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">${rp(t.amount)}</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail('${esc(t.id)}')" title="Detail"><i class="fas fa-list"></i></button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button>`:`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">${rp(t.amount)}</div>`}</div></div>`).join("")}</div>`};
+function getAdminTxTotalQty(note){const noteLines=String(note||"").split("\n").map(x=>x.trim()).filter(Boolean);let totalQty=0;if(noteLines.length>0&&noteLines[0]!=="Transaksi"&&noteLines[0]!=="-"){for(const item of noteLines){const lower=item.toLowerCase();if(lower.includes(" qty ")){const q=parseInt(lower.split(" qty ")[1],10);totalQty+=isNaN(q)?1:q}else{totalQty+=1}}}return totalQty}
+renderTxList=function(list,withActions=true){if(!list.length)return`<div class="empty">Belum ada transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item ${txPaymentLabel(t).toLowerCase().includes('qris')?'item-qris':''}" style="align-items:center;padding:12px 14px;${isTxAfterLatestWithdrawal(t)?'border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;':''}"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">${esc(t.name||userName(t.user))}</div><div class="meta" style="font-size:11px;margin-top:2px">${txTimeLabel(t)} - ${receiptProductItems(t.note).length} item - ${txPaymentLabel(t)}</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">${withActions?`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">${rp(t.amount)}</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail('${esc(t.id)}')" title="Detail">${(()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?`<span style="font-weight:900;font-size:13px">${tq}</span>`:'<i class="fas fa-list"></i>'})()}</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button>`:`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">${rp(t.amount)}</div>`}</div></div>`).join("")}</div>`};
 renderTrx=function(){
   const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>`:"";
   const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
@@ -790,7 +796,7 @@ renderTrx=function(){
 window.openTransactionModal=()=>{$("trxTitle").textContent="Tambah Transaksi";$("trxId").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);resetAdminLiteProductItems("");modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
 window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Transaksi";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);resetAdminLiteProductItems(t.note||"");$("trxAmount").value=rupiah(t.amount);modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
 window.saveTransaction=async(printAfterSave=false,paymentMethod="")=>{const id=$("trxId").value,username=cleanUser($("trxUser").value),u=userBy(username),amount=parseMoney($("trxAmount").value),note=adminLiteProductText();if(!username||!u)return toast("Pilih user",true);if(amount<=0)return toast("Nominal wajib lebih dari 0",true);if(!paymentMethod){adminLitePendingTxDraft={id,username,amount,note,printAfterSave:Boolean(printAfterSave)};return openAdminLitePaymentModal(adminLitePendingTxDraft)}const payment=normalizeAdminLitePaymentMethod(paymentMethod);if(!payment)return toast("Pilih Cash atau QRIS / Transfer",true);const paymentText=adminLitePaymentLabel(payment);setBusy(true);try{const old=id?state.tx.find(t=>t.id===id):null,createdAtMs=id?Number(old?.createdAtMs||Date.now()):Date.now(),payload={...trialFlagsForUser(u),user:username,name:u.name||username,note,amount,paymentMethod:payment,paymentLabel:paymentText,paymentStatus:"success",paymentCashOutType:payment==="qris_transfer"?"qris":"",isNonCashPayment:payment==="qris_transfer",paymentConfirmed:true,paymentConfirmedAtMs:Date.now(),dateKey:dateKey(),monthKey:monthKey(),userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",bonusRate:getUserRate(u),bonusPercent:Number((getUserRate(u)*100).toFixed(3)),transactionBonusRate:getUserRate(u),transactionBonusPercent:Number((getUserRate(u)*100).toFixed(3)),bonusLogicVersion:3,source:old?.source||"admin_lite_manual",deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};let savedId=id;if(id){await setDoc(doc(db,"transactions",id),payload,{merge:true})}else{const ref=await addDoc(collection(db,"transactions"),{...payload,createdAt:serverTimestamp(),createdAtMs,createdBy:state.user.username});savedId=ref.id}const savedTx={id:savedId,...(old||{}),...payload,createdAtMs};localUpsert("tx",savedTx);closeDynamicSheet("adminLitePaymentModal");closeModal("trxModal");adminLitePendingTxDraft=null;finishLocalWrite();if(printAfterSave){toast("Transaksi tersimpan, mencetak struk");setTimeout(()=>directPrintReceiptText(receiptTextForTx(savedTx),"Struk Transaksi Baru"),120)}else toast(`Transaksi tersimpan - ${paymentText}`)}catch(e){toast(e.message||"Gagal simpan transaksi",true)}finally{setBusy(false)}};
-window.addAdminLiteProductItem=addAdminLiteProductItem;window.removeAdminLiteProductItem=removeAdminLiteProductItem;window.handleAdminLiteProductKey=handleAdminLiteProductKey;window.updateAdminLiteProductAddButton=updateAdminLiteProductAddButton;
+window.addAdminLiteProductItem=addAdminLiteProductItem;window.removeAdminLiteProductItem=removeAdminLiteProductItem;window.handleAdminLiteProductKey=handleAdminLiteProductKey;window.updateAdminLiteProductAddButton=updateAdminLiteProductAddButton;window.pickAdminTrxProductSuggest=pickAdminTrxProductSuggest;
 const deleteManualBonusOriginalForTargetReset=window.deleteManualBonus;
 window.deleteManualBonus=async id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||!isTargetAutoBonusRow(row))return deleteManualBonusOriginalForTargetReset(id);if(isDeleted(row))return toast("Bonus target otomatis tidak ditemukan",true);const pin=await askPin(`Reset bonus target otomatis untuk ${userName(row.user)}?\nNominal: ${rp(Math.abs(Number(row.amount||0)))}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,status:"deleted",deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"manualBonuses",id),patch,{merge:true});await resetAdminTargetAutoBonusAfterDelete(row);localMerge("manual",id,patch);finishLocalWrite();toast("Bonus target otomatis direset")}catch(e){toast(e.message||"Gagal reset bonus target",true)}finally{setBusy(false)}};
 window.deleteTargetAutoBonus=window.deleteManualBonus;
@@ -824,7 +830,7 @@ renderHome=function(){
   const unlockTotal=unlockRequestRows().length;
   const menus=[
     ['Buka Fitur',unlockPending?`${unlockPending} menunggu`:(unlockTotal?`${unlockTotal} riwayat`:'Riwayat'),'fa-unlock-keyhole',"go('unlockRequests')"],
-    ['Pesanan',onlineUnread?`Online - ${onlineUnread} baru`:'Online','fa-bell',"go('onlineOrders')"],
+    // ['Pesanan',onlineUnread?`Online - ${onlineUnread} baru`:'Online','fa-bell',"go('onlineOrders')"],
     ['Riwayat','Transaksi','fa-receipt',"go('trx')"],
     ['Bonus','Harian','fa-gift',"go('bonus')"],
     ['Ops','Closing','fa-list-check',"go('ops')"],
@@ -846,7 +852,7 @@ render=function(){
   if(!state.user)return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};
+  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -1225,7 +1231,7 @@ render = function(){
   if(!state.user) return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders};
+  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -2008,3 +2014,130 @@ window.renderDrawerWithdrawalCard = function() {
     </div>
   `;
 };
+
+// --- PATCH: KELOLA PRODUK ---
+const __baseRenderHomeProdukPatch=renderHome;
+renderHome = function() {
+  let html = __baseRenderHomeProdukPatch();
+  const produkMenu = `<button class="ks-menu-card" onclick="go('products')"><div class="ks-menu-ico"><i class="fas fa-box"></i></div><strong>Produk</strong><small>Kelola</small></button>`;
+  if(html.includes('<div class="ks-menu-grid">')){
+    html = html.replace('<div class="ks-menu-grid">', `<div class="ks-menu-grid">${produkMenu}`);
+  }
+  return html;
+};
+
+state.adminProducts = [];
+
+async function loadAdminProduk() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase.from('produk').select('*').order('nama_produk', { ascending: true });
+    if (!error && data) {
+      state.adminProducts = data;
+    }
+  } catch (err) {
+    console.error("Gagal load produk admin:", err);
+  }
+}
+
+const __baseRefreshAllProdukPatch = refreshAll;
+refreshAll = async function(force = false) {
+  await __baseRefreshAllProdukPatch(force);
+  await loadAdminProduk();
+  if (state.page === 'products') render();
+};
+window.refreshAll = refreshAll;
+
+window.filterAdminProduk = function(val) {
+  const query = String(val || "").toLowerCase();
+  document.querySelectorAll(".admin-produk-item").forEach(el => {
+    const name = el.getAttribute("data-name") || "";
+    el.style.display = name.includes(query) ? "flex" : "none";
+  });
+};
+
+function renderProductsPage() {
+  const listHtml = state.adminProducts.length 
+    ? state.adminProducts.map(p => `
+      <div class="admin-produk-item" data-name="${esc(p.nama_produk.toLowerCase())}" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface)">
+        <strong style="font-size:14px">${esc(p.nama_produk)}</strong>
+        <button class="btn red" style="padding:6px 12px;min-height:30px" onclick="deleteAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+      </div>
+    `).join('')
+    : `<div class="empty">Belum ada produk.</div>`;
+
+  return `
+    <section class="products-page">
+      <div class="online-header"><div class="online-header-row"><button class="online-back" onclick="go('home')" title="Kembali"><i class="fas fa-chevron-left"></i></button><div class="online-title"><h1>Kelola Produk</h1><div class="sub">Data Master Produk Kasir</div></div></div></div>
+      <div class="online-content">
+        <div class="card pad mb" style="display:flex;gap:8px">
+          <input id="newProdukInput" class="input" style="margin:0;flex:1" placeholder="Nama Produk Baru..." onkeydown="if(event.key==='Enter') addAdminProduk()">
+          <button class="btn primary" onclick="addAdminProduk()"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+        <div class="mb" style="position:relative">
+          <i class="fas fa-search" style="position:absolute;left:14px;top:14px;color:var(--muted)"></i>
+          <input type="text" class="input" style="margin:0;padding-left:38px !important" placeholder="Cari nama barang..." oninput="filterAdminProduk(this.value)">
+        </div>
+        <div id="adminProdukContainer">
+          ${listHtml}
+        </div>
+      </div>
+    </section>
+  `;
+}
+window.renderProductsPage = renderProductsPage;
+
+window.addAdminProduk = async function() {
+  const input = $("newProdukInput");
+  const val = String(input?.value || "").toUpperCase().trim();
+  if (!val) return;
+  
+  if (state.adminProducts.some(p => p.nama_produk === val)) {
+    toast("Produk sudah ada!");
+    return;
+  }
+  
+  input.value = "Menyimpan...";
+  input.disabled = true;
+  
+  try {
+    const { data, error } = await supabase.from('produk').insert([{ nama_produk: val }]).select();
+    if (error) throw error;
+    await loadAdminProduk();
+    render();
+    toast("Produk berhasil ditambahkan");
+  } catch (err) {
+    console.error(err);
+    toast("Gagal menambahkan produk");
+  } finally {
+    if ($("newProdukInput")) {
+      $("newProdukInput").value = "";
+      $("newProdukInput").disabled = false;
+      $("newProdukInput").focus();
+    }
+  }
+};
+
+window.deleteAdminProduk = async function(id, name) {
+  const pin = await askPin(`Hapus produk ini?\n${name || ''}`);
+  if (pin === null) return;
+  if (String(pin) !== String(state.user?.pin)) {
+    toast("PIN salah", true);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('produk').delete().eq('id', id);
+    if (error) throw error;
+    await loadAdminProduk();
+    render();
+    toast("Produk dihapus");
+  } catch (err) {
+    console.error(err);
+    toast("Gagal menghapus produk");
+  }
+};
+// --- END PATCH: KELOLA PRODUK ---
+
+APP_PAGES.add('products');
+
+loadAdminProduk().then(() => { if (state.page === 'products') render(); });
