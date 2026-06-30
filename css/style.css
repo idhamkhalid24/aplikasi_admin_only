@@ -2849,3 +2849,35 @@ html[data-theme="dark"] .list .item .btn.amber {
   background: var(--surface-inset) !important;
   color: var(--text-main) !important;
 }
+
+.admin-trx-product-suggest {
+  display: none;
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  margin-top: 5px;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+}
+.admin-trx-product-suggest-item {
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  white-space: normal;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.admin-trx-product-suggest-item.active {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
+}
+.admin-trx-product-suggest-item:last-child {
+  border-bottom: none;
+}
