@@ -45,10 +45,12 @@
         <input type="hidden" id="trxNote">
         <div class="admin-trx-product-builder">
           <div class="tiny">Rincian Barang</div>
-          <div class="admin-trx-product-entry">
-            <input id="adminTrxProductInput" class="input" placeholder="Nama barang..." oninput="updateAdminLiteProductAddButton()" onkeydown="handleAdminLiteProductKey(event)">
-            <button id="adminTrxProductAddBtn" type="button" class="btn primary" onclick="addAdminLiteProductItem()" disabled>+ Tambah Barang</button>
-          </div>
+          <form class="admin-trx-product-entry" style="grid-template-columns: minmax(0,1fr) 50px auto !important; margin:0" onsubmit="event.preventDefault(); addAdminLiteProductItem(); return false;">
+            <input id="adminTrxProductInput" class="input" placeholder="Nama barang..." autocomplete="off" oninput="updateAdminLiteProductAddButton()" onkeydown="handleAdminLiteProductKey(event)">
+            <input id="adminTrxProductQty" class="input" type="number" inputmode="numeric" min="1" value="1" placeholder="Qty" style="text-align:center;padding:0 !important" onkeydown="handleAdminLiteProductKey(event)">
+            <button id="adminTrxProductAddBtn" type="submit" class="btn primary" disabled>+ Tambah</button>
+          </form>
+          <div id="adminTrxProductSuggest" class="admin-trx-product-suggest"></div>
           <div class="meta" style="margin:7px 0 5px">Daftar Barang:</div>
           <div id="adminTrxProductList" class="admin-trx-product-list"></div>
         </div>
