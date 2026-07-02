@@ -766,7 +766,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
 if(!adminLiteProductItems.length){list.innerHTML='';if(label&&label.textContent.includes('Daftar Barang'))label.style.display='none';return}
 if(label)label.style.display='';
 list.innerHTML=adminLiteProductItems.map((item,i)=>{const parts=item.split(" qty "),namePart=parts[0]||item,qtyPart=parts[1]||"";return `<div class="admin-trx-product-row" style="grid-template-columns:minmax(0,1fr) 50px auto !important;padding-left:8px"><span class="admin-trx-product-name">${esc(namePart)}</span><span style="text-align:center;font-weight:700;color:var(--primary)">${qtyPart?esc(qtyPart):''}</span><button type="button" class="admin-trx-product-remove" onclick="removeAdminLiteProductItem(${i})">Hapus</button></div>`}).join("")}
-function resetAdminLiteProductItems(note=""){const text=String(note||"").trim();adminLiteProductItems=text&&text!=="Transaksi"?adminLiteProductItemsFromText(text,"Transaksi"):[];renderAdminLiteProductItems()}
+function resetAdminLiteProductItems(note=""){const text=String(note||"").trim();adminLiteProductItems=text&&text!=="Transaksi"?adminLiteProductItemsFromText(text,"Transaksi"):[];const pendingInput=$("adminTrxProductInput"),pendingQty=$("adminTrxProductQty");if(pendingInput)pendingInput.value="";if(pendingQty)pendingQty.value="1";hideAdminTrxProductSuggest();renderAdminLiteProductItems()}
 function updateAdminLiteProductAddButton(){renderAdminLiteProductItems();showAdminTrxProductSuggest($("adminTrxProductInput")?.value||"")}
 function addAdminLiteProductItem(){const input=$("adminTrxProductInput"),qtyInput=$("adminTrxProductQty"),value=adminLiteProductName(input?.value||""),qty=parseInt(qtyInput?.value||"1")||1;if(!value){renderAdminLiteProductItems();input?.focus?.();return}if(state.adminProducts&&state.adminProducts.length>0&&!state.adminProducts.some(p=>p.nama_produk===value)){toast("Nama barang tidak terdaftar di sistem!");input?.focus?.();return}adminLiteProductItems.push(`${value} qty ${qty}`);if(input)input.value="";if(qtyInput)qtyInput.value="1";hideAdminTrxProductSuggest();renderAdminLiteProductItems();setTimeout(()=>input?.focus?.(),0)}
 function removeAdminLiteProductItem(index){const i=Number(index);if(Number.isInteger(i)&&i>=0&&i<adminLiteProductItems.length)adminLiteProductItems.splice(i,1);renderAdminLiteProductItems();setTimeout(()=>$("adminTrxProductInput")?.focus?.(),0)}
@@ -2144,7 +2144,10 @@ function renderProductsPage() {
     ? state.adminProducts.map(p => `
       <div class="admin-produk-item" data-name="${esc(p.nama_produk.toLowerCase())}" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface)">
         <strong style="font-size:14px">${esc(p.nama_produk)}</strong>
-        <button class="btn red" style="padding:6px 12px;min-height:30px" onclick="deleteAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn" style="padding:6px 12px;min-height:30px" onclick="editAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i></button>
+          <button class="btn red" style="padding:6px 12px;min-height:30px" onclick="deleteAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+        </div>
       </div>
     `).join('')
     : `<div class="empty">Belum ada produk.</div>`;
@@ -2198,6 +2201,120 @@ window.addAdminProduk = async function() {
       $("newProdukInput").disabled = false;
       $("newProdukInput").focus();
     }
+  }
+};
+
+// Ganti nama barang lama (misal "PASMINA") jadi nama baru ("PASHMINA") di semua
+// baris item transaksi yang masih pakai nama lama. Note transaksi disimpan per baris
+// "NAMA" atau "NAMA qty N", jadi kita cocokkan nama barisnya persis (bukan sekadar
+// mengandung teks) supaya "PASMINA MOTIF" tidak ikut kesenggol pas rename "PASMINA".
+function renameProductNameInNote(note, oldName, newName) {
+  const lines = String(note || "").split(/\r?\n/);
+  let changed = false;
+  const nextLines = lines.map((line) => {
+    const parts = line.split(" qty ");
+    const namePart = (parts[0] || "").trim();
+    if (namePart !== oldName) return line;
+    changed = true;
+    return parts.length > 1 ? `${newName} qty ${parts.slice(1).join(" qty ")}` : newName;
+  });
+  return { changed, note: nextLines.join("\n") };
+}
+
+// Nyisir transaksi bulan demi bulan (mundur dari bulan berjalan) karena data transaksi
+// tidak diindex per nama barang. Berhenti kalau ketemu beberapa bulan kosong berturut-turut
+// (dianggap sudah lewat awal toko buka) atau sudah mentok batas maksimal bulan yang disisir.
+async function renameProductNameInTransactions(oldName, newName, onProgress) {
+  let updatedCount = 0, scannedCount = 0, emptyStreak = 0;
+  const maxMonthsBack = 60, maxEmptyStreak = 6;
+  const base = now();
+  for (let i = 0; i < maxMonthsBack; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    const mk = monthKey(d);
+    let snap;
+    try {
+      snap = await getDocs(query(collection(db, "transactions"), where("monthKey", "==", mk), limit(3800)));
+    } catch (err) {
+      console.warn("rename produk: gagal ambil transaksi bulan", mk, err);
+      continue;
+    }
+    if (!snap.docs.length) {
+      emptyStreak++;
+      if (emptyStreak >= maxEmptyStreak) break;
+      continue;
+    }
+    emptyStreak = 0;
+    for (const docSnap of snap.docs) {
+      scannedCount++;
+      const t = { id: docSnap.id, ...docSnap.data() };
+      const { changed, note } = renameProductNameInNote(t.note || "", oldName, newName);
+      if (!changed) continue;
+      try {
+        await setDoc(doc(db, "transactions", t.id), {
+          note,
+          updatedAt: serverTimestamp(),
+          updatedAtMs: Date.now(),
+          updatedBy: state.user.username,
+          updatedByName: state.user.name,
+        }, { merge: true });
+        localMerge("tx", t.id, { note });
+        updatedCount++;
+      } catch (err) {
+        console.warn("rename produk: gagal update transaksi", t.id, err);
+      }
+    }
+    if (onProgress) onProgress({ month: mk, updatedCount, scannedCount });
+  }
+  return { updatedCount, scannedCount };
+}
+
+window.editAdminProduk = function(id, oldName) {
+  const body = `<div class="card pad mb" style="box-shadow:none">
+    <div class="tiny">Nama Produk</div>
+    <input id="editProdukInput" class="input" style="margin-top:8px;font-size:17px;font-weight:700" value="${esc(oldName)}" placeholder="Nama produk..." onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditAdminProduk('${String(id).replace(/'/g, "\\'")}','${oldName.replace(/'/g, "\\'")}')}">
+    <div class="meta" style="margin-top:10px">Kalau nama diganti, semua transaksi lama yang masih pakai nama lama akan ikut diperbarui otomatis.</div>
+  </div>`;
+  const footer = `<div class="grid2" style="gap:10px">
+    <button class="btn red" onclick="closeDynamicSheet('editProdukModal')"><i class="fas fa-xmark"></i> Batal</button>
+    <button class="btn primary" onclick="confirmEditAdminProduk('${String(id).replace(/'/g, "\\'")}','${oldName.replace(/'/g, "\\'")}')"><i class="fas fa-check"></i> Simpan</button>
+  </div>`;
+  openDynamicSheet("editProdukModal", "Edit Produk", "Ubah nama produk ini", body, footer);
+  setTimeout(() => { const el = $("editProdukInput"); if (el) { el.focus(); el.select(); } }, 80);
+};
+
+window.confirmEditAdminProduk = async function(id, oldName) {
+  const inputEl = $("editProdukInput");
+  const newVal = adminLiteProductName(inputEl?.value || "");
+  if (!newVal) return toast("Nama tidak boleh kosong", true);
+  if (newVal === oldName) return closeDynamicSheet("editProdukModal");
+  if (state.adminProducts.some(p => p.nama_produk === newVal && String(p.id) !== String(id))) {
+    return toast("Produk dengan nama itu sudah ada!", true);
+  }
+  closeDynamicSheet("editProdukModal");
+  const pin = await askPin(`Ganti nama produk?\n"${oldName}" -> "${newVal}"\n\nSemua transaksi LAMA yang masih pakai nama "${oldName}" akan ikut diubah jadi "${newVal}". Proses bisa makan waktu beberapa saat.\n\nMasukkan PIN admin:`);
+  if (!pin) return;
+  if (String(pin) !== String(state.user?.pin)) return toast("PIN salah", true);
+
+  setBusy(true);
+  try {
+    const { error } = await supabase.from('produk').update({ nama_produk: newVal }).eq('id', id);
+    if (error) throw error;
+    await loadAdminProduk();
+    render();
+    toast(`Nama produk diubah, sedang sinkronkan transaksi lama...`);
+
+    const { updatedCount, scannedCount } = await renameProductNameInTransactions(oldName, newVal, ({ month, updatedCount: u }) => {
+      console.info(`[rename produk] bulan ${month}: ${u} transaksi diperbarui sejauh ini`);
+    });
+
+    toast(updatedCount > 0
+      ? `Selesai. ${updatedCount} transaksi lama ikut diperbarui (dari ${scannedCount} transaksi disisir).`
+      : `Nama produk diubah. Tidak ada transaksi lama yang pakai nama "${oldName}".`);
+  } catch (err) {
+    console.error(err);
+    toast("Gagal mengubah produk", true);
+  } finally {
+    setBusy(false);
   }
 };
 
