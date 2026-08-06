@@ -2110,6 +2110,7 @@ renderHome = function() {
 };
 
 state.adminProducts = [];
+state.investmentBatches = [];
 
 async function loadAdminProduk() {
   if (!supabase) return;
@@ -2123,10 +2124,45 @@ async function loadAdminProduk() {
   }
 }
 
+async function loadInvestmentBatches() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase.from('investment_batches').select('id,batch_name,status,investor_id,investors(name)').order('created_at', { ascending: false });
+    if (!error && data) {
+      state.investmentBatches = data;
+    }
+  } catch (err) {
+    console.error("Gagal load investment batches:", err);
+  }
+}
+function investorBatchOptions(selectedId) {
+  if (!state.investmentBatches.length) return `<option value="">Belum ada batch investasi</option>`;
+  
+  const uniqueBatches = [];
+  const seenNames = new Set();
+  
+  for (const b of state.investmentBatches) {
+    const nameNorm = String(b.batch_name).trim().toLowerCase();
+    if (!seenNames.has(nameNorm)) {
+      seenNames.add(nameNorm);
+      uniqueBatches.push(b);
+    }
+  }
+
+  const selectedBatch = state.investmentBatches.find(x => String(x.id) === String(selectedId));
+  const selectedNameNorm = selectedBatch ? String(selectedBatch.batch_name).trim().toLowerCase() : null;
+
+  return uniqueBatches.map(b => {
+    const nameNorm = String(b.batch_name).trim().toLowerCase();
+    const isSelected = selectedNameNorm === nameNorm;
+    return `<option value="${b.id}" ${isSelected ? 'selected' : ''}>${esc(b.batch_name)}</option>`;
+  }).join('');
+}
+
 const __baseRefreshAllProdukPatch = refreshAll;
 refreshAll = async function(force = false) {
   await __baseRefreshAllProdukPatch(force);
-  await loadAdminProduk();
+  await Promise.all([loadAdminProduk(), loadInvestmentBatches()]);
   if (state.page === 'products') render();
 };
 window.refreshAll = refreshAll;
@@ -2143,9 +2179,15 @@ function renderProductsPage() {
   const listHtml = state.adminProducts.length 
     ? state.adminProducts.map(p => `
       <div class="admin-produk-item" data-name="${esc(p.nama_produk.toLowerCase())}" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface)">
-        <strong style="font-size:14px">${esc(p.nama_produk)}</strong>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <strong style="font-size:14px">${esc(p.nama_produk)}</strong>
+            ${p.is_investor ? `<span class="chip" style="background:var(--warning-soft,#fef3c7);color:var(--warning,#b45309);font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px">INVESTOR</span>` : ''}
+          </div>
+          ${p.is_investor ? `<div class="meta" style="margin-top:3px;font-size:11px">Modal Rp${Number(p.modal||0).toLocaleString('id-ID')} &bull; Jual Rp${Number(p.harga_jual||0).toLocaleString('id-ID')} &bull; Investor ${Number(p.persentase_keuntungan_investor||30)}% (Global Pool)</div>` : ''}
+        </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn" style="padding:6px 12px;min-height:30px" onclick="editAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i></button>
+          <button class="btn" style="padding:6px 12px;min-height:30px" onclick="editAdminProduk('${p.id}')"><i class="fas fa-pen"></i></button>
           <button class="btn red" style="padding:6px 12px;min-height:30px" onclick="deleteAdminProduk('${p.id}', '${p.nama_produk.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
         </div>
       </div>
@@ -2157,8 +2199,12 @@ function renderProductsPage() {
       <div class="online-header"><div class="online-header-row"><button class="online-back" onclick="go('home')" title="Kembali"><i class="fas fa-chevron-left"></i></button><div class="online-title"><h1>Kelola Produk</h1><div class="sub">Data Master Produk Kasir</div></div></div></div>
       <div class="online-content">
         <div class="card pad mb" style="display:flex;gap:8px">
-          <input id="newProdukInput" class="input" style="margin:0;flex:1" placeholder="Nama Produk Baru..." onkeydown="if(event.key==='Enter') addAdminProduk()">
+          <input id="newProdukInput" class="input" style="margin:0;flex:1" placeholder="Nama Produk Baru (default)..." onkeydown="if(event.key==='Enter') addAdminProduk()">
           <button class="btn primary" onclick="addAdminProduk()"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+        <div class="card pad mb" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="meta" style="margin:0"><i class="fas fa-circle-dollar-to-slot" style="color:var(--warning,#b45309)"></i> Produk yang dibiayai investor?</div>
+          <button class="btn amber" onclick="openInvestorProdukModal()"><i class="fas fa-plus"></i> Produk Investor</button>
         </div>
         <div class="mb" style="position:relative">
           <i class="fas fa-search" style="position:absolute;left:14px;top:14px;color:var(--muted)"></i>
@@ -2204,10 +2250,6 @@ window.addAdminProduk = async function() {
   }
 };
 
-// Ganti nama barang lama (misal "PASMINA") jadi nama baru ("PASHMINA") di semua
-// baris item transaksi yang masih pakai nama lama. Note transaksi disimpan per baris
-// "NAMA" atau "NAMA qty N", jadi kita cocokkan nama barisnya persis (bukan sekadar
-// mengandung teks) supaya "PASMINA MOTIF" tidak ikut kesenggol pas rename "PASMINA".
 function renameProductNameInNote(note, oldName, newName) {
   const lines = String(note || "").split(/\r?\n/);
   let changed = false;
@@ -2221,9 +2263,6 @@ function renameProductNameInNote(note, oldName, newName) {
   return { changed, note: nextLines.join("\n") };
 }
 
-// Nyisir transaksi bulan demi bulan (mundur dari bulan berjalan) karena data transaksi
-// tidak diindex per nama barang. Berhenti kalau ketemu beberapa bulan kosong berturut-turut
-// (dianggap sudah lewat awal toko buka) atau sudah mentok batas maksimal bulan yang disisir.
 async function renameProductNameInTransactions(oldName, newName, onProgress) {
   let updatedCount = 0, scannedCount = 0, emptyStreak = 0;
   const maxMonthsBack = 60, maxEmptyStreak = 6;
@@ -2268,17 +2307,63 @@ async function renameProductNameInTransactions(oldName, newName, onProgress) {
   return { updatedCount, scannedCount };
 }
 
-window.editAdminProduk = function(id, oldName) {
+function investorFieldsFormHtml(p) {
+  p = p || {};
+  const isInv = !!p.is_investor;
+  return `
+    <div class="sep" style="margin:14px 0"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div class="tiny">Produk Investor?</div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="editProdukIsInvestor" ${isInv ? 'checked' : ''} onchange="toggleEditProdukInvestorFields()" style="width:18px;height:18px">
+        <span style="font-size:12px;font-weight:700">Ya, dibiayai investor</span>
+      </label>
+    </div>
+    <div id="editProdukInvestorFields" style="display:${isInv ? 'block' : 'none'};margin-top:10px">
+      <div class="label" style="margin-top:8px">Pilih Batch Investasi</div>
+      <select id="editProdukBatch" class="input" style="margin-top:6px;margin-bottom:10px">
+        ${investorBatchOptions(p.investor_batch_id || '')}
+      </select>
+      <div class="label" style="margin-top:8px">Detail Margin & Harga</div>
+      <div class="grid2" style="gap:10px;margin-top:10px">
+        <div>
+          <div class="tiny">Modal / pcs (Rp)</div>
+          <input id="editProdukModalInput" class="input" style="margin-top:6px" type="number" inputmode="numeric" value="${p.modal ?? ''}" placeholder="0">
+        </div>
+        <div>
+          <div class="tiny">Harga Jual / pcs (Rp)</div>
+          <input id="editProdukHargaJual" class="input" style="margin-top:6px" type="number" inputmode="numeric" value="${p.harga_jual ?? ''}" placeholder="0">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="tiny">Persentase Keuntungan Investor (%)</div>
+        <input id="editProdukPersen" class="input" style="margin-top:6px" type="number" inputmode="numeric" value="${p.persentase_keuntungan_investor ?? 30}" placeholder="30">
+        <div class="meta" style="margin-top:4px">Owner otomatis dapat sisanya dari profit bersih produk ini.</div>
+      </div>
+    </div>
+  `;
+}
+window.toggleEditProdukInvestorFields = function() {
+  const on = $("editProdukIsInvestor")?.checked;
+  const box = $("editProdukInvestorFields");
+  if (box) box.style.display = on ? 'block' : 'none';
+};
+
+window.editAdminProduk = function(id) {
+  const p = state.adminProducts.find(x => String(x.id) === String(id));
+  if (!p) return toast("Produk tidak ditemukan", true);
+  const oldName = p.nama_produk;
   const body = `<div class="card pad mb" style="box-shadow:none">
     <div class="tiny">Nama Produk</div>
-    <input id="editProdukInput" class="input" style="margin-top:8px;font-size:17px;font-weight:700" value="${esc(oldName)}" placeholder="Nama produk..." onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditAdminProduk('${String(id).replace(/'/g, "\\'")}','${oldName.replace(/'/g, "\\'")}')}">
+    <input id="editProdukInput" class="input" style="margin-top:8px;font-size:17px;font-weight:700" value="${esc(oldName)}" placeholder="Nama produk...">
     <div class="meta" style="margin-top:10px">Kalau nama diganti, semua transaksi lama yang masih pakai nama lama akan ikut diperbarui otomatis.</div>
+    ${investorFieldsFormHtml(p)}
   </div>`;
   const footer = `<div class="grid2" style="gap:10px">
     <button class="btn red" onclick="closeDynamicSheet('editProdukModal')"><i class="fas fa-xmark"></i> Batal</button>
     <button class="btn primary" onclick="confirmEditAdminProduk('${String(id).replace(/'/g, "\\'")}','${oldName.replace(/'/g, "\\'")}')"><i class="fas fa-check"></i> Simpan</button>
   </div>`;
-  openDynamicSheet("editProdukModal", "Edit Produk", "Ubah nama produk ini", body, footer);
+  openDynamicSheet("editProdukModal", "Edit Produk", "Ubah data produk ini", body, footer);
   setTimeout(() => { const el = $("editProdukInput"); if (el) { el.focus(); el.select(); } }, 80);
 };
 
@@ -2286,33 +2371,99 @@ window.confirmEditAdminProduk = async function(id, oldName) {
   const inputEl = $("editProdukInput");
   const newVal = adminLiteProductName(inputEl?.value || "");
   if (!newVal) return toast("Nama tidak boleh kosong", true);
-  if (newVal === oldName) return closeDynamicSheet("editProdukModal");
   if (state.adminProducts.some(p => p.nama_produk === newVal && String(p.id) !== String(id))) {
     return toast("Produk dengan nama itu sudah ada!", true);
   }
+
+  const isInv = !!$("editProdukIsInvestor")?.checked;
+  const batchId = $("editProdukBatch")?.value || null;
+  const patch = { nama_produk: newVal, is_investor: isInv };
+  if (isInv) {
+    if (!batchId) return toast("Pilih batch investasi!", true);
+    patch.investor_batch_id = batchId;
+    patch.modal = Number($("editProdukModalInput")?.value || 0) || null;
+    patch.harga_jual = Number($("editProdukHargaJual")?.value || 0) || null;
+    patch.persentase_keuntungan_investor = Number($("editProdukPersen")?.value || 30);
+  } else {
+    patch.investor_batch_id = null;
+    patch.modal = null;
+    patch.harga_jual = null;
+  }
+
+  const nameChanged = newVal !== oldName;
   closeDynamicSheet("editProdukModal");
-  const pin = await askPin(`Ganti nama produk?\n"${oldName}" -> "${newVal}"\n\nSemua transaksi LAMA yang masih pakai nama "${oldName}" akan ikut diubah jadi "${newVal}". Proses bisa makan waktu beberapa saat.\n\nMasukkan PIN admin:`);
+
+  const pin = await askPin(nameChanged
+    ? `Ganti nama produk?\n"${oldName}" -> "${newVal}"\n\nSemua transaksi LAMA yang masih pakai nama "${oldName}" akan ikut diubah jadi "${newVal}". Proses bisa makan waktu beberapa saat.\n\nMasukkan PIN admin:`
+    : `Simpan perubahan produk "${oldName}"?\n\nMasukkan PIN admin:`);
   if (!pin) return;
   if (String(pin) !== String(state.user?.pin)) return toast("PIN salah", true);
 
   setBusy(true);
   try {
-    const { error } = await supabase.from('produk').update({ nama_produk: newVal }).eq('id', id);
+    const { error } = await supabase.from('produk').update(patch).eq('id', id);
     if (error) throw error;
     await loadAdminProduk();
     render();
-    toast(`Nama produk diubah, sedang sinkronkan transaksi lama...`);
 
+    if (!nameChanged) { toast("Produk diperbarui"); return; }
+
+    toast(`Nama produk diubah, sedang sinkronkan transaksi lama...`);
     const { updatedCount, scannedCount } = await renameProductNameInTransactions(oldName, newVal, ({ month, updatedCount: u }) => {
       console.info(`[rename produk] bulan ${month}: ${u} transaksi diperbarui sejauh ini`);
     });
-
     toast(updatedCount > 0
       ? `Selesai. ${updatedCount} transaksi lama ikut diperbarui (dari ${scannedCount} transaksi disisir).`
-      : `Nama produk diubah. Tidak ada transaksi lama yang pakai nama "${oldName}".`);
+      : `Produk diubah. Tidak ada transaksi lama yang pakai nama "${oldName}".`);
   } catch (err) {
     console.error(err);
     toast("Gagal mengubah produk", true);
+  } finally {
+    setBusy(false);
+  }
+};
+
+window.openInvestorProdukModal = async function() {
+  const body = `<div class="card pad mb" style="box-shadow:none">
+    <div class="tiny">Nama Produk</div>
+    <input id="newInvestorProdukInput" class="input" style="margin-top:8px;font-size:17px;font-weight:700" placeholder="Nama produk investor...">
+    ${investorFieldsFormHtml({ is_investor: true })}
+  </div>`;
+  const footer = `<div class="grid2" style="gap:10px">
+    <button class="btn red" onclick="closeDynamicSheet('newInvestorProdukModal')"><i class="fas fa-xmark"></i> Batal</button>
+    <button class="btn primary" onclick="confirmAddInvestorProduk()"><i class="fas fa-check"></i> Simpan</button>
+  </div>`;
+  openDynamicSheet("newInvestorProdukModal", "Tambah Produk Investor", "Produk ini akan ditandai sebagai dibiayai investor", body, footer);
+  setTimeout(() => $("newInvestorProdukInput")?.focus(), 80);
+};
+
+window.confirmAddInvestorProduk = async function() {
+  const val = String($("newInvestorProdukInput")?.value || "").toUpperCase().trim();
+  if (!val) return toast("Nama produk wajib diisi", true);
+  if (state.adminProducts.some(p => p.nama_produk === val)) return toast("Produk sudah ada!", true);
+
+  const isInv = !!$("editProdukIsInvestor")?.checked;
+  const batchId = $("editProdukBatch")?.value || null;
+  if (isInv && !batchId) return toast("Pilih batch investasi!", true);
+  const payload = {
+    nama_produk: val,
+    is_investor: isInv,
+    investor_batch_id: isInv ? batchId : null,
+    modal: Number($("editProdukModalInput")?.value || 0) || null,
+    harga_jual: Number($("editProdukHargaJual")?.value || 0) || null,
+    persentase_keuntungan_investor: Number($("editProdukPersen")?.value || 30),
+  };
+  closeDynamicSheet("newInvestorProdukModal");
+  setBusy(true);
+  try {
+    const { error } = await supabase.from('produk').insert([payload]);
+    if (error) throw error;
+    await loadAdminProduk();
+    render();
+    toast("Produk investor ditambahkan");
+  } catch (err) {
+    console.error(err);
+    toast("Gagal menambahkan produk investor", true);
   } finally {
     setBusy(false);
   }
@@ -2340,4 +2491,4 @@ window.deleteAdminProduk = async function(id, name) {
 
 APP_PAGES.add('products');
 
-loadAdminProduk().then(() => { if (state.page === 'products') render(); });
+Promise.all([loadAdminProduk(), loadInvestmentBatches()]).then(() => { if (state.page === 'products') render(); });
