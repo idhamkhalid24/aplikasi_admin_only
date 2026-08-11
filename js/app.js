@@ -2127,10 +2127,22 @@ async function loadAdminProduk() {
 async function loadInvestmentBatches() {
   if (!supabase) return;
   try {
-    const { data, error } = await supabase.from('investment_batches').select('id,batch_name,status,investor_id,investors(name)').order('created_at', { ascending: false });
-    if (!error && data) {
-      state.investmentBatches = data;
+    const [bRes, pRes] = await Promise.all([
+      supabase.from('investment_batches').select('id,batch_name,status,investor_id,investors(name)').order('created_at', { ascending: false }),
+      supabase.from('projects').select('id,name,status').order('created_at', { ascending: false })
+    ]);
+    
+    let combined = [];
+    if (!bRes.error && bRes.data) combined = combined.concat(bRes.data);
+    if (!pRes.error && pRes.data) {
+      // Map format project agar sama dengan batch untuk dropdown
+      combined = combined.concat(pRes.data.map(p => ({
+        id: p.id,
+        batch_name: p.name,
+        status: p.status
+      })));
     }
+    state.investmentBatches = combined;
   } catch (err) {
     console.error("Gagal load investment batches:", err);
   }
