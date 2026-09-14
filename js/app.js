@@ -2322,7 +2322,7 @@ window.renderDrawerWithdrawalCard = function() {
     kembalianHtml = `
       <div class="card pad mb" style="border:1.5px solid #c3fae8;background:#f8fff9">
         <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="title" style="color:#0ca678"><i class="fas fa-coins"></i> Kembalian Besok</div>
+          <div class="title" style="color:#0ca678"><i class="fas fa-coins"></i> Cash Hari ini</div>
           <div style="font-size:10px;font-weight:700;color:#0ca678;background:#d3f9d8;border-radius:99px;padding:2px 8px">Hari Ini</div>
         </div>
         ${innerHtml}
