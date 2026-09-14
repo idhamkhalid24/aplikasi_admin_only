@@ -392,6 +392,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     const dk=state.txDate || dateKey();
     if(!force&&Date.now()-state.lastRefresh<12000&&state.dayLoadedKey===dk)return render();
     state.tx=[];state.drawerWithdrawals=[];state.cashRows=[];state.cashAuditRows=[];
+    state.adminChangeReserve=undefined;state._loadingAdminReserve=false;
     setBusy(true);
     try{
       const mk=monthKey();
@@ -635,7 +636,25 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     const monthCard=state.monthlyLoaded?`<div class="card stat"><div class="tiny">Bulan Ini</div><div class="val num">${rp(totalMonth)}</div><div class="meta">${monthRows.length} trx - manual load</div></div>`:`<div class="card stat read-saver-card"><div class="tiny">Bulan Ini</div><div class="val num" style="font-size:16px">Manual</div><div class="read-saver-note">Tidak auto baca ribuan trx.</div></div>`;
     const monthlyBonusCard=state.monthlyLoaded?`<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Ringkasan Bonus Bulanan</div><div class="meta">Data bulan ini dimuat manual - sudah termasuk transaksi, closing, manual, dan ambil bonus</div></div>${monthBadge}</div><div class="sep"></div><div class="grid2"><div><div class="tiny">Bonus Transaksi</div><div class="amt num">${rp(bonusTrxMonth)}</div></div><div><div class="tiny">Bonus Closing</div><div class="amt num">${rp(closingMonth)}</div></div><div><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(withdrawalMonth)}</div></div><div><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(sisaBonusMonth)}</div></div></div><div class="compact-load-row"><div class="meta">Total ${rp(totalBonusMonth)} - manual ${rp(manualMonth)}</div><button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button></div></div>`:`<div class="card pad mb read-saver-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan Bulanan</div><div class="meta">Mode ultra hemat: data bulan ini tidak otomatis dibaca</div></div>${monthBadge}</div><div class="read-saver-note">Klik tombol ini hanya saat butuh laporan bulan ini. Perkiraan read: sesuai jumlah transaksi + absen bulan berjalan.</div><div class="compact-load-row"><span class="chip warn"><i class="fas fa-database"></i> Manual</span><button class="btn amber" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button></div></div>`;
     return`<div class="wrap">${header("Panel Admin",`${esc(state.user.name)} - ${dateKey()} - refresh hemat hari ini`)}<div class="hero mb"><div class="tiny">Cash Fisik Hari Ini</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Pendapatan ${rp(totalToday)} - ${tToday.length} transaksi hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Pendapatan Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} trx</div></div></div>${dailyBonusCard()}${adminCashierShortcutCard()}<div class="grid3 mb"><div class="card stat"><div class="tiny">Oprasional</div><div class="val num">${rp(ded.ops)}</div></div><div class="card stat"><div class="tiny">QRIS</div><div class="val num">${rp(ded.qris)}</div></div><div class="card stat"><div class="tiny">Tabungan</div><div class="val num">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`}
-function isTxAfterLatestWithdrawal(t){if(!state.drawerWithdrawals||!state.drawerWithdrawals.length)return false;const dk=String(t.dateKey||"").slice(0,10);if(!dk)return false;const dws=state.drawerWithdrawals.filter(w=>!w.deleted&&String(w.dateKey||"").slice(0,10)===dk);if(!dws.length)return false;let latestDw=dws[0];for(const w of dws){if((w.createdAtMs||0)>(latestDw.createdAtMs||0))latestDw=w}return Number(t.createdAtMs||t.updatedAtMs||0)>Number(latestDw.createdAtMs||0)}
+function isTxAfterLatestWithdrawal(t){
+  const dk=String(t.dateKey||"").slice(0,10);
+  if(!dk)return false;
+  let latestMs=0;
+  if(state.drawerWithdrawals&&state.drawerWithdrawals.length){
+    const dws=state.drawerWithdrawals.filter(w=>!w.deleted&&String(w.dateKey||"").slice(0,10)===dk);
+    if(dws.length){
+      let latestDw=dws[0];
+      for(const w of dws){if((w.createdAtMs||0)>(latestDw.createdAtMs||0))latestDw=w;}
+      latestMs=Number(latestDw.createdAtMs||0);
+    }
+  }
+  if(dk===dateKey()&&state.adminChangeReserve&&!state.adminChangeReserve.deleted){
+    const rms=Number(state.adminChangeReserve.created_at_ms||0);
+    if(rms>latestMs)latestMs=rms;
+  }
+  if(latestMs===0)return false;
+  return Number(t.createdAtMs||t.updatedAtMs||0)>latestMs;
+}
 function renderTxList(list,withActions=true){if(!list.length)return`<div class="empty">Belum ada transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item" ${isTxAfterLatestWithdrawal(t)?'style="border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;"':''}><div class="ico"><i class="fas fa-receipt"></i></div><div class="grow"><div class="name">${esc(t.note||"Transaksi")}</div><div class="meta">${esc(t.name||userName(t.user))} - ${txTimeLabel(t)} - ${txPaymentLabel(t)}</div><div style="margin-top:5px">${txPaymentBadge(t)}</div></div><div class="right"><div class="amt num">${rp(t.amount)}</div>${withActions?`<div class="miniBtns" style="margin-top:6px"><button class="btn green" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button></div>`:""}</div></div>`).join("")}</div>`}function renderTrx(){const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>`:"";return`<div class="wrap">${header("Transaksi","Riwayat hari ini - cetak simpan batal")}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${printAll}${renderTxList(list,true)}</div>`};
   window.openTransactionModal=()=>{$("trxTitle").textContent="Tambah Transaksi";$("trxId").value="";$("trxNote").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);modal("trxModal")};window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Transaksi";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);$("trxNote").value=t.note||"";$("trxAmount").value=rupiah(t.amount);modal("trxModal")};function openAdminLitePaymentModal(draft){adminLitePaymentSubmitting=false;adminLitePendingTxDraft={...(draft||{})};const label=adminLitePendingTxDraft.id?"Update transaksi":"Transaksi baru";const note=esc(adminLitePendingTxDraft.note||"Transaksi").replace(/\n/g,"<br>");const body=`<div class="card pad mb" style="box-shadow:none"><div class="tiny">${esc(label)}</div><div class="title num" style="margin-top:6px;color:var(--primary)">${rp(adminLitePendingTxDraft.amount||0)}</div><div class="meta" style="margin-top:6px;color:var(--text-main);font-weight:700;white-space:normal">${note}</div><div class="meta" style="margin-top:8px">Pilih metode pembayaran. Data baru dikirim ke Firebase setelah memilih Cash atau QRIS / Transfer.</div></div><div class="grid2" style="gap:10px"><button type="button" data-admin-lite-payment="cash" class="btn green" onpointerdown="confirmAdminLitePayment('cash',this,event)" ontouchstart="confirmAdminLitePayment('cash',this,event)" onclick="confirmAdminLitePayment('cash',this,event)" style="min-height:56px;background:var(--success);color:#fff"><i class="fas fa-money-bill-wave"></i> Cash</button><button type="button" data-admin-lite-payment="qris_transfer" class="btn primary" onpointerdown="confirmAdminLitePayment('qris_transfer',this,event)" ontouchstart="confirmAdminLitePayment('qris_transfer',this,event)" onclick="confirmAdminLitePayment('qris_transfer',this,event)" style="min-height:56px"><i class="fas fa-qrcode"></i> QRIS / Transfer</button></div><button class="btn red full" onclick="closeDynamicSheet('adminLitePaymentModal')" style="margin-top:10px"><i class="fas fa-xmark"></i> Batal</button>`;openDynamicSheet("adminLitePaymentModal","Pilih Pembayaran","Cash atau QRIS / Transfer",body)}window.confirmAdminLitePayment=async(method,btn,event)=>{try{event?.preventDefault?.();event?.stopPropagation?.()}catch(e){}if(adminLitePaymentSubmitting)return;adminLitePaymentSubmitting=true;const buttons=[...document.querySelectorAll('[data-admin-lite-payment]')];buttons.forEach(b=>{b.disabled=true;b.style.opacity='.72'});if(btn){btn.dataset.originalText=btn.dataset.originalText||btn.innerHTML;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'}try{const draft=adminLitePendingTxDraft?{...adminLitePendingTxDraft}:null;if(!draft)return toast("Data transaksi tidak ditemukan",true);await saveTransaction(Boolean(draft.printAfterSave),method)}finally{adminLitePaymentSubmitting=false;buttons.forEach(b=>{b.disabled=false;b.style.opacity='';if(b.dataset.originalText)b.innerHTML=b.dataset.originalText})}};window.saveTransaction=async(printAfterSave=false,paymentMethod="")=>{const id=$("trxId").value,username=cleanUser($("trxUser").value),u=userBy(username),amount=parseMoney($("trxAmount").value),note=String($("trxNote").value||"Transaksi").trim();if(!username||!u)return toast("Pilih user",true);if(amount<=0)return toast("Nominal wajib lebih dari 0",true);if(!paymentMethod){adminLitePendingTxDraft={id,username,amount,note,printAfterSave:Boolean(printAfterSave)};return openAdminLitePaymentModal(adminLitePendingTxDraft)}const payment=normalizeAdminLitePaymentMethod(paymentMethod);if(!payment)return toast("Pilih Cash atau QRIS / Transfer",true);const paymentText=adminLitePaymentLabel(payment);setBusy(true);try{const old=id?state.tx.find(t=>t.id===id):null,createdAtMs=id?Number(old?.createdAtMs||Date.now()):Date.now(),payload={...trialFlagsForUser(u),user:username,name:u.name||username,note,amount,paymentMethod:payment,paymentLabel:paymentText,paymentStatus:"success",paymentCashOutType:payment==="qris_transfer"?"qris":"",isNonCashPayment:payment==="qris_transfer",paymentConfirmed:true,paymentConfirmedAtMs:Date.now(),dateKey:dateKey(),monthKey:monthKey(),userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",bonusRate:getUserRate(u),bonusPercent:Number((getUserRate(u)*100).toFixed(3)),transactionBonusRate:getUserRate(u),transactionBonusPercent:Number((getUserRate(u)*100).toFixed(3)),bonusLogicVersion:3,source:old?.source||"admin_lite_manual",deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};let savedId=id;if(id){await setDoc(doc(db,"transactions",id),payload,{merge:true})}else{const ref=await addDoc(collection(db,"transactions"),{...payload,createdAt:serverTimestamp(),createdAtMs,createdBy:state.user.username});savedId=ref.id}const savedTx={id:savedId,...(old||{}),...payload,createdAtMs};localUpsert("tx",savedTx);closeDynamicSheet("adminLitePaymentModal");closeModal("trxModal");adminLitePendingTxDraft=null;finishLocalWrite();if(printAfterSave){toast("Transaksi tersimpan, mencetak struk");setTimeout(()=>directPrintReceiptText(receiptTextForTx(savedTx),"Struk Transaksi Baru"),120)}else toast(`Transaksi tersimpan - ${paymentText}`)}catch(e){toast(e.message||"Gagal simpan transaksi",true)}finally{setBusy(false)}};window.deleteTransaction=async id=>{const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const pin=await askPin(`Hapus transaksi ini?\n${t.name||userName(t.user)||"-"} - ${rp(t.amount)}\n${String(t.note||"Transaksi").trim()}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);if(!confirm("Yakin hapus transaksi ini? Data dibuat soft-delete."))return;setBusy(true);try{const patch={deleted:true,deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"transactions",id),patch,{merge:true});localMerge("tx",id,patch);finishLocalWrite();toast("Transaksi dihapus")}catch(e){toast(e.message||"Gagal hapus",true)}finally{setBusy(false)}};
   function isPayrollStaff(u){const role=String(u?.role||"").toLowerCase();return isActive(u)&&role!=="admin"&&!isDaily(u)}
@@ -1897,12 +1916,63 @@ window.openPrinterSettingsModal = function() {
   openDynamicSheet('printerSettingsModal', 'Pengaturan Printer', 'Pengaturan struk & cetak resi', body, footer);
 };
 
-window.openDrawerWithdrawalModal = () => {
+window.openDrawerWithdrawalModal = async () => {
   $("dwWithdrawnAmount").value = "";
   $("dwLeftAmount").value = "";
   $("dwNote").value = "";
   if ($("dwAssignedUser")) $("dwAssignedUser").innerHTML = `<option value="all">Tampilkan ke Semua Staf</option>` + optionUsers("");
   modal("drawerWithdrawalModal");
+
+  // Hapus hint lama kalau ada
+  const oldHint = document.getElementById("dwLeftAmountHint");
+  if (oldHint) oldHint.remove();
+
+  // Auto-fill dari kembalian besok yang diset staf
+  try {
+    const dk = dateKey();
+    const { data, error } = await supabase
+      .from("staff_change_reserve")
+      .select("*")
+      .eq("date_key", dk)
+      .eq("deleted", false)
+      .order("created_at_ms", { ascending: false })
+      .limit(1);
+    if (!error && data && data[0]) {
+      const reserve = data[0];
+      const baseAmount = Number(reserve.amount || 0);
+      const reserveTime = Number(reserve.created_at_ms || 0);
+
+      // Hitung cash transaksi baru setelah kembalian diset
+      const txList = (state.tx || []).filter(t => {
+        if (t.deleted) return false;
+        const tms = Number(t.createdAtMs || t.created_at_ms || 0);
+        if (tms <= reserveTime) return false;
+        const pm = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+        return !pm.includes("qris") && !pm.includes("transfer");
+      });
+      const cashBaru = txList.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const totalKembalian = baseAmount + cashBaru;
+
+      if (baseAmount > 0 && $("dwLeftAmount")) {
+        // Isi field dengan format angka (tanpa "Rp") supaya parseMoney bisa baca
+        $("dwLeftAmount").value = rupiah(totalKembalian);
+
+        // Tambah hint info
+        const hint = document.createElement("div");
+        hint.id = "dwLeftAmountHint";
+        hint.className = "tx-note-mini";
+        hint.style.cssText = "color:#0ca678;margin-top:-6px;margin-bottom:6px;font-size:12px";
+        const timeLabel = reserveTime
+          ? new Date(reserveTime).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB"
+          : "";
+        hint.innerHTML = `<i class="fas fa-coins"></i> Kembalian staf <b>${reserve.user_name || reserve.username}</b> (${timeLabel}): Rp ${rupiah(baseAmount)}` +
+          (cashBaru > 0 ? ` + cash baru Rp ${rupiah(cashBaru)} = <b>Rp ${rupiah(totalKembalian)}</b>` : "");
+        $("dwLeftAmount").insertAdjacentElement("afterend", hint);
+      }
+    }
+  } catch(e) {
+    console.warn("Gagal fetch kembalian besok:", e);
+  }
 };
 
 window.saveDrawerWithdrawal = async () => {
@@ -1964,6 +2034,27 @@ window.deleteDrawerWithdrawal = async (id) => {
     if(typeof render === 'function') render();
   } catch (e) {
     toast(e.message || "Gagal hapus tarikan laci", true);
+  } finally {
+    setBusy(false);
+  }
+};
+window.deleteStaffChangeReserve = async (id) => {
+  const pin = await askPin(`Hapus Kembalian Besok staf ini?\n\nMasukkan PIN admin:`);
+  if (!pin) return;
+  if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+  
+  setBusy(true);
+  try {
+    const { error } = await supabase
+      .from('staff_change_reserve')
+      .update({ deleted: true, deleted_at_ms: Date.now() })
+      .eq("id", id);
+    if (error) throw error;
+    state.adminChangeReserve = null;
+    toast("Kembalian staf dihapus");
+    if(typeof render === 'function') render();
+  } catch (e) {
+    toast(e.message || "Gagal hapus kembalian", true);
   } finally {
     setBusy(false);
   }
@@ -2086,6 +2177,159 @@ window.renderDrawerWithdrawalCard = function() {
       </div>`;
   }
 
+  // ---- Kembalian Besok dari staf (hanya tampil saat hari ini) ----
+  let kembalianHtml = '';
+  if (isToday) {
+    const reserve = state.adminChangeReserve;
+    const ydData = state.adminYdDrawerData;
+    
+    let innerHtml = '';
+    
+    if (reserve === undefined || ydData === undefined) {
+      innerHtml = `<div class="meta" style="color:var(--text-soft)">Memuat sinkronisasi data laci...</div>`;
+      if (!state._loadingAdminReserve) {
+        state._loadingAdminReserve = true;
+        
+        let p1 = Promise.resolve();
+        if (reserve === undefined) {
+          p1 = supabase.from('staff_change_reserve').select('*')
+            .eq('date_key', dateKey()).eq('deleted', false)
+            .order('created_at_ms', { ascending: false }).limit(1)
+            .then(({ data, error }) => {
+              state.adminChangeReserve = (!error && data && data[0]) ? data[0] : null;
+            });
+        }
+        
+        let p2 = Promise.resolve();
+        if (ydData === undefined) {
+          let ydDate = new Date(dk);
+          ydDate.setDate(ydDate.getDate() - 1);
+          const ydKey = dateKey(ydDate);
+          
+          const dwQ = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', ydKey), limit(50));
+          const txQ = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
+          
+          p2 = Promise.all([
+            getDocs(dwQ, {source:'server'}).catch(()=>getDocs(dwQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
+            getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()})))
+          ]).then(([dws, txs]) => {
+            state.adminYdDrawerData = { dws, txs };
+          }).catch(() => {
+            state.adminYdDrawerData = { dws: [], txs: [] };
+          });
+        }
+
+        Promise.all([p1, p2]).then(() => {
+          state._loadingAdminReserve = false;
+          if (typeof render === 'function') render();
+        });
+      }
+    } else if (!reserve) {
+      innerHtml = `<div class="meta" style="color:var(--text-soft);font-style:italic">Belum ada staf yang membuat kembalian besok.</div>`;
+    } else {
+      const baseAmount = Number(reserve.amount || 0);
+      const reserveTime = Number(reserve.created_at_ms || 0);
+
+      // Hitung cash fisik admin hari ini persis seperti di Home Admin
+      const tToday = todayTx();
+      const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
+      const ded = financeDeductions();
+      const cashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
+
+      // Hitung uang kemarin (berdasarkan data Firebase ydData)
+      let ydNominal = 0;
+      if (ydData) {
+        const dws = (ydData.dws || []).filter(w => !w.deleted);
+        const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+        if (dws.length) {
+          let latestDw = dws[0];
+          for (const w of dws) { if ((w.createdAtMs || 0) > (latestDw.createdAtMs || 0)) latestDw = w; }
+          const latestTime = Number(latestDw.createdAtMs || 0);
+          const leftAmount = Number(latestDw.remainingAmount || 0);
+          let cashTxAfter = 0;
+          for (const t of txListYd) {
+            if (Number(t.createdAtMs || 0) > latestTime) {
+              const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+              if (!p.includes("qris") && !p.includes("transfer")) cashTxAfter += Number(t.amount || 0);
+            }
+          }
+          ydNominal = leftAmount + cashTxAfter;
+        } else {
+          let cashSum = 0;
+          for (const t of txListYd) {
+            const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+            if (!p.includes("qris") && !p.includes("transfer")) cashSum += Number(t.amount || 0);
+          }
+          ydNominal = cashSum;
+        }
+      }
+      
+      // Hitung kembalian plus transaksi masuk setelahnya (mirip logika staf app)
+      const txAfterReserve = txList.filter(t => {
+        const tms = Number(t.createdAtMs || 0);
+        if (tms <= reserveTime) return false;
+        const pm = String(t.paymentMethod || t.paymentLabel || t.payment || '').toLowerCase();
+        return !pm.includes('qris') && !pm.includes('transfer');
+      });
+      const cashBaru = txAfterReserve.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const totalKembalian = baseAmount + cashBaru;
+      
+      const totalDisetor = cashFisik + ydNominal - totalKembalian;
+
+      const timeLabel = reserveTime
+        ? new Date(reserveTime).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB'
+        : '';
+
+      innerHtml = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div class="tiny" style="color:#0ca678;font-weight:800">Sisa yang harus disetor</div>
+            <div class="amt num" style="color:#0ca678;font-size:18px;margin-top:2px">${rp(totalDisetor)}</div>
+          </div>
+          <button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteStaffChangeReserve('${reserve.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;padding:6px;background:#e6fcf5;border-radius:6px;border:1px dashed #20c997">
+          <span style="font-weight:800;color:#0ca678">Total uang laci setelah closing:</span>
+          <span style="font-weight:900;color:#0ca678">Rp ${rupiah(totalKembalian)}</span>
+        </div>
+
+        <div style="padding:6px 10px;background:#f1fdf6;border:1px solid #c3fae8;border-radius:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:#6c757d">Cash fisik hari ini:</span>
+            <span style="font-weight:700;color:#343a40">Rp ${rupiah(cashFisik)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:#6c757d">Ditambah uang kemarin:</span>
+            <span style="font-weight:700;color:#343a40">Rp ${rupiah(ydNominal)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:#6c757d">Kembalian (${esc(reserve.user_name || reserve.username)}):</span>
+            <span style="font-weight:700;color:#e03131">- Rp ${rupiah(baseAmount)}</span>
+          </div>
+          ${cashBaru > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="color:#6c757d">Cash masuk setelahnya:</span>
+            <span style="font-weight:700;color:#e03131">- Rp ${rupiah(cashBaru)}</span>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;font-size:12px;border-top:1px dashed #c3fae8;padding-top:4px;margin-top:4px">
+            <span style="font-weight:800;color:#0ca678">Total uang laci disetor:</span>
+            <span style="font-weight:900;color:#0ca678">Rp ${rupiah(totalDisetor)}</span>
+          </div>
+        </div>`;
+    }
+    
+    kembalianHtml = `
+      <div class="card pad mb" style="border:1.5px solid #c3fae8;background:#f8fff9">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="title" style="color:#0ca678"><i class="fas fa-coins"></i> Kembalian Besok</div>
+          <div style="font-size:10px;font-weight:700;color:#0ca678;background:#d3f9d8;border-radius:99px;padding:2px 8px">Hari Ini</div>
+        </div>
+        ${innerHtml}
+      </div>
+    `;
+  }
+
   return `
     <div class="card pad mb" style="border:1px solid #10b981;background:rgba(16,185,129,0.05)">
       <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -2095,6 +2339,7 @@ window.renderDrawerWithdrawalCard = function() {
       <input class="input" type="date" value="${esc(dk)}" onchange="setDrawerDate(this.value)" style="margin-bottom:0">
       ${estHtml}
     </div>
+    ${kembalianHtml}
   `;
 };
 
