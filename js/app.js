@@ -1233,6 +1233,10 @@ function startTransactionsRealtime(){
          clearTimeout(txRealtimeDebounceTimer);
          txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
       })
+      .on('postgres_changes',{event:'*',schema:'public',table:'staff_change_reserve'}, payload=>{
+         clearTimeout(txRealtimeDebounceTimer);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+      })
       .subscribe();
   }catch(e){ console.warn('Realtime tx belum aktif', e); }
 }
@@ -2123,9 +2127,72 @@ window.setDrawerDate = async function(val) {
     const txQ2 = query(collection(db, 'transactions'), where('dateKey', '==', dk), limit(180));
     const txSnap = await getDocs(txQ2, {source:'server'}).catch(() => getDocs(txQ2));
     state.txForDrawerDate = txSnap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
+
+    try {
+      const { data } = await supabase
+        .from('staff_change_reserve')
+        .select('*')
+        .eq('date_key', dk)
+        .eq('deleted', false)
+        .order('created_at_ms', { ascending: false })
+        .limit(1);
+      state.reserveForDrawerDate = data && data[0] ? data[0] : null;
+    } catch(e) {
+      state.reserveForDrawerDate = null;
+    }
+    
+    // fetch cash_book untuk tanggal ini dari Supabase cashDb
+    try {
+      if (typeof cashDb !== 'undefined') {
+        const { data, error } = await cashDb.from("transactions")
+          .select("id,date,description,amount,type,category_id,category_name")
+          .eq("owner_id", CASH_FISIK_OWNER_ID)
+          .eq("date", dk)
+          .order("id", { ascending: false });
+        if (error) throw error;
+        state.cashRowsForDrawerDate = data || [];
+      } else {
+        state.cashRowsForDrawerDate = [];
+      }
+    } catch(e) {
+      state.cashRowsForDrawerDate = [];
+    }
+    
+    // fetch ydData for the selected date
+    let ydDate = new Date(dk);
+    ydDate.setDate(ydDate.getDate() - 1);
+    const ydKey = window.dateKey ? window.dateKey(ydDate) : String(ydDate.getFullYear()) + "-" + String(ydDate.getMonth() + 1).padStart(2, '0') + "-" + String(ydDate.getDate()).padStart(2, '0');
+    try {
+      const dwQ_yd = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', ydKey), limit(50));
+      const txQ_yd = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
+      const [snapDw, snapTx] = await Promise.all([
+        getDocs(dwQ_yd, {source:'server'}).catch(() => getDocs(dwQ_yd)),
+        getDocs(txQ_yd, {source:'server'}).catch(() => getDocs(txQ_yd))
+      ]);
+      const dws_yd = snapDw.docs.map(d => ({id: d.id, ...d.data()}));
+      const txs_yd = snapTx.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
+      
+      let res_yd = null;
+      try {
+        const { data: yData } = await supabase.from('staff_change_reserve').select('*').eq('date_key', ydKey).eq('deleted', false).order('created_at_ms', { ascending: false }).limit(1);
+        res_yd = yData && yData[0] ? yData[0] : null;
+      } catch(e) {}
+      
+      if (res_yd) {
+        dws_yd.push({ createdAtMs: res_yd.created_at_ms, remainingAmount: res_yd.amount, isReserve: true });
+      }
+      
+      state.ydDataForDrawerDate = { dws: dws_yd, txs: txs_yd };
+    } catch(e) {
+      state.ydDataForDrawerDate = { dws: [], txs: [] };
+    }
+
   } catch(e) {
     state.drawerWithdrawalsForDate = [];
     state.txForDrawerDate = [];
+    state.reserveForDrawerDate = null;
+    state.cashRowsForDrawerDate = [];
+    state.ydDataForDrawerDate = { dws: [], txs: [] };
   }
   render();
 };
@@ -2138,6 +2205,11 @@ window.renderDrawerWithdrawalCard = function() {
   const dws = dk === dateKey()
     ? (state.drawerWithdrawals || []).filter(w => !w.deleted && String(w.dateKey || '').slice(0, 10) === dk)
     : (state.drawerWithdrawalsForDate || []).filter(w => !w.deleted);
+    
+  const res = dk === dateKey() ? state.adminChangeReserve : state.reserveForDrawerDate;
+  if (res) {
+    dws.push({ createdAtMs: res.created_at_ms, remainingAmount: res.amount, isReserve: true });
+  }
 
   const txList = dk === dateKey()
     ? visibleTx().filter(t => String(t.dateKey || '').slice(0, 10) === dk)
@@ -2146,13 +2218,30 @@ window.renderDrawerWithdrawalCard = function() {
   // Hitung estimasi
   let estHtml = '';
   if (!dws.length) {
-    estHtml = `<div class="meta" style="margin-top:8px;color:var(--text-soft)">Tidak ada data tarikan laci pada tanggal ini.</div>`;
+    let cashSum = 0;
+    for (const t of txList) {
+      const p = String(t.paymentMethod || t.paymentLabel || t.payment || '').toLowerCase();
+      if (!p.includes('qris') && !p.includes('transfer')) cashSum += Number(t.amount || 0);
+    }
+    const estimate = cashSum;
+    estHtml = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <div>
+          <div class="tiny">Estimasi Uang Laci</div>
+          <div class="amt num" style="color:#10b981;font-size:18px;margin-top:2px">${rp(estimate)}</div>
+          <div class="meta" style="margin-top:4px">Belum ada tarikan laci owner pada tanggal ini.</div>
+        </div>
+      </div>
+      <div class="meta" style="margin-top:6px;line-height:1.4">
+        Total Cash (Rp ${rupiah(cashSum)})
+      </div>`;
   } else {
     let latestDw = dws[0];
     for (const w of dws) { if ((w.createdAtMs||0) > (latestDw.createdAtMs||0)) latestDw = w; }
     const latestTime = Number(latestDw.createdAtMs || 0);
     const leftAmount = Number(latestDw.remainingAmount || 0);
     const withdrawnAmount = Number(latestDw.amount || 0);
+    const isReserve = latestDw.isReserve;
     const timeLabel = new Date(latestTime).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB';
     let cashTxAfter = 0;
     for (const t of txList) {
@@ -2167,74 +2256,110 @@ window.renderDrawerWithdrawalCard = function() {
         <div>
           <div class="tiny">Estimasi Uang Laci</div>
           <div class="amt num" style="color:#10b981;font-size:18px;margin-top:2px">${rp(estimate)}</div>
-          <div class="meta" style="margin-top:4px">Tarikan terakhir: ${timeLabel}</div>
+          <div class="meta" style="margin-top:4px">${isReserve ? 'Staf sisihkan kembalian: ' : 'Tarikan terakhir: '}${timeLabel}</div>
         </div>
-        ${isToday ? `<button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteDrawerWithdrawal('${latestDw.id}')" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
+        ${isToday && !isReserve ? `<button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteDrawerWithdrawal('${latestDw.id}')" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
       </div>
       <div class="meta" style="margin-top:6px;line-height:1.4">
-        Sisa laci (Rp ${rupiah(leftAmount)}) + Cash setelah tarikan (Rp ${rupiah(cashTxAfter)})
-        <br><span style="font-size:11px;opacity:0.8">Owner menarik Rp ${rupiah(withdrawnAmount)}</span>
+        Sisa laci (Rp ${rupiah(leftAmount)}) + Cash setelah ${isReserve ? 'disisihkan' : 'tarikan'} (Rp ${rupiah(cashTxAfter)})
+        <br><span style="font-size:11px;opacity:0.8">${isReserve ? 'Staf menyisihkan Rp ' + rupiah(leftAmount) : 'Owner menarik Rp ' + rupiah(withdrawnAmount)}</span>
       </div>`;
   }
 
-  // ---- Kembalian Besok dari staf (hanya tampil saat hari ini) ----
+  // ---- Kembalian Besok dari staf ----
   let kembalianHtml = '';
-  if (isToday) {
-    const reserve = state.adminChangeReserve;
-    const ydData = state.adminYdDrawerData;
-    
-    let innerHtml = '';
-    
-    if (reserve === undefined || ydData === undefined) {
-      innerHtml = `<div class="meta" style="color:var(--text-soft)">Memuat sinkronisasi data laci...</div>`;
-      if (!state._loadingAdminReserve) {
-        state._loadingAdminReserve = true;
-        
-        let p1 = Promise.resolve();
-        if (reserve === undefined) {
-          p1 = supabase.from('staff_change_reserve').select('*')
-            .eq('date_key', dateKey()).eq('deleted', false)
-            .order('created_at_ms', { ascending: false }).limit(1)
-            .then(({ data, error }) => {
-              state.adminChangeReserve = (!error && data && data[0]) ? data[0] : null;
-            });
-        }
-        
-        let p2 = Promise.resolve();
-        if (ydData === undefined) {
-          let ydDate = new Date(dk);
-          ydDate.setDate(ydDate.getDate() - 1);
-          const ydKey = dateKey(ydDate);
-          
-          const dwQ = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', ydKey), limit(50));
-          const txQ = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
-          
-          p2 = Promise.all([
-            getDocs(dwQ, {source:'server'}).catch(()=>getDocs(dwQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
-            getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()})))
-          ]).then(([dws, txs]) => {
-            state.adminYdDrawerData = { dws, txs };
-          }).catch(() => {
-            state.adminYdDrawerData = { dws: [], txs: [] };
+  const reserve = isToday ? state.adminChangeReserve : state.reserveForDrawerDate;
+  const ydData = isToday ? state.adminYdDrawerData : state.ydDataForDrawerDate;
+  
+  let innerHtml = '';
+  
+  if (reserve === undefined || ydData === undefined) {
+    innerHtml = `<div class="meta" style="color:var(--text-soft)">Memuat sinkronisasi data laci...</div>`;
+    if (isToday && !state._loadingAdminReserve) {
+      state._loadingAdminReserve = true;
+      
+      let p1 = Promise.resolve();
+      if (reserve === undefined) {
+        p1 = supabase.from('staff_change_reserve').select('*')
+          .eq('date_key', dateKey()).eq('deleted', false)
+          .order('created_at_ms', { ascending: false }).limit(1)
+          .then(({ data, error }) => {
+            state.adminChangeReserve = (!error && data && data[0]) ? data[0] : null;
           });
-        }
-
-        Promise.all([p1, p2]).then(() => {
-          state._loadingAdminReserve = false;
-          if (typeof render === 'function') render();
+      }
+      
+      let p2 = Promise.resolve();
+      if (ydData === undefined) {
+        let ydDate = new Date(dk);
+        ydDate.setDate(ydDate.getDate() - 1);
+        const ydKey = dateKey(ydDate);
+        
+        const dwQ = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', ydKey), limit(50));
+        const txQ = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
+        
+        p2 = Promise.all([
+          getDocs(dwQ, {source:'server'}).catch(()=>getDocs(dwQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
+          getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
+          supabase.from('staff_change_reserve').select('*').eq('date_key', ydKey).eq('deleted', false).order('created_at_ms', { ascending: false }).limit(1).then(({data}) => data && data[0] ? data[0] : null)
+        ]).then(([dws, txs, res_yd]) => {
+          if (res_yd) dws.push({ createdAtMs: res_yd.created_at_ms, remainingAmount: res_yd.amount, isReserve: true });
+          state.adminYdDrawerData = { dws, txs };
+        }).catch(() => {
+          state.adminYdDrawerData = { dws: [], txs: [] };
         });
       }
-    } else if (!reserve) {
+
+      Promise.all([p1, p2]).then(() => {
+        state._loadingAdminReserve = false;
+        if (typeof render === 'function') render();
+      });
+    }
+  } else if (!reserve) {
+    // Jangan tampilkan pesan "Belum ada staf..." jika bukan hari ini (agar riwayat terlihat rapi)
+    if (isToday) {
       innerHtml = `<div class="meta" style="color:var(--text-soft);font-style:italic">Belum ada staf yang membuat kembalian besok.</div>`;
     } else {
+      innerHtml = '';
+    }
+  } else {
       const baseAmount = Number(reserve.amount || 0);
       const reserveTime = Number(reserve.created_at_ms || 0);
 
-      // Hitung cash fisik admin hari ini persis seperti di Home Admin
-      const tToday = todayTx();
+      // Hitung cash fisik admin untuk tanggal yang dipilih persis seperti di Home Admin
+      const tToday = txList;
       const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
-      const ded = financeDeductions();
-      const cashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
+      
+      let ops = 0, qrisManual = 0, tabunganManual = 0, lainnya = 0;
+      for (const r of (state.cashRowsForDrawerDate || [])) {
+        const desc = String(r.description || ""), amount = Math.abs(Number(r.amount || 0)), type = String(r.type || "").toLowerCase();
+        if (isAdminCashDrawerAdjustmentTx(r)) continue;
+        if (type === "expense" && desc.startsWith(OPS_PREFIX)) ops += amount;
+        if (type === "expense" && desc.startsWith(CASHOUT_PREFIX)) {
+          const t_c = cashOutType(r);
+          const isAutoQris = desc.includes('[AUTO-QRIS:') || /QRIS\\s+otomatis\\s+kasir/i.test(desc);
+          if (t_c === "qris") {
+             if (!isAutoQris) qrisManual += amount;
+          } else if (t_c === "tabungan") {
+             tabunganManual += amount;
+          } else lainnya += amount;
+        }
+      }
+      let qrisAuto = 0, tabunganAuto = 0;
+      for (const t of tToday) {
+        const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+        if (p.includes("qris") || p.includes("transfer")) qrisAuto += Number(t.amount || 0);
+        else if (p.includes("tabungan")) tabunganAuto += Number(t.amount || 0);
+      }
+      let laci_adj = 0;
+      if (dk === dateKey()) {
+        laci_adj = adminCashDrawerAdjustmentForDate(dk);
+      } else {
+        const rowsAdj = (state.cashRowsForDrawerDate || []).filter(r => isAdminCashDrawerAdjustmentTx(r));
+        laci_adj = adminRoundRp(rowsAdj.reduce((sum,r)=>sum+(String(r.type||"").toLowerCase()==="income"?Number(r.amount||0):-Number(r.amount||0)),0));
+      }
+      const dedTotal = adminRoundRp(ops + qrisManual + qrisAuto + tabunganManual + tabunganAuto + lainnya - laci_adj);
+      
+      const cashFisik = Math.max(0, adminRoundRp(totalToday - dedTotal));
 
       // Hitung uang kemarin (berdasarkan data Firebase ydData)
       let ydNominal = 0;
@@ -2286,7 +2411,7 @@ window.renderDrawerWithdrawalCard = function() {
             <div class="tiny" style="color:#0ca678;font-weight:800">Sisa yang harus disetor</div>
             <div class="amt num" style="color:#0ca678;font-size:18px;margin-top:2px">${rp(totalDisetor)}</div>
           </div>
-          <button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteStaffChangeReserve('${reserve.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
+          ${isToday ? `<button class="btn red" style="padding:0 8px;min-height:30px;font-size:12px;border-radius:6px;" onclick="deleteStaffChangeReserve('${reserve.id}')" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
         </div>
 
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;padding:6px;background:#e6fcf5;border-radius:6px;border:1px dashed #20c997">
@@ -2328,7 +2453,6 @@ window.renderDrawerWithdrawalCard = function() {
         ${innerHtml}
       </div>
     `;
-  }
 
   return `
     <div class="card pad mb" style="border:1px solid #10b981;background:rgba(16,185,129,0.05)">
