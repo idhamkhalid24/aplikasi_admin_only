@@ -2306,13 +2306,13 @@ window.renderDrawerWithdrawalCard = function() {
       const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
       
       let ops = 0, qrisManual = 0, tabunganManual = 0, lainnya = 0;
-      for (const r of (state.cashRowsForDrawerDate || [])) {
+      for (const r of (isToday ? state.cashRows : state.cashRowsForDrawerDate || [])) {
         const desc = String(r.description || ""), amount = Math.abs(Number(r.amount || 0)), type = String(r.type || "").toLowerCase();
         if (isAdminCashDrawerAdjustmentTx(r)) continue;
         if (type === "expense" && desc.startsWith(OPS_PREFIX)) ops += amount;
         if (type === "expense" && desc.startsWith(CASHOUT_PREFIX)) {
           const t_c = cashOutType(r);
-          const isAutoQris = desc.includes('[AUTO-QRIS:') || /QRIS\\s+otomatis\\s+kasir/i.test(desc);
+          const isAutoQris = desc.includes('[AUTO-QRIS:') || /QRIS\s+otomatis\s+kasir/i.test(desc);
           if (t_c === "qris") {
              if (!isAutoQris) qrisManual += amount;
           } else if (t_c === "tabungan") {
@@ -2330,7 +2330,7 @@ window.renderDrawerWithdrawalCard = function() {
       if (dk === dateKey()) {
         laci_adj = adminCashDrawerAdjustmentForDate(dk);
       } else {
-        const rowsAdj = (state.cashRowsForDrawerDate || []).filter(r => isAdminCashDrawerAdjustmentTx(r));
+        const rowsAdj = ((isToday ? state.cashRows : state.cashRowsForDrawerDate) || []).filter(r => isAdminCashDrawerAdjustmentTx(r));
         laci_adj = adminRoundRp(rowsAdj.reduce((sum,r)=>sum+(String(r.type||"").toLowerCase()==="income"?Number(r.amount||0):-Number(r.amount||0)),0));
       }
       const dedTotal = adminRoundRp(ops + qrisManual + qrisAuto + tabunganManual + tabunganAuto + lainnya - laci_adj);
