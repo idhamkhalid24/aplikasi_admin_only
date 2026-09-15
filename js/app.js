@@ -1925,13 +1925,9 @@ window.openDrawerWithdrawalModal = async () => {
   $("dwLeftAmount").value = "";
   $("dwNote").value = "";
   if ($("dwAssignedUser")) $("dwAssignedUser").innerHTML = `<option value="all">Tampilkan ke Semua Staf</option>` + optionUsers("");
-  modal("drawerWithdrawalModal");
 
-  // Hapus hint lama kalau ada
-  const oldHint = document.getElementById("dwLeftAmountHint");
-  if (oldHint) oldHint.remove();
-
-  // Auto-fill dari kembalian besok yang diset staf
+  // Cek kembalian besok
+  setBusy(true);
   try {
     const dk = dateKey();
     const { data, error } = await supabase
@@ -1941,40 +1937,20 @@ window.openDrawerWithdrawalModal = async () => {
       .eq("deleted", false)
       .order("created_at_ms", { ascending: false })
       .limit(1);
+    
+    setBusy(false);
     if (!error && data && data[0]) {
-      const reserve = data[0];
-      const baseAmount = Number(reserve.amount || 0);
-      const reserveTime = Number(reserve.created_at_ms || 0);
-
-      // Hitung cash transaksi baru setelah kembalian diset
-      const txList = (state.tx || []).filter(t => {
-        if (t.deleted) return false;
-        const tms = Number(t.createdAtMs || t.created_at_ms || 0);
-        if (tms <= reserveTime) return false;
-        const pm = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
-        return !pm.includes("qris") && !pm.includes("transfer");
-      });
-      const cashBaru = txList.reduce((s, t) => s + Number(t.amount || 0), 0);
-      const totalKembalian = baseAmount + cashBaru;
-
-      if (baseAmount > 0 && $("dwLeftAmount")) {
-        // Isi field dengan format angka (tanpa "Rp") supaya parseMoney bisa baca
-        $("dwLeftAmount").value = rupiah(totalKembalian);
-
-        // Tambah hint info
-        const hint = document.createElement("div");
-        hint.id = "dwLeftAmountHint";
-        hint.className = "tx-note-mini";
-        hint.style.cssText = "color:#0ca678;margin-top:-6px;margin-bottom:6px;font-size:12px";
-        const timeLabel = reserveTime
-          ? new Date(reserveTime).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB"
-          : "";
-        hint.innerHTML = `<i class="fas fa-coins"></i> Kembalian staf <b>${reserve.user_name || reserve.username}</b> (${timeLabel}): Rp ${rupiah(baseAmount)}` +
-          (cashBaru > 0 ? ` + cash baru Rp ${rupiah(cashBaru)} = <b>Rp ${rupiah(totalKembalian)}</b>` : "");
-        $("dwLeftAmount").insertAdjacentElement("afterend", hint);
-      }
+      return toast("Gagal: Staf sudah membuat kembalian besok. Hapus kembalian tersebut terlebih dahulu.", true);
     }
+    
+    // Buka modal jika tidak ada kembalian besok
+    modal("drawerWithdrawalModal");
+    
+    // Hapus hint lama kalau ada
+    const oldHint = document.getElementById("dwLeftAmountHint");
+    if (oldHint) oldHint.remove();
   } catch(e) {
+    setBusy(false);
     console.warn("Gagal fetch kembalian besok:", e);
   }
 };
