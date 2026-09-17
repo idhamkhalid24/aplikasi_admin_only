@@ -1219,6 +1219,7 @@ renderHome=function(){
 };
 
 let txRealtimeChannel = null;
+let cashRealtimeChannel = null;
 let txRealtimeDebounceTimer = null;
 function startTransactionsRealtime(){
   if(txRealtimeChannel || !supabase?.channel) return;
@@ -1238,6 +1239,20 @@ function startTransactionsRealtime(){
          txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
       })
       .subscribe();
+      
+    if (typeof cashDb !== 'undefined' && cashDb.channel) {
+      cashRealtimeChannel = cashDb
+        .channel('rocky_admin_cash_realtime_v1')
+        .on('postgres_changes',{event:'*',schema:'public',table:'transactions'}, payload=>{
+           clearTimeout(txRealtimeDebounceTimer);
+           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+        })
+        .on('postgres_changes',{event:'*',schema:'public',table:'cash_drawer_audits'}, payload=>{
+           clearTimeout(txRealtimeDebounceTimer);
+           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+        })
+        .subscribe();
+    }
   }catch(e){ console.warn('Realtime tx belum aktif', e); }
 }
 
@@ -1271,6 +1286,17 @@ function markTrxAsSeen(ids){
     Object.keys(localStorage).filter(k=>k.startsWith('admin_seen_staff_trx_')&&!k.endsWith(today)).forEach(k=>localStorage.removeItem(k));
   }catch(e){}
 })();
+
+// === FIX: Auto Refresh Saat APK Dibuka Kembali (Foreground) ===
+function handleAppResume() {
+  if (state.user && typeof refreshAll === 'function') {
+    refreshAll(true); // Paksa fetch ulang karena websocket sering mati di background WebView
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) handleAppResume();
+});
+window.addEventListener("focus", handleAppResume);
 
 // Override staffTxTodayRows agar hanya kembalikan yg BELUM dilihat untuk badge
 function staffTxUnseenRows(){
