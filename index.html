@@ -13,7 +13,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="css/style.css">
+  <script>
+    var v = Date.now();
+    document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
+  </script>
 </head>
 <body>
 <div id="app">
@@ -211,8 +214,11 @@
 <!-- Kasir Staff memakai link GitHub Pages agar selalu mengikuti update kasir terbaru.
      Tidak ada lagi template kasir lokal di file ini, supaya tidak bentrok dan ukuran file lebih ringan. -->
 
-  <script type="module" src="js/app.js?v=5"></script>
-  <script src="js/extra.js"></script>
+  <script>
+    var v = Date.now();
+    document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
+    document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
+  </script>
 
 </body>
 </html>
