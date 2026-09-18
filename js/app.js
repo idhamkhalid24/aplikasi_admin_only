@@ -1947,12 +1947,11 @@ window.openPrinterSettingsModal = function() {
 };
 
 window.openDrawerWithdrawalModal = async () => {
-  $("dwWithdrawnAmount").value = "";
   $("dwLeftAmount").value = "";
   $("dwNote").value = "";
   if ($("dwAssignedUser")) $("dwAssignedUser").innerHTML = `<option value="all">Tampilkan ke Semua Staf</option>` + optionUsers("");
 
-  // Cek kembalian besok
+  // Cek kembalian besok dari staf dulu (untuk verifikasi konflik)
   setBusy(true);
   try {
     const dk = dateKey();
@@ -1968,26 +1967,72 @@ window.openDrawerWithdrawalModal = async () => {
     if (!error && data && data[0]) {
       return toast("Gagal: Staf sudah membuat kembalian besok. Hapus kembalian tersebut terlebih dahulu.", true);
     }
+
+    // Hitung matematika laci persis seperti di renderHome dan staf
+    const tToday = todayTx();
+    const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    const ded = financeDeductions();
+    const cashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
     
-    // Buka modal jika tidak ada kembalian besok
+    let ydNominal = 0;
+    const ydData = state.adminYdDrawerData;
+    if (ydData) {
+      const dws = (ydData.dws || []).filter(w => !w.deleted);
+      const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+      if (dws.length) {
+        let latestDw = dws[0];
+        for (const w of dws) { if (Number(w.createdAtMs || 0) > Number(latestDw.createdAtMs || 0)) latestDw = w; }
+        const leftAmount = Number(latestDw.remainingAmount || 0);
+        const wdTime = Number(latestDw.createdAtMs || 0);
+        let cashTxAfter = 0;
+        for (const t of txListYd) {
+          if ((t.createdAtMs || t.dateMs || 0) > wdTime) {
+            const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+            if (!p.includes("qris") && !p.includes("transfer")) cashTxAfter += Number(t.amount || 0);
+          }
+        }
+        ydNominal = leftAmount + cashTxAfter;
+      } else {
+        let cashSum = 0;
+        for (const t of txListYd) {
+          const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+          if (!p.includes("qris") && !p.includes("transfer")) cashSum += Number(t.amount || 0);
+        }
+        ydNominal = cashSum;
+      }
+    }
+
+    window._dwState = { cashFisik, ydNominal };
+    $("dwMathCashFisik").innerText = `Rp ${rp(cashFisik)}`;
+    $("dwMathYdNominal").innerText = `Rp ${rp(ydNominal)}`;
+    $("dwMathKembalian").innerText = `- Rp 0`;
+    $("dwMathWithdrawn").innerText = `Rp ${rp(cashFisik + ydNominal)}`;
+    
     modal("drawerWithdrawalModal");
-    
-    // Hapus hint lama kalau ada
-    const oldHint = document.getElementById("dwLeftAmountHint");
-    if (oldHint) oldHint.remove();
   } catch(e) {
     setBusy(false);
     console.warn("Gagal fetch kembalian besok:", e);
   }
 };
 
+window._calcAdminWithdrawal = () => {
+  if (!window._dwState) return;
+  const { cashFisik, ydNominal } = window._dwState;
+  const kembalian = Number($("dwLeftAmount").value.replace(/\D/g, "") || "0");
+  const drawn = cashFisik + ydNominal - kembalian;
+  $("dwMathKembalian").innerText = `- Rp ${rp(kembalian)}`;
+  $("dwMathWithdrawn").innerText = `Rp ${rp(drawn)}`;
+};
+
 window.saveDrawerWithdrawal = async () => {
-  const amount = parseMoney($("dwWithdrawnAmount").value);
-  const remainingAmount = parseMoney($("dwLeftAmount").value);
+  if (!window._dwState) return;
+  const remainingAmount = Number($("dwLeftAmount").value.replace(/\D/g, "") || "0");
+  const amount = window._dwState.cashFisik + window._dwState.ydNominal - remainingAmount;
+  
   const note = String($("dwNote").value || "").trim();
   const assignedUser = $("dwAssignedUser") ? $("dwAssignedUser").value : "all";
   
-  if (amount <= 0) return toast("Nominal tarik wajib lebih dari 0", true);
+  if (amount <= 0) return toast("Sisa yang ditarik (Disetor) tidak boleh kurang dari atau sama dengan 0", true);
   if (remainingAmount < 0) return toast("Nominal sisa tidak valid", true);
   
   const pin = await askPin(`Tarik uang laci sejumlah Rp ${rp(amount)}?\nSisa Laci: Rp ${rp(remainingAmount)}\n\nMasukkan PIN admin:`);
@@ -2217,15 +2262,72 @@ window.renderDrawerWithdrawalCard = function() {
     ? visibleTx().filter(t => String(t.dateKey || '').slice(0, 10) === dk)
     : (state.txForDrawerDate || []).filter(t => String(t.dateKey || '').slice(0, 10) === dk);
 
+  // Hitung uang kemarin (ydNominal)
+  const ydDataForEst = isToday ? state.adminYdDrawerData : state.ydDataForDrawerDate;
+  let ydNominalForEst = 0;
+  if (ydDataForEst) {
+    const dws_yd = (ydDataForEst.dws || []).filter(w => !w.deleted);
+    const txListYd = (ydDataForEst.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+    if (dws_yd.length) {
+      let latestDw = dws_yd[0];
+      for (const w of dws_yd) { if (Number(w.createdAtMs || 0) > Number(latestDw.createdAtMs || 0)) latestDw = w; }
+      const leftAmount = Number(latestDw.remainingAmount || 0);
+      const wdTime = Number(latestDw.createdAtMs || 0);
+      let cashTxAfter = 0;
+      for (const t of txListYd) {
+        if ((t.createdAtMs || t.dateMs || 0) > wdTime) {
+          const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+          if (!p.includes("qris") && !p.includes("transfer")) cashTxAfter += Number(t.amount || 0);
+        }
+      }
+      ydNominalForEst = leftAmount + cashTxAfter;
+    } else {
+      let cashSumYd = 0;
+      for (const t of txListYd) {
+        const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+        if (!p.includes("qris") && !p.includes("transfer")) cashSumYd += Number(t.amount || 0);
+      }
+      ydNominalForEst = cashSumYd;
+    }
+  }
+
   // Hitung estimasi
   let estHtml = '';
   if (!dws.length) {
-    let cashSum = 0;
-    for (const t of txList) {
-      const p = String(t.paymentMethod || t.paymentLabel || t.payment || '').toLowerCase();
-      if (!p.includes('qris') && !p.includes('transfer')) cashSum += Number(t.amount || 0);
+    const totalToday = txList.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    
+    let ops = 0, qrisManual = 0, tabunganManual = 0, lainnya = 0;
+    for (const r of (isToday ? state.cashRows : state.cashRowsForDrawerDate || [])) {
+      const desc = String(r.description || ""), amount = Math.abs(Number(r.amount || 0)), type = String(r.type || "").toLowerCase();
+      if (isAdminCashDrawerAdjustmentTx(r)) continue;
+      if (type === "expense" && desc.startsWith(OPS_PREFIX)) ops += amount;
+      if (type === "expense" && desc.startsWith(CASHOUT_PREFIX)) {
+        const t_c = cashOutType(r);
+        const isAutoQris = desc.includes('[AUTO-QRIS:') || /QRIS\s+otomatis\s+kasir/i.test(desc);
+        if (t_c === "qris") {
+           if (!isAutoQris) qrisManual += amount;
+        } else if (t_c === "tabungan") {
+           tabunganManual += amount;
+        } else lainnya += amount;
+      }
     }
-    const estimate = cashSum;
+    let qrisAuto = 0, tabunganAuto = 0;
+    for (const t of txList) {
+      const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
+      if (p.includes("qris") || p.includes("transfer")) qrisAuto += Number(t.amount || 0);
+      else if (p.includes("tabungan")) tabunganAuto += Number(t.amount || 0);
+    }
+    let laci_adj = 0;
+    if (isToday) {
+      laci_adj = adminCashDrawerAdjustmentForDate(dk);
+    } else {
+      const rowsAdj = ((isToday ? state.cashRows : state.cashRowsForDrawerDate) || []).filter(r => isAdminCashDrawerAdjustmentTx(r));
+      laci_adj = adminRoundRp(rowsAdj.reduce((sum,r)=>sum+(String(r.type||"").toLowerCase()==="income"?Number(r.amount||0):-Number(r.amount||0)),0));
+    }
+    const dedTotal = adminRoundRp(ops + qrisManual + qrisAuto + tabunganManual + tabunganAuto + lainnya - laci_adj);
+    const cashFisik = Math.max(0, adminRoundRp(totalToday - dedTotal));
+
+    const estimate = cashFisik + ydNominalForEst;
     estHtml = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
         <div>
@@ -2235,7 +2337,7 @@ window.renderDrawerWithdrawalCard = function() {
         </div>
       </div>
       <div class="meta" style="margin-top:6px;line-height:1.4">
-        Total Cash (Rp ${rupiah(cashSum)})
+        Total Cash (Rp ${rupiah(cashFisik)})${ydNominalForEst > 0 ? ` + Uang Kemarin (Rp ${rupiah(ydNominalForEst)})` : ''}
       </div>`;
   } else {
     let latestDw = dws[0];
