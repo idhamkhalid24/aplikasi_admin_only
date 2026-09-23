@@ -1972,7 +1972,7 @@ window.openDrawerWithdrawalModal = async () => {
     const tToday = todayTx();
     const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
     const ded = financeDeductions();
-    const cashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
+    const cashFisik = adminRoundRp(totalToday - ded.total);
     
     let ydNominal = 0;
     const ydData = state.adminYdDrawerData;
@@ -2020,8 +2020,14 @@ window._calcAdminWithdrawal = () => {
   const { cashFisik, ydNominal } = window._dwState;
   const kembalian = Number($("dwLeftAmount").value.replace(/\D/g, "") || "0");
   const drawn = cashFisik + ydNominal - kembalian;
-  $("dwMathKembalian").innerText = `- Rp ${rp(kembalian)}`;
-  $("dwMathWithdrawn").innerText = `Rp ${rp(drawn)}`;
+  $("dwMathKembalian").innerText = `- ${rp(kembalian)}`;
+  
+  if (drawn >= 0) {
+    $("dwMathWithdrawn").innerText = `${rp(drawn)}`;
+  } else {
+    $("dwMathWithdrawn").innerText = `Uang Pribadi (Tombok): ${rp(Math.abs(drawn))}`;
+  }
+
 };
 
 window.saveDrawerWithdrawal = async () => {
@@ -2032,10 +2038,18 @@ window.saveDrawerWithdrawal = async () => {
   const note = String($("dwNote").value || "").trim();
   const assignedUser = $("dwAssignedUser") ? $("dwAssignedUser").value : "all";
   
-  if (amount <= 0) return toast("Sisa yang ditarik (Disetor) tidak boleh kurang dari atau sama dengan 0", true);
+  
   if (remainingAmount < 0) return toast("Nominal sisa tidak valid", true);
   
-  const pin = await askPin(`Tarik uang laci sejumlah Rp ${rp(amount)}?\nSisa Laci: Rp ${rp(remainingAmount)}\n\nMasukkan PIN admin:`);
+  
+    let confirmMsg = "";
+    if (amount >= 0) {
+      confirmMsg = `Tarik uang laci sejumlah ${rp(amount)}?\nSisa Laci: ${rp(remainingAmount)}\n\nMasukkan PIN admin:`;
+    } else {
+      confirmMsg = `Kamu akan menyisihkan uang pribadi (tambah laci) sejumlah ${rp(Math.abs(amount))} agar kembalian besok menjadi ${rp(remainingAmount)}.\n\nMasukkan PIN admin:`;
+    }
+    const pin = await askPin(confirmMsg);
+
   if (!pin) return;
   if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
   
@@ -2325,7 +2339,7 @@ window.renderDrawerWithdrawalCard = function() {
       laci_adj = adminRoundRp(rowsAdj.reduce((sum,r)=>sum+(String(r.type||"").toLowerCase()==="income"?Number(r.amount||0):-Number(r.amount||0)),0));
     }
     const dedTotal = adminRoundRp(ops + qrisManual + qrisAuto + tabunganManual + tabunganAuto + lainnya - laci_adj);
-    const cashFisik = Math.max(0, adminRoundRp(totalToday - dedTotal));
+    const cashFisik = adminRoundRp(totalToday - dedTotal);
 
     const estimate = cashFisik + ydNominalForEst;
     estHtml = `
@@ -2463,7 +2477,7 @@ window.renderDrawerWithdrawalCard = function() {
       }
       const dedTotal = adminRoundRp(ops + qrisManual + qrisAuto + tabunganManual + tabunganAuto + lainnya - laci_adj);
       
-      const cashFisik = Math.max(0, adminRoundRp(totalToday - dedTotal));
+      const cashFisik = adminRoundRp(totalToday - dedTotal);
 
       // Hitung uang kemarin (berdasarkan data Firebase ydData)
       let ydNominal = 0;
@@ -2520,26 +2534,26 @@ window.renderDrawerWithdrawalCard = function() {
 
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;padding:6px;background:#e6fcf5;border-radius:6px;border:1px dashed #20c997">
           <span style="font-weight:800;color:#0ca678">Total uang laci setelah closing:</span>
-          <span style="font-weight:900;color:#0ca678">Rp ${rupiah(totalKembalian)}</span>
+          <span style="font-weight:900;color:#0ca678">${rp(totalKembalian)}</span>
         </div>
 
         <div style="padding:6px 10px;background:#f1fdf6;border:1px solid #c3fae8;border-radius:8px">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:#6c757d">Cash fisik hari ini:</span>
-            <span style="font-weight:700;color:#343a40">Rp ${rupiah(cashFisik)}</span>
+            <span style="font-weight:700;color:#343a40">${rp(cashFisik)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:#6c757d">Ditambah uang kemarin:</span>
-            <span style="font-weight:700;color:#343a40">Rp ${rupiah(ydNominal)}</span>
+            <span style="font-weight:700;color:#343a40">${rp(ydNominal)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:#6c757d">Kembalian (${esc(reserve.user_name || reserve.username)}):</span>
-            <span style="font-weight:700;color:#e03131">- Rp ${rupiah(baseAmount)}</span>
+            <span style="font-weight:700;color:#e03131">- ${rp(baseAmount)}</span>
           </div>
           ${cashBaru > 0 ? `
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:#6c757d">Cash masuk setelahnya:</span>
-            <span style="font-weight:700;color:#e03131">- Rp ${rupiah(cashBaru)}</span>
+            <span style="font-weight:700;color:#e03131">- ${rp(cashBaru)}</span>
           </div>` : ''}
           <div style="display:flex;justify-content:space-between;font-size:12px;border-top:1px dashed #c3fae8;padding-top:4px;margin-top:4px">
             <span style="font-weight:800;color:#0ca678">Total uang laci disetor:</span>
