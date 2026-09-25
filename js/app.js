@@ -3065,3 +3065,125 @@ renderHome = function() {
   
   return html;
 };
+const __baseRenderTeamShockPatch = renderTeam;
+renderTeam = function() {
+  let html = __baseRenderTeamShockPatch();
+  // Tambahkan tombol Shock Alarm tepat sebelum tombol Edit User (fa-pen)
+  html = html.replace(/<button class="btn" onclick="editUser\('([^']+)'\)">/g, (match, username) => {
+    // Jangan tampilkan tombol shock untuk diri sendiri atau admin utama (tergantung kebutuhan, tapi kita tampilkan saja untuk semua selain yg current)
+    if (username === state.user?.username) return match;
+    
+    return `<button class="btn red" onclick="sendShockAlarm('${username}')" title="Kirim Alarm Kejut" style="margin-right:8px; background:var(--danger); color:#fff; border-radius:10px;"><i class="fas fa-bolt"></i></button>${match}`;
+  });
+  return html;
+};
+
+window.sendShockAlarm = async function(username) {
+  if(!confirm(`Kirim ALARM KEJUT ke aplikasi staff @${username}? \n\nIni akan langsung membajak layar mereka menjadi MERAH BERKEDIP, membunyikan sirine, dan menggetarkan HP mereka secara brutal sampai mereka memencet tombol "Saya Mengerti".`)) return;
+  
+  try {
+    const payload = { 
+      shockAlarm: { 
+        active: true, 
+        time: Date.now(),
+        message: "PERINGATAN! ADMIN MEMANTAU, HARAP FOKUS BEKERJA!"
+      } 
+    };
+    await setDoc(doc(db, "users", username), payload, { merge: true });
+    toast("? Alarm Kejut berhasil dikirim ke @" + username);
+  } catch(e) {
+    toast("Gagal kirim alarm: " + e.message, true);
+  }
+};
+const __baseRenderTeamShockPatch2 = renderTeam;
+renderTeam = function() {
+  // We don't need to patch renderTeam again because our previous patch already adds the button,
+  // BUT if we redefine `sendShockAlarm`, it will update the behavior globally.
+  // Actually, wait, our previous patch redefined renderTeam and added the button.
+  // If we just overwrite `window.sendShockAlarm`, it will work instantly!
+  return __baseRenderTeamShockPatch2();
+};
+
+window.sendShockAlarm = async function(username) {
+  const customMsg = prompt(`Kirim ALARM KEJUT ke aplikasi staff @${username}?\n\nMasukkan pesan peringatan di bawah ini (atau biarkan default):`, "PERINGATAN! ADMIN MEMANTAU, HARAP FOKUS BEKERJA!");
+  
+  if (customMsg === null) return; // User clicked Cancel
+  
+  const finalMsg = customMsg.trim() || "PERINGATAN! HARAP FOKUS BEKERJA!";
+  
+  try {
+    const payload = { 
+      shockAlarm: { 
+        active: true, 
+        time: Date.now(),
+        message: finalMsg
+      } 
+    };
+    await setDoc(doc(db, "users", username), payload, { merge: true });
+    toast("? Alarm Kejut berhasil dikirim ke @" + username);
+  } catch(e) {
+    toast("Gagal kirim alarm: " + e.message, true);
+  }
+};
+window.sendShockAlarm = function(username) {
+  // Buat custom modal jika belum ada
+  if (!document.getElementById('shockAlarmAdminModal')) {
+    const modalHTML = `
+      <div id="shockAlarmAdminModal" class="modal">
+        <div class="sheet">
+          <div class="sheetHead">
+            <div>
+              <div class="title" style="color:var(--danger)"><i class="fas fa-bolt"></i> Alarm Kejut</div>
+              <div class="meta" id="shockAlarmAdminSubtitle">Kirim alarm kejut ke staff</div>
+            </div>
+            <button class="btn icon" onclick="closeModal('shockAlarmAdminModal')"><i class="fas fa-xmark"></i></button>
+          </div>
+          <div class="form">
+            <input type="hidden" id="shockTargetUser" value="">
+            <label style="font-size:12px; font-weight:bold; color:var(--text); margin-bottom:8px; display:block;">Pesan Peringatan:</label>
+            <textarea id="shockAlarmMsg" class="input" style="height:100px; resize:none; font-size:16px; font-weight:800; text-align:center; padding-top:25px;" placeholder="Tulis peringatan..."></textarea>
+            <div class="meta" style="margin-top:10px; margin-bottom:20px; color:var(--muted); line-height:1.4;">
+              <i class="fas fa-info-circle"></i> Pesan ini akan muncul raksasa berkedip merah di layar aplikasi kasir staff yang bersangkutan, disertai dengan suara sirine melengking dan getaran hebat.
+            </div>
+            <button class="btn primary full" style="background:var(--danger);" onclick="executeShockAlarm()"><i class="fas fa-paper-plane"></i> Kirim Alarm Sekarang</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  }
+  
+  // Set target and default text
+  document.getElementById('shockTargetUser').value = username;
+  document.getElementById('shockAlarmAdminSubtitle').textContent = `Target: @${username}`;
+  document.getElementById('shockAlarmMsg').value = "PERINGATAN !!!!";
+  
+  // Tampilkan modal
+  modal('shockAlarmAdminModal');
+};
+
+window.executeShockAlarm = async function() {
+  const username = document.getElementById('shockTargetUser').value;
+  let msg = document.getElementById('shockAlarmMsg').value.trim();
+  
+  if (!msg) msg = "PERINGATAN !!!!";
+  
+  setBusy(true);
+  try {
+    const payload = { 
+      shockAlarm: { 
+        active: true, 
+        time: Date.now(),
+        message: msg
+      } 
+    };
+    await setDoc(doc(db, "users", username), payload, { merge: true });
+    
+    closeModal('shockAlarmAdminModal');
+    toast("? Alarm Kejut berhasil dikirim ke @" + username);
+  } catch(e) {
+    toast("Gagal kirim alarm: " + e.message, true);
+  } finally {
+    setBusy(false);
+  }
+};
