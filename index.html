@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="id" data-theme="light">
 <head>
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  alert("Error: " + msg + "\nLine: " + lineNo + "\nCol: " + columnNo + "\n" + (error && error.stack));
+  return false;
+};
+window.onunhandledrejection = function(event) {
+  alert("Promise Rejection: " + event.reason);
+};
+</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Admin Only</title>
@@ -247,3 +256,4 @@
 
 </body>
 </html>
+

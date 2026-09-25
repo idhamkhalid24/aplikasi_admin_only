@@ -1,4 +1,4 @@
-  import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
   const CASHIER_STAFF_URL = 'https://idhamkhalid24.github.io/Aplikasi_KASIR_STAF_ROCKY/';
   const ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL = 'https://rocky-notif-worker.alfajrihanif24.workers.dev';
@@ -2991,3 +2991,77 @@ window.deleteAdminProduk = async function(id, name) {
 APP_PAGES.add('products');
 
 Promise.all([loadAdminProduk(), loadInvestmentBatches()]).then(() => { if (state.page === 'products') render(); });
+function formatShort(num) {
+  if (num >= 1000000) return (num / 1000000).toFixed(1).replace(".0", "") + "jt";
+  if (num >= 1000) return (num / 1000).toFixed(0) + "k";
+  return num.toString();
+}
+function renderAdminSalesTextList() {
+  const txs = typeof todayTx === "function" ? todayTx() : [];
+  const sales = {};
+  
+  for (const t of txs) {
+    if (t.deleted || t.status === "deleted" || t.pending) continue;
+    const u = String(t.user_name || t.user || "Unknown").trim();
+    const amt = Number(t.amount || 0);
+    if (!sales[u]) sales[u] = 0;
+    sales[u] += amt;
+  }
+  
+  const staffList = Object.keys(sales).map(u => ({ name: u, amount: sales[u] })).sort((a,b) => b.amount - a.amount);
+  
+  if (staffList.length === 0) {
+    return `<div style="font-size:10px; color:rgba(255,255,255,0.6); padding-left:10px; border-left:1px solid rgba(255,255,255,0.2);">Belum ada trx</div>`;
+  }
+
+  let listHtml = '';
+  staffList.forEach((s, idx) => {
+    const shortName = s.name.split(" ")[0];
+    const isTop = idx === 0;
+    listHtml += `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:3px;">
+        <span style="font-size:10px; font-weight:700; color:${isTop ? '#facc15' : 'rgba(255,255,255,0.85)'}; text-transform:capitalize;">${esc(shortName)}</span>
+        <span style="font-size:11px; font-weight:900; color:${isTop ? '#facc15' : '#fff'};">${Math.floor(s.amount / 1000)}k</span>
+      </div>
+    `;
+  });
+
+  return `
+    <div style="display:flex; flex-direction:column; justify-content:center; max-height:75px; overflow-y:auto; padding-right:5px; min-width:70px; border-left: 1px solid rgba(255,255,255,0.2); padding-left:10px; margin-left:10px;">
+      ${listHtml}
+    </div>
+  `;
+}
+
+const __baseRenderHomeTextPatch = renderHome;
+renderHome = function() {
+  let html = __baseRenderHomeTextPatch();
+  const listHtml = renderAdminSalesTextList();
+  
+  const split1 = '<div class="ks-today">';
+  const split2 = '</div></div></div><div class="ks-content">';
+  
+  if (html.includes(split1) && html.includes(split2)) {
+     html = html.replace(split1, '<div class="ks-today"><div style="display:flex; flex-direction:row !important; justify-content:space-between; align-items:center; width:100%;"><div style="flex:1; min-width:0;">');
+     html = html.replace(split2, '</div></div><div style="flex-shrink:0;">' + listHtml + '</div></div></div></div><div class="ks-content">');
+  }
+  
+  return html;
+};
+const __baseRenderLogoRefreshPatch = renderHome;
+renderHome = function() {
+  let html = __baseRenderLogoRefreshPatch();
+  
+  // Hapus tombol refresh yang melayang
+  html = html.replace(/<button class="btn icon home-refresh-btn"[^>]*>[\s\S]*?<\/button>/g, '');
+  
+  // Tambahkan fungsi refresh dan ID animasi ke Logo RH
+  if (html.includes('<div class="ks-logo-box">')) {
+    html = html.replace(
+      '<div class="ks-logo-box">', 
+      '<div class="ks-logo-box" id="homeRefreshIcon" onclick="homeRefresh()" style="cursor:pointer;" title="Tap untuk refresh data">'
+    );
+  }
+  
+  return html;
+};
