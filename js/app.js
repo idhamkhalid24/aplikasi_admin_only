@@ -291,7 +291,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
     rows.sort((a, b) => Number(b.createdAtMs || b.closedAtMs || b.updatedAtMs || 0) - Number(a.createdAtMs || a.closedAtMs || a.updatedAtMs || 0));
     return querySnapshot(rows.slice(0, hardLimit));
   }
-  const getDocs = getDocs;
+  
 
   const CASH_FISIK_SUPABASE_URL="https://myxrvipyodadnldtomzs.supabase.co",CASH_FISIK_SUPABASE_ANON_KEY="sb_publishable_aG-kyasJNCEk2U9fN5T4qg_GfY0FpPH",CASH_FISIK_OWNER_ID="rocky-hijab",OPS_PREFIX="[OPS] ",CASHOUT_PREFIX="[CASHOUT:",CASH_DRAWER_TABLE="cash_drawer_audits",CASH_DRAWER_ADJ_PREFIX="[SELISIH_LACI:",CASH_DRAWER_MINUS_CATEGORY_NAME="Selisih Kas Minus",CASH_DRAWER_PLUS_CATEGORY_NAME="Selisih Kas Lebih",DEFAULT_TRANSACTION_BONUS_RATE=.015,DEFAULT_CLOSING_BONUS_PER_MINUTE=100,DEFAULT_CLOSING_DEADLINE_HOUR=18,DEFAULT_CLOSING_DEADLINE_MINUTE=0,DEFAULT_CLOSING_DEADLINE_TIME="18:00",SESSION_KEY="rocky_admin_lite_supabase_session_v1",THEME_KEY="rocky_admin_lite_theme_v1";
   const STAFF_DAILY_NOTE_DOC_ID="__staff_daily_home_note",DEFAULT_STAFF_DAILY_NOTE="Semangat bekerja hari ini. Pastikan transaksi dicatat dengan benar dan refresh jika data belum masuk.",RISMA_MANUAL_CLOSING_DOC_ID="__risma_manual_closing",RISMA_MANUAL_CLOSING_COLLECTION="closings",STAFF_UNLOCK_TABLE="staff_leave_requests",RECEIPT_TEXT_DOC_ID="__receipt_text_settings",DEFAULT_RECEIPT_TEXT_SETTINGS={storeName:"ROCKY HIJAB",storeSubtext:"",dailyTitle:"TRANSAKSI HARI INI",dateLabel:"Tanggal",cashierLabel:"Kasir",productLabel:"Produk",totalLabel:"Total",countLabel:"Jumlah",footerText:"Terima kasih",bottomFeedLines:6};
