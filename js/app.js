@@ -291,7 +291,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
     rows.sort((a, b) => Number(b.createdAtMs || b.closedAtMs || b.updatedAtMs || 0) - Number(a.createdAtMs || a.closedAtMs || a.updatedAtMs || 0));
     return querySnapshot(rows.slice(0, hardLimit));
   }
-  const getDocsFromServer = getDocs;
+  const getDocs = getDocs;
 
   const CASH_FISIK_SUPABASE_URL="https://myxrvipyodadnldtomzs.supabase.co",CASH_FISIK_SUPABASE_ANON_KEY="sb_publishable_aG-kyasJNCEk2U9fN5T4qg_GfY0FpPH",CASH_FISIK_OWNER_ID="rocky-hijab",OPS_PREFIX="[OPS] ",CASHOUT_PREFIX="[CASHOUT:",CASH_DRAWER_TABLE="cash_drawer_audits",CASH_DRAWER_ADJ_PREFIX="[SELISIH_LACI:",CASH_DRAWER_MINUS_CATEGORY_NAME="Selisih Kas Minus",CASH_DRAWER_PLUS_CATEGORY_NAME="Selisih Kas Lebih",DEFAULT_TRANSACTION_BONUS_RATE=.015,DEFAULT_CLOSING_BONUS_PER_MINUTE=100,DEFAULT_CLOSING_DEADLINE_HOUR=18,DEFAULT_CLOSING_DEADLINE_MINUTE=0,DEFAULT_CLOSING_DEADLINE_TIME="18:00",SESSION_KEY="rocky_admin_lite_supabase_session_v1",THEME_KEY="rocky_admin_lite_theme_v1";
   const STAFF_DAILY_NOTE_DOC_ID="__staff_daily_home_note",DEFAULT_STAFF_DAILY_NOTE="Semangat bekerja hari ini. Pastikan transaksi dicatat dengan benar dan refresh jika data belum masuk.",RISMA_MANUAL_CLOSING_DOC_ID="__risma_manual_closing",RISMA_MANUAL_CLOSING_COLLECTION="closings",STAFF_UNLOCK_TABLE="staff_leave_requests",RECEIPT_TEXT_DOC_ID="__receipt_text_settings",DEFAULT_RECEIPT_TEXT_SETTINGS={storeName:"ROCKY HIJAB",storeSubtext:"",dailyTitle:"TRANSAKSI HARI INI",dateLabel:"Tanggal",cashierLabel:"Kasir",productLabel:"Produk",totalLabel:"Total",countLabel:"Jumlah",footerText:"Terima kasih",bottomFeedLines:6};
@@ -455,20 +455,13 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const usersQ=query(collection(db,"users"),limit(80));
       const unlockQ=query(collection(db,STAFF_UNLOCK_TABLE),where("requestKind","==","unlock"),limit(160));
       const drawerWithdrawalsQ=query(collection(db,"drawer_withdrawals"),where("dateKey","==",dk),limit(50));
-      const[txSnap,attSnap,closingSnap,manualSnap,userSnap,unlockSnap,drawerWithdrawalSnap,bonusSnap,staffNoteSnap,rismaManualSnap,receiptSnap]=await Promise.all([
-        getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)),
-        getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ)),
-        getDocs(closingQ, {source:'server'}).catch(()=>getDocs(closingQ)),
-        getDocs(manualQ, {source:'server'}).catch(()=>getDocs(manualQ)),
-        getDocs(usersQ, {source:'server'}).catch(()=>getDocs(usersQ)),
-        getDocs(unlockQ, {source:'server'}).catch(()=>getDocs(unlockQ)),
-        getDocs(drawerWithdrawalsQ, {source:'server'}).catch(()=>getDocs(drawerWithdrawalsQ)).catch(()=>({docs:[]})),
-        getDocFromServer(doc(db,"closings","__bonus_settings")).catch(()=>null),
-        getDocFromServer(doc(db,"closings",STAFF_DAILY_NOTE_DOC_ID)).catch(()=>null),
-        getDocFromServer(doc(db,RISMA_MANUAL_CLOSING_COLLECTION,RISMA_MANUAL_CLOSING_DOC_ID)).catch(()=>null),
-        getDocFromServer(doc(db,"closings",RECEIPT_TEXT_DOC_ID)).catch(()=>null),
-        fetchCashFisik()
-      ]);
+      const p1 = Promise.all([ getDocs(txQ), getDocs(attQ), getDocs(closingQ), getDocs(manualQ) ]);
+const p2 = Promise.all([ getDocs(usersQ), getDocs(unlockQ), getDocs(drawerWithdrawalsQ).catch(()=>({docs:[]})), getDocFromServer(doc(db,'closings','__bonus_settings')).catch(()=>null) ]);
+const p3 = Promise.all([ getDocFromServer(doc(db,'closings',STAFF_DAILY_NOTE_DOC_ID)).catch(()=>null), getDocFromServer(doc(db,RISMA_MANUAL_CLOSING_COLLECTION,RISMA_MANUAL_CLOSING_DOC_ID)).catch(()=>null), getDocFromServer(doc(db,'closings',RECEIPT_TEXT_DOC_ID)).catch(()=>null), fetchCashFisik() ]);
+const r1 = await p1; const r2 = await p2; const r3 = await p3;
+const [txSnap, attSnap, closingSnap, manualSnap] = r1;
+const [userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap] = r2;
+const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
       warnLargeSnapshot("transactions_today",txSnap,180);
       warnLargeSnapshot("attendance_today",attSnap,80);
       warnLargeSnapshot("closings_today",closingSnap,80);
@@ -537,15 +530,15 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const manualTargetIdQ=query(collection(db,"manualBonuses"),where("id",">=","targetbonus_"+monthStart),where("id","<","targetbonus_"+nextStart),limit(500));
       const manualTrialIdQ=query(collection(db,"manualBonuses"),where("id",">=","trial_targetbonus_"+monthStart),where("id","<","trial_targetbonus_"+nextStart),limit(500));
       const[txSnap,attSnap,closingSnap,manualSnap]=await Promise.all([
-        getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)),
-        getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ)),
-        getDocs(closingQ, {source:'server'}).catch(()=>getDocs(closingQ)),
-        getDocs(manualQ, {source:'server'}).catch(()=>getDocs(manualQ))
+        getDocs(txQ),
+        getDocs(attQ),
+        getDocs(closingQ),
+        getDocs(manualQ)
       ]);
       const[manualDateSnap,manualTargetSnap,manualTrialSnap]=await Promise.all([
-        getDocsFromServer(manualDateQ).catch(()=>getDocs(manualDateQ)),
-        getDocsFromServer(manualTargetIdQ).catch(()=>getDocs(manualTargetIdQ)),
-        getDocsFromServer(manualTrialIdQ).catch(()=>getDocs(manualTrialIdQ))
+        getDocs(manualDateQ).catch(()=>getDocs(manualDateQ)),
+        getDocs(manualTargetIdQ).catch(()=>getDocs(manualTargetIdQ)),
+        getDocs(manualTrialIdQ).catch(()=>getDocs(manualTrialIdQ))
       ]);
       warnLargeSnapshot("transactions_month_manual",txSnap,3800);
       warnLargeSnapshot("attendance_month_manual",attSnap,800);
@@ -580,7 +573,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     setBusy(true);
     try{
       const attQ=query(collection(db,"attendance"),where("dateKey","==",cleanDk),limit(80));
-      const attSnap=await getDocs(attQ, {source:'server'}).catch(()=>getDocs(attQ));
+      const attSnap=await getDocs(attQ);
       warnLargeSnapshot("attendance_selected_date",attSnap,80);
       attSnap.docs.forEach(d=>localUpsert("att",{id:d.id,...d.data()}));
       state.loadedAttendanceDates={...(state.loadedAttendanceDates||{}),[cleanDk]:true};
@@ -1488,7 +1481,7 @@ function adminTargetRewardPlan(dk=dateKey()){
 async function adminLoadTargetSettings(dk=dateKey()){
   const targetDate=adminNormalizeTargetDateKey(dk,dateKey());
   try{
-    const snap=await getDocsFromServer(query(collection(db,ADMIN_TARGET_SETTINGS_TABLE),limit(1000)));
+    const snap=await getDocs(query(collection(db,ADMIN_TARGET_SETTINGS_TABLE),limit(1000)));
     const rows=snap.docs.map(x=>({id:x.id,...x.data()}));
     state.targetSettingRows=rows.filter(adminIsDailyTargetSettingRow);
     const picked=adminPickTargetSettings(rows,targetDate);
@@ -1549,8 +1542,8 @@ async function adminReevaluateDailyTarget(d) {
   if (!state.user) return;
   try {
     const [txSnap, attSnap, targetSnap] = await Promise.all([
-      getDocsFromServer(query(collection(db,'transactions'),where('dateKey','==',d),limit(500))),
-      getDocsFromServer(query(collection(db,'attendance'),where('dateKey','==',d),limit(100))),
+      getDocs(query(collection(db,'transactions'),where('dateKey','==',d),limit(500))),
+      getDocs(query(collection(db,'attendance'),where('dateKey','==',d),limit(100))),
       getDocFromServer(doc(db,ADMIN_DAILY_TARGETS_TABLE,adminTargetDocId(d))).catch(()=>null)
     ]);
     const tx = txSnap.docs.map(x=>({id:x.id,...x.data()}));
@@ -2235,11 +2228,11 @@ window.setDrawerDate = async function(val) {
     const { query: q, collection: col, where: wh, limit: lim, getDocs: gd } = window.__firestoreRefs || {};
     // gunakan Firebase yang sudah ada di scope
     const dwQ = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', dk), limit(50));
-    const snap = await getDocs(dwQ, {source:'server'}).catch(() => getDocs(dwQ));
+    const snap = await getDocs(dwQ);
     state.drawerWithdrawalsForDate = snap.docs.map(d => ({id: d.id, ...d.data()}));
     // fetch transaksi untuk tanggal ini
     const txQ2 = query(collection(db, 'transactions'), where('dateKey', '==', dk), limit(180));
-    const txSnap = await getDocs(txQ2, {source:'server'}).catch(() => getDocs(txQ2));
+    const txSnap = await getDocs(txQ2);
     state.txForDrawerDate = txSnap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
 
     try {
@@ -2280,8 +2273,8 @@ window.setDrawerDate = async function(val) {
       const dwQ_yd = query(collection(db, 'drawer_withdrawals'), where('dateKey', '==', ydKey), limit(50));
       const txQ_yd = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
       const [snapDw, snapTx] = await Promise.all([
-        getDocs(dwQ_yd, {source:'server'}).catch(() => getDocs(dwQ_yd)),
-        getDocs(txQ_yd, {source:'server'}).catch(() => getDocs(txQ_yd))
+        getDocs(dwQ_yd),
+        getDocs(txQ_yd)
       ]);
       const dws_yd = snapDw.docs.map(d => ({id: d.id, ...d.data()}));
       const txs_yd = snapTx.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
@@ -2469,8 +2462,8 @@ window.renderDrawerWithdrawalCard = function() {
         const txQ = query(collection(db, 'transactions'), where('dateKey', '==', ydKey), limit(180));
         
         p2 = Promise.all([
-          getDocs(dwQ, {source:'server'}).catch(()=>getDocs(dwQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
-          getDocs(txQ, {source:'server'}).catch(()=>getDocs(txQ)).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
+          getDocs(dwQ).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
+          getDocs(txQ).then(snap => snap.docs.map(d => ({id:d.id, ...d.data()}))),
           supabase.from('staff_change_reserve').select('*').eq('date_key', ydKey).eq('deleted', false).order('created_at_ms', { ascending: false }).limit(1).then(({data}) => data && data[0] ? data[0] : null)
         ]).then(([dws, txs, res_yd]) => {
           if (res_yd) dws.push({ createdAtMs: res_yd.created_at_ms, remainingAmount: res_yd.amount, isReserve: true });
@@ -3240,3 +3233,5 @@ window.executeShockAlarm = async function() {
     setBusy(false);
   }
 };
+
+
