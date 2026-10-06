@@ -1766,7 +1766,7 @@ refreshAll=async function(force=false){
 };
 window.refreshAll=refreshAll;
 
-  async function boot(){applyTheme(initialTheme());const saved=localStorage.getItem(SESSION_KEY);if(saved){try{state.user=JSON.parse(saved);await refreshAll(true);setAppPage("home",{push:true});syncThemeUi();return}catch(e){localStorage.removeItem(SESSION_KEY)}}showLogin();syncThemeUi()}boot();
+  async function boot(){applyTheme(initialTheme());if(window.__APP_VERSION__){fetch("index.html?_t="+Date.now()).then(r=>r.text()).then(html=>{const m=html.match(/var v = "([^"]+)"/);if(m&&m[1]&&m[1]!==window.__APP_VERSION__){toast("Mendownload pembaruan...");setTimeout(()=>location.replace(location.pathname+"?_upd="+Date.now()),1000);}}).catch(()=>{});}const saved=localStorage.getItem(SESSION_KEY);if(saved){try{state.user=JSON.parse(saved);await refreshAll(true);setAppPage("home",{push:true});syncThemeUi();return}catch(e){localStorage.removeItem(SESSION_KEY)}}showLogin();syncThemeUi()}boot();
 
 
 
