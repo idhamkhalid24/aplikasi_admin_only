@@ -439,13 +439,15 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function controlButton(){const active=state.page==="control";return`<button class="btn icon controlBtn ${active?"active":""}" onclick="go('control')" title="Catatan Home Staff & Harian"><i class="fas fa-clipboard-list"></i></button>`}function header(title,subtitle){return`<div class="top"><div class="brand"><div><h1>${title}</h1><div class="sub">${subtitle}</div></div></div><div class="row">${themeButton()}${controlButton()}<button class="btn icon" onclick="refreshFromHeader()" title="Refresh data halaman ini"><i class="fas fa-rotate"></i></button><button class="btn icon red" onclick="logout()"><i class="fas fa-right-from-bracket"></i></button></div></div>`}function optionUsers(selected=""){return activeUsers().map(u=>`<option value="${esc(u.username)}" ${cleanUser(selected)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)})</option>`).join("")}function optionClosingUsers(){const globalStatus=getTodayGlobalClosing()?"SUDAH CLOSING":"GLOBAL";return`<option value="global" ${state.closingTarget==="global"?"selected":""}>Semua / Global - ${globalStatus}</option>`+realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>`<option value="${esc(u.username)}" ${cleanUser(state.closingTarget)===cleanUser(u.username)?"selected":""}>${esc(u.name||u.username)} (@${esc(u.username)}) - ${closingStatusLabelForUser(u)}</option>`).join("")}function syncUserSelects(){for(const id of["trxUser","bonusUser","attUser"]){const el=$(id);if(el)el.innerHTML=optionUsers(state.user?.username)}}
   function showLogin(){$("tabs").classList.add("hide");$("fab").classList.add("hide");$("view").innerHTML=`<section class="login"><div class="card loginBox loginCardFancy"><div class="loginThemeRow"><span class="chip"><i class="fas fa-palette"></i> <span class="themeLabel">${themeLabel()}</span></span>${themeButton()}</div><div class="loginHero"><h1 style="text-align:center;font-size:24px">Only Admin</h1><div class="sub" style="text-align:center;margin-bottom:16px">Koleksi Terbaik Untuk Muslimah Hebat</div></div><div class="form"><input id="loginUser" class="input" placeholder="Username admin" autocomplete="username"><input id="loginPin" class="input" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password"><button class="btn primary full" onclick="login()"><i class="fas fa-unlock-keyhole"></i> Masuk</button></div></div></section>`;syncThemeUi()}async function login(){const username=cleanUser($("loginUser").value),pin=String($("loginPin").value||"").trim();if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const snap=await getDocFromServer(doc(db,"users",username));if(!snap.exists())throw new Error("User tidak ditemukan");const u={id:snap.id,username:snap.id,...snap.data()};if(String(u.pin||"")!==pin)throw new Error("PIN salah");if(!isActive(u))throw new Error("User nonaktif");if(String(u.role||"").toLowerCase()!=="admin"&&cleanUser(u.username)!=="admin")throw new Error("Panel ini khusus admin");state.user={username:cleanUser(u.username||snap.id),name:u.name||u.username||snap.id,role:u.role||"admin",pin:String(u.pin||"")};localStorage.setItem(SESSION_KEY,JSON.stringify(state.user));await refreshAll(true);go("home")}catch(e){toast(e.message||"Login gagal",true)}finally{setBusy(false)}}window.login=login;window.logout=()=>{localStorage.removeItem(SESSION_KEY);Object.assign(state,{user:null,tx:[],att:[],closing:[],manual:[],unlockRequests:[]});showLogin()};
   async function fetchCashFisik(){const dk=state.txDate||dateKey();try{const{data,error}=await cashDb.from("transactions").select("id,date,description,amount,type,category_id,category_name").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date",dk).order("id",{ascending:false});if(error)throw error;state.cashRows=data||[]}catch(e){console.warn("cash fisik supabase gagal",e);state.cashRows=[]}try{const{data,error}=await cashDb.from(CASH_DRAWER_TABLE).select("*").eq("owner_id",CASH_FISIK_OWNER_ID).eq("date_key",dk).order("created_at",{ascending:false}).limit(20);if(error)throw error;state.cashAuditRows=(data||[]).map(normalizeAdminCashDrawerAudit)}catch(e){console.warn("audit laci cash read-only gagal",e);state.cashAuditRows=[]}}
-  async function refreshAll(force=false){
+  async function refreshAll(force=false, isBackground=false){
     if(!state.user)return;
     const dk=state.txDate || dateKey();
     if(!force&&Date.now()-state.lastRefresh<12000&&state.dayLoadedKey===dk)return render();
-    state.tx=[];state.drawerWithdrawals=[];state.cashRows=[];state.cashAuditRows=[];
-    state.adminChangeReserve=undefined;state._loadingAdminReserve=false;
-    setBusy(true);
+    if(!isBackground) {
+      state.tx=[];state.drawerWithdrawals=[];state.cashRows=[];state.cashAuditRows=[];
+      state.adminChangeReserve=undefined;state._loadingAdminReserve=false;
+      setBusy(true);
+    }
     try{
       const mk=monthKey();
       const txQ=query(collection(db,"transactions"),where("dateKey","==",dk),limit(180));
@@ -492,7 +494,7 @@ const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
       state.lastRefresh=Date.now();
       syncUserSelects();
       render();
-    }catch(e){toast(e.message||"Refresh gagal",true)}finally{setBusy(false)}
+    }catch(e){toast(e.message||"Refresh gagal",true)}finally{if(!isBackground) setBusy(false)}
   }
   window.refreshAll=refreshAll;
   let refreshFromHeaderBusy=false;
@@ -1274,15 +1276,15 @@ function startTransactionsRealtime(){
       .channel('rocky_admin_tx_realtime_v1')
       .on('postgres_changes',{event:'*',schema:'public',table:'transactions'}, payload=>{
          clearTimeout(txRealtimeDebounceTimer);
-         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'drawer_withdrawals'}, payload=>{
          clearTimeout(txRealtimeDebounceTimer);
-         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'staff_change_reserve'}, payload=>{
          clearTimeout(txRealtimeDebounceTimer);
-         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
       })
       .subscribe();
       
@@ -1291,11 +1293,11 @@ function startTransactionsRealtime(){
         .channel('rocky_admin_cash_realtime_v1')
         .on('postgres_changes',{event:'*',schema:'public',table:'transactions'}, payload=>{
            clearTimeout(txRealtimeDebounceTimer);
-           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
         })
         .on('postgres_changes',{event:'*',schema:'public',table:'cash_drawer_audits'}, payload=>{
            clearTimeout(txRealtimeDebounceTimer);
-           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true); }, 1500);
+           txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
         })
         .subscribe();
     }
