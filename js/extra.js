@@ -70,19 +70,19 @@
       ptrContainer.innerHTML = '<i class="fas fa-rotate"></i>';
       Object.assign(ptrContainer.style, {
         position: 'fixed',
-        top: '-60px',
+        top: '-50px',
         left: '50%',
         transform: 'translateX(-50%)',
         background: 'var(--surface, #ffffff)',
         color: 'var(--primary, #10b981)',
-        width: '44px',
-        height: '44px',
+        width: '40px',
+        height: '40px',
         borderRadius: '50%',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: '9999',
+        zIndex: '999999', // super high
         transition: 'top 0.2s',
         fontSize: '20px'
       });
@@ -91,63 +91,58 @@
     return ptrContainer;
   }
 
-  window.addEventListener('touchstart', (e) => {
-    // Hanya aktif jika posisi scroll paling atas (mentok atas)
-    if (window.scrollY > 5) return;
+  document.addEventListener('touchstart', (e) => {
+    // Only active at the very top of the page
+    if (window.scrollY > 10) return;
     ptrStart = e.touches[0].clientY;
     isDragging = true;
     ptrDist = 0;
   }, { passive: true });
 
-  window.addEventListener('touchmove', (e) => {
-    if (!isDragging || window.scrollY > 5) {
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging || window.scrollY > 10) {
       isDragging = false;
       return;
     }
     let y = e.touches[0].clientY;
-    // Jika ditarik ke bawah
     if (y > ptrStart) {
-      ptrDist = y - ptrStart;
-      // Beri resistensi agar tidak terlalu cepat turun
-      ptrDist = ptrDist * 0.45; 
-      if (ptrDist > 85) ptrDist = 85;
+      ptrDist = (y - ptrStart) * 0.6; // less resistance so it shows up faster
+      if (ptrDist > 90) ptrDist = 90;
       
       const el = getPtrElement();
       el.style.transition = 'none';
-      el.style.top = (ptrDist - 60) + 'px';
-      el.style.transform = \`translateX(-50%) rotate(\${ptrDist * 3}deg)\`;
+      el.style.top = (ptrDist - 40) + 'px'; // -40 start, so 50px pull makes it visible (10)
+      el.style.transform = `translateX(-50%) rotate(${ptrDist * 4}deg)`;
     } else {
       isDragging = false;
     }
   }, { passive: true });
 
-  window.addEventListener('touchend', () => {
+  document.addEventListener('touchend', () => {
     if (!isDragging) return;
     isDragging = false;
     const el = getPtrElement();
     el.style.transition = 'top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s';
     
-    // Threshold ditarik cukup jauh (misal 65px)
-    if (ptrDist > 65) {
-      el.style.top = '24px';
+    if (ptrDist > 60) {
+      el.style.top = '30px'; // stay on screen while loading
       el.querySelector('i').classList.add('fa-spin');
       
-      // Panggil fungsi refresh
       if (typeof window.refreshFromHeader === 'function') {
         window.refreshFromHeader().finally(() => {
           setTimeout(() => {
-            el.style.top = '-60px';
+            el.style.top = '-50px';
             el.querySelector('i').classList.remove('fa-spin');
           }, 300);
         });
       } else {
         setTimeout(() => {
-          el.style.top = '-60px';
+          el.style.top = '-50px';
           el.querySelector('i').classList.remove('fa-spin');
         }, 1000);
       }
     } else {
-      el.style.top = '-60px';
+      el.style.top = '-50px';
     }
   });
 })();
