@@ -1336,9 +1336,13 @@ function markTrxAsSeen(ids){
 })();
 
 // === FIX: Auto Refresh Saat APK Dibuka Kembali (Foreground) ===
+let resumeDebounceTimer = null;
 function handleAppResume() {
   if (state.user && typeof refreshAll === 'function') {
-    refreshAll(true); // Paksa fetch ulang karena websocket sering mati di background WebView
+    clearTimeout(resumeDebounceTimer);
+    resumeDebounceTimer = setTimeout(() => {
+      refreshAll(true, true); // Update background supaya gak muncul loading layar penuh
+    }, 500);
   }
 }
 document.addEventListener("visibilitychange", () => {
