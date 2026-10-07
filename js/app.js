@@ -503,11 +503,10 @@ const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
     refreshFromHeaderBusy=true;
     const pageBefore=state.page,selectedAttendanceDate=String(state.attendanceDate||dateKey()).slice(0,10);
     try{
-      if(pageBefore==="gajian"){
-        await loadMonthlyLite(true);
-        return;
-      }
       await refreshAll(true);
+      if(state.monthlyLoaded || pageBefore==="gajian"){
+        await loadMonthlyLite(true);
+      }
       if(pageBefore==="ops"&&selectedAttendanceDate&&selectedAttendanceDate!==dateKey()){
         state.attendanceDate=selectedAttendanceDate;
         await loadAttendanceForDate(selectedAttendanceDate);
@@ -1338,12 +1337,7 @@ function markTrxAsSeen(ids){
 // === FIX: Auto Refresh Saat APK Dibuka Kembali (Foreground) ===
 let resumeDebounceTimer = null;
 function handleAppResume() {
-  if (state.user && typeof refreshAll === 'function') {
-    clearTimeout(resumeDebounceTimer);
-    resumeDebounceTimer = setTimeout(() => {
-      refreshAll(true, true); // Update background supaya gak muncul loading layar penuh
-    }, 500);
-  }
+  // Di-disable sesuai permintaan agar tidak auto-refresh pas masuk aplikasi
 }
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) handleAppResume();
