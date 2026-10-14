@@ -58,7 +58,12 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   async function loadCloudflareNotifySettings(showToast=false){
     try{
       if(!ROCKY_NOTIFY_SETTINGS_URL||!ROCKY_ADMIN_NOTIFY_SECRET)return state.cloudflareNotifySettings;
-      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({action:'get',secret:ROCKY_ADMIN_NOTIFY_SECRET})});
+      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
+        body:JSON.stringify({action:'get',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+        signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
+      });
       const data=await res.json().catch(()=>null);
       if(!res.ok||data?.ok===false)throw new Error(data?.error||'Gagal baca setting Cloudflare');
       state.cloudflareNotifySettings=normalizeCloudflareNotifySettings(data?.settings||data);
@@ -309,7 +314,65 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   function localSort(listName){if(listName==="users")state.users.sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));else state[listName].sort((a,b)=>localSortKey(b)-localSortKey(a))}
   function localUpsert(listName,row){if(!row||!row.id)return;const arr=state[listName]||[],idx=arr.findIndex(x=>String(x.id)===String(row.id));if(idx>=0)arr[idx]={...arr[idx],...row};else arr.unshift(row);localSort(listName)}
   function localMerge(listName,id,patch){const arr=state[listName]||[],idx=arr.findIndex(x=>String(x.id)===String(id));if(idx>=0)arr[idx]={...arr[idx],...patch};else if(id)arr.unshift({id,...patch});localSort(listName)}
-  function finishLocalWrite(){state.lastRefresh=Date.now();syncUserSelects();render()}
+  const CACHE_STATE_KEY="rocky_admin_lite_state_cache_v2";
+  function saveCachedAdminState(){
+    try{
+      if(!state.user)return;
+      const payload={
+        cachedAt:Date.now(),
+        dayLoadedKey:state.dayLoadedKey||dateKey(),
+        users:state.users||[],
+        tx:state.tx||[],
+        att:state.att||[],
+        closing:state.closing||[],
+        manual:state.manual||[],
+        drawerWithdrawals:state.drawerWithdrawals||[],
+        cashRows:state.cashRows||[],
+        cashAuditRows:state.cashAuditRows||[],
+        bonusSettings:state.bonusSettings,
+        staffDailyHomeNote:state.staffDailyHomeNote,
+        rismaManualClosing:state.rismaManualClosing,
+        receiptSettings:state.receiptSettings,
+        waNotifySettings:state.waNotifySettings,
+        targetSettings:state.targetSettings,
+        targetSettingRows:state.targetSettingRows,
+        dailyTarget:state.dailyTarget,
+        adminChangeReserve:state.adminChangeReserve
+      };
+      localStorage.setItem(CACHE_STATE_KEY,JSON.stringify(payload));
+    }catch(e){console.warn("Gagal simpan cache admin",e);}
+  }
+  function loadCachedAdminState(){
+    try{
+      const raw=localStorage.getItem(CACHE_STATE_KEY);
+      if(!raw)return false;
+      const c=JSON.parse(raw);
+      if(!c||!c.cachedAt)return false;
+      const isToday=(c.dayLoadedKey===dateKey());
+      if(Array.isArray(c.users)&&c.users.length)state.users=c.users;
+      if(c.bonusSettings)state.bonusSettings=c.bonusSettings;
+      if(c.staffDailyHomeNote)state.staffDailyHomeNote=c.staffDailyHomeNote;
+      if(c.rismaManualClosing)state.rismaManualClosing=c.rismaManualClosing;
+      if(c.receiptSettings)state.receiptSettings=c.receiptSettings;
+      if(c.waNotifySettings)state.waNotifySettings=c.waNotifySettings;
+      if(c.targetSettings)state.targetSettings=c.targetSettings;
+      if(Array.isArray(c.targetSettingRows))state.targetSettingRows=c.targetSettingRows;
+      if(isToday){
+        if(Array.isArray(c.tx))state.tx=c.tx;
+        if(Array.isArray(c.att))state.att=c.att;
+        if(Array.isArray(c.closing))state.closing=c.closing;
+        if(Array.isArray(c.manual))state.manual=c.manual;
+        if(Array.isArray(c.drawerWithdrawals))state.drawerWithdrawals=c.drawerWithdrawals;
+        if(Array.isArray(c.cashRows))state.cashRows=c.cashRows;
+        if(Array.isArray(c.cashAuditRows))state.cashAuditRows=c.cashAuditRows;
+        if(c.dailyTarget)state.dailyTarget=c.dailyTarget;
+        if(c.adminChangeReserve!==undefined)state.adminChangeReserve=c.adminChangeReserve;
+        state.dayLoadedKey=c.dayLoadedKey;
+      }
+      return true;
+    }catch(e){console.warn("Gagal baca cache admin",e);return false;}
+  }
+  function finishLocalWrite(){state.lastRefresh=Date.now();syncUserSelects();render();saveCachedAdminState();}
   function warnLargeSnapshot(label,snap,limitValue){try{if(snap?.size>=limitValue)console.warn(`[READ SAVER] ${label} kena limit ${limitValue}. Pertimbangkan arsip/paginasi kalau data makin besar.`)}catch(e){}}
 
   const currentTheme=()=>document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
@@ -447,9 +510,8 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     if(!state.user)return;
     const dk=state.txDate || dateKey();
     if(!force&&Date.now()-state.lastRefresh<12000&&state.dayLoadedKey===dk)return render();
-    if(!isBackground) {
-      state.tx=[];state.drawerWithdrawals=[];state.cashRows=[];state.cashAuditRows=[];
-      state.adminChangeReserve=undefined;state._loadingAdminReserve=false;
+    const hasData = (state.tx && state.tx.length > 0) || (state.users && state.users.length > 0);
+    if(!isBackground && !hasData) {
       setBusy(true);
     }
     try{
@@ -461,13 +523,24 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const usersQ=query(collection(db,"users"),limit(80));
       const unlockQ=query(collection(db,STAFF_UNLOCK_TABLE),where("requestKind","==","unlock"),limit(160));
       const drawerWithdrawalsQ=query(collection(db,"drawer_withdrawals"),where("dateKey","==",dk),limit(50));
-      const r1 = await Promise.all([ getDocs(txQ), getDocs(attQ), getDocs(closingQ), getDocs(manualQ) ]);
-const r2 = await Promise.all([ getDocs(usersQ), getDocs(unlockQ), getDocs(drawerWithdrawalsQ).catch(()=>({docs:[]})), getDocFromServer(doc(db,'closings','__bonus_settings')).catch(()=>null) ]);
-const r3 = await Promise.all([ getDocFromServer(doc(db,'closings',STAFF_DAILY_NOTE_DOC_ID)).catch(()=>null), getDocFromServer(doc(db,RISMA_MANUAL_CLOSING_COLLECTION,RISMA_MANUAL_CLOSING_DOC_ID)).catch(()=>null), getDocFromServer(doc(db,'closings',RECEIPT_TEXT_DOC_ID)).catch(()=>null), fetchCashFisik() ]);
-// batched execution applied directly above
-const [txSnap, attSnap, closingSnap, manualSnap] = r1;
-const [userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap] = r2;
-const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
+      const reserveQuery = supabase.from('staff_change_reserve').select('*').eq('date_key', dk).eq('deleted', false).order('created_at_ms', { ascending: false }).limit(1);
+      const [txSnap, attSnap, closingSnap, manualSnap, userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap, staffNoteSnap, rismaManualSnap, receiptSnap, _cash, _wa, reserveRes] = await Promise.all([
+        getDocs(txQ), getDocs(attQ), getDocs(closingQ), getDocs(manualQ),
+        getDocs(usersQ), getDocs(unlockQ), getDocs(drawerWithdrawalsQ).catch(()=>({docs:[]})),
+        getDocFromServer(doc(db,'closings','__bonus_settings')).catch(()=>null),
+        getDocFromServer(doc(db,'closings',STAFF_DAILY_NOTE_DOC_ID)).catch(()=>null),
+        getDocFromServer(doc(db,RISMA_MANUAL_CLOSING_COLLECTION,RISMA_MANUAL_CLOSING_DOC_ID)).catch(()=>null),
+        getDocFromServer(doc(db,'closings',RECEIPT_TEXT_DOC_ID)).catch(()=>null),
+        fetchCashFisik().catch(()=>null),
+        loadWaNotifySettings().catch(()=>null),
+        reserveQuery.catch(()=>({data:[]}))
+      ]);
+
+
+
+
+
+
       warnLargeSnapshot("transactions_today",txSnap,180);
       warnLargeSnapshot("attendance_today",attSnap,80);
       warnLargeSnapshot("closings_today",closingSnap,80);
@@ -481,6 +554,11 @@ const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
       state.users=userSnap.docs.map(d=>({id:d.id,username:cleanUser(d.data().username||d.id),...d.data()}));
       state.unlockRequests=unlockSnap.docs.map(d=>({id:d.id,...d.data()})).filter(isFeatureUnlockRequest).sort((a,b)=>Number(b.createdAtMs||b.updatedAtMs||0)-Number(a.createdAtMs||a.updatedAtMs||0));
       state.drawerWithdrawals=drawerWithdrawalSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>Number(a.createdAtMs||0)-Number(b.createdAtMs||0));
+      if (reserveRes?.data?.length) {
+        state.adminChangeReserve = reserveRes.data[0];
+      } else if (reserveRes?.data) {
+        state.adminChangeReserve = null;
+      }
       if(bonusSnap?.exists()){
         const b=bonusSnap.data()||{};
         state.bonusSettings=normalizeBonusSettings(b)
@@ -488,8 +566,8 @@ const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
       state.staffDailyHomeNote=staffNoteSnap?.exists()?{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:"",...(staffNoteSnap.data()||{})}:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""};
       state.rismaManualClosing=rismaManualSnap?.exists()?{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:"",...(rismaManualSnap.data()||{})}:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""};
       state.receiptSettings=receiptSnap?.exists()?{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:"",...(receiptSnap.data()||{})}:{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:""};
-      await loadCloudflareNotifySettings(false);
-      await loadWaNotifySettings();
+      loadCloudflareNotifySettings(false).catch(()=>{});
+
       state.dayLoadedKey=dk;
       state.monthlyLoaded=false;
       state.monthlyLoadedAtMs=0;
@@ -498,7 +576,8 @@ const [staffNoteSnap, rismaManualSnap, receiptSnap] = r3;
       state.lastRefresh=Date.now();
       syncUserSelects();
       render();
-    }catch(e){toast(e.message||"Refresh gagal",true)}finally{if(!isBackground) setBusy(false)}
+      saveCachedAdminState();
+    }catch(e){toast(e.message||"Refresh gagal",true)}finally{setBusy(false)}
   }
   window.refreshAll=refreshAll;
   let refreshFromHeaderBusy=false;
@@ -1618,7 +1697,13 @@ async function adminApplyDailyTarget(){
     const [targetSnap,notifSnap]=await Promise.all([getDocFromServer(doc(db,ADMIN_DAILY_TARGETS_TABLE,adminTargetDocId(summary.dateKey))).catch(()=>null),getDocFromServer(doc(db,ADMIN_TARGET_NOTIFICATIONS_TABLE,adminTargetNotifId(summary.dateKey))).catch(()=>null)]);
     if(targetSnap?.exists())state.dailyTarget={...(targetSnap.data()||{})};
     if(notifSnap?.exists())state.targetNotification={id:notifSnap.id,...(notifSnap.data()||{})};
-    if(!summary.reached){await revokeAdminDailyTargetBonuses(summary,plan,state.dailyTarget||{});return}
+    if(!summary.reached){
+      const hasApplied = !!(state.dailyTarget?.bonusApplied || (state.manual||[]).some(b=>isTargetAutoBonusRow(b)&&!isDeleted(b)&&explicitRecordDateKey(b)===summary.dateKey));
+      if(hasApplied){
+        await revokeAdminDailyTargetBonuses(summary,plan,state.dailyTarget||{});
+      }
+      return;
+    }
     const amount=Number(summary.bonusAmount||0);
     if(state.dailyTarget?.bonusApplied===true){const rewarded=await adminEnsureStaffTargetBonusNotifications(summary,plan,amount);await adminSaveTargetStatus(summary,plan,{bonusApplied:true,rewardedUsers:[...new Set([...(state.dailyTarget.rewardedUsers||[]).map(cleanUser),...rewarded.map(cleanUser)].filter(Boolean))]});return}
     await adminSaveTargetStatus(summary,plan,{});
@@ -1756,14 +1841,58 @@ renderHome=function(){
   return html;
 };
 const __baseRefreshAllDailyTargetPatch=refreshAll;
-refreshAll=async function(force=false){
-  await __baseRefreshAllDailyTargetPatch(force);
+refreshAll=async function(force=false, isBackground=false){
+  await __baseRefreshAllDailyTargetPatch(force, isBackground);
   await adminApplyDailyTarget();
   if(state.page==='home')render();
 };
 window.refreshAll=refreshAll;
 
-  async function boot(){applyTheme(initialTheme());if(window.__APP_VERSION__){fetch("index.html?_t="+Date.now()).then(r=>r.text()).then(html=>{const m=html.match(/var v = "([^"]+)"/);if(m&&m[1]&&m[1]!==window.__APP_VERSION__){if(sessionStorage.getItem("upd_tried")){toast("Pembaruan tersedia. Hapus data aplikasi untuk update.", true);return;}sessionStorage.setItem("upd_tried","1");toast("Mendownload pembaruan...");setTimeout(()=>location.replace(location.pathname+"?_upd="+Date.now()),1000);}}).catch(()=>{});}const saved=localStorage.getItem(SESSION_KEY);if(saved){try{state.user=JSON.parse(saved);await refreshAll(true);setAppPage("home",{push:true});syncThemeUi();return}catch(e){localStorage.removeItem(SESSION_KEY)}}showLogin();syncThemeUi()}boot();
+  async function boot(){
+    applyTheme(initialTheme());
+    if(window.__APP_VERSION__){
+      fetch("index.html?_t="+Date.now()).then(r=>r.text()).then(html=>{
+        const m=html.match(/var v = "([^"]+)"/);
+        if(m&&m[1]&&m[1]!==window.__APP_VERSION__){
+          if(sessionStorage.getItem("upd_tried")){
+            toast("Pembaruan tersedia. Hapus data aplikasi untuk update.", true);
+            return;
+          }
+          sessionStorage.setItem("upd_tried","1");
+          toast("Mendownload pembaruan...");
+          setTimeout(()=>location.replace(location.pathname+"?_upd="+Date.now()),1000);
+        }
+      }).catch(()=>{});
+    }
+    const saved=localStorage.getItem(SESSION_KEY);
+    if(saved){
+      try{
+        state.user=JSON.parse(saved);
+        const hasCache = loadCachedAdminState();
+        if(hasCache){
+          // Buka LANGSUNG tanpa jeda! (Instant Startup < 50ms)
+          setAppPage("home",{push:true});
+          syncThemeUi();
+          // Segarkan data di latar belakang tanpa memblokir layar
+          refreshAll(true, true).then(()=>{
+            saveCachedAdminState();
+          }).catch(()=>{});
+          return;
+        }
+        // Jika belum ada cache sama sekali (pertama kali buka): render shell langsung
+        setAppPage("home",{push:true});
+        syncThemeUi();
+        await refreshAll(true, false);
+        saveCachedAdminState();
+        return;
+      }catch(e){
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+    showLogin();
+    syncThemeUi();
+  }
+  boot();
 
 
 
