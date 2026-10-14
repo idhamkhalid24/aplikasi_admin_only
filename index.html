@@ -26,7 +26,7 @@ window.onunhandledrejection = function(event) {
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <script>
-    var v = "20261006_01"; window.__APP_VERSION__ = v;
+    var v = "20261014_01"; window.__APP_VERSION__ = v;
     document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
   </script>
 </head>
@@ -123,8 +123,26 @@ window.onunhandledrejection = function(event) {
           <input id="uDummy" type="checkbox" style="margin-top:3px;accent-color:#f59e0b">
           <span><b>Akun Dummy / Mode Trial</b><br><span class="meta">Data transaksi, absen, dan bonus akun ini dicap trial dan tidak masuk laporan utama. Target trial bawaan Rp 10.000, bonus Rp 1.000.</span></span>
         </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(2,132,199,.32);border-radius:16px;background:rgba(2,132,199,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
+          <input id="uQrisAccess" type="checkbox" style="margin-top:3px;accent-color:#0284c7">
+          <span><b>Akses Pembayaran QRIS</b><br><span class="meta">Izinkan user ini melihat dan menggunakan fitur pembayaran QRIS di aplikasi kasir staf.</span></span>
+        </label>
         <div id="uDeviceLockContainer"></div>
         <button class="btn primary full" onclick="saveUser()"><i class="fas fa-user-check"></i> Simpan Data User</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="qrisAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses QRIS Kasir</div><div class="meta">Pilih staf yang diizinkan menggunakan QRIS</div></div>
+        <button class="btn icon" onclick="closeModal('qrisAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div id="qrisAccessList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -252,7 +270,7 @@ window.onunhandledrejection = function(event) {
      Tidak ada lagi template kasir lokal di file ini, supaya tidak bentrok dan ukuran file lebih ringan. -->
 
   <script>
-    var v = "20261006_06"; window.__APP_VERSION__ = v;
+    var v = "20261014_01"; window.__APP_VERSION__ = v;
     document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
     document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
   </script>
