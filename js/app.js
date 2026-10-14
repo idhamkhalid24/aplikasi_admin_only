@@ -522,6 +522,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const manualQ=query(collection(db,"manualBonuses"),where("dateKey","==",dk),limit(120));
       const usersQ=query(collection(db,"users"),limit(80));
       const unlockQ=query(collection(db,STAFF_UNLOCK_TABLE),where("requestKind","==","unlock"),limit(160));
+      const drawerWithdrawalsQ=query(collection(db,"drawer_withdrawals"),where("dateKey","==",dk),limit(50));
       const fetchReserveToday = async () => {
         try {
           return await supabase.from('staff_change_reserve').select('*').eq('date_key', dk).eq('deleted', false).order('created_at_ms', { ascending: false }).limit(1);
