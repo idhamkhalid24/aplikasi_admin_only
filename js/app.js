@@ -307,7 +307,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   const BONUS_WITHDRAWAL_TYPE="bonus_withdrawal";
   const cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
-  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],drawerWithdrawals:[],unlockRequests:[],bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],cashAuditRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""},cloudflareNotifySettings:{mode:"admin",adminEnabled:true,serverEnabled:false,cloudflareEnabled:true,updatedAtMs:0,updatedByName:""},receiptSettings:{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:""}};
+  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],drawerWithdrawals:[],unlockRequests:[],trxViewMode:"month",trxSelectedDate:dateKey(),trxSelectedMonth:monthKey(),trxUserFilter:"all",trxPaymentFilter:"all",trxMonthTab:"rekap",trxDateCache:{},trxMonthCache:{},trxDateLoaded:{},trxMonthLoaded:{},bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],cashAuditRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""},cloudflareNotifySettings:{mode:"admin",adminEnabled:true,serverEnabled:false,cloudflareEnabled:true,updatedAtMs:0,updatedByName:""},receiptSettings:{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:""}};
   /* === FIREBASE READ SAVER PATCH === */
   function nextMonthStartKey(mk=monthKey()){const[y,m]=String(mk||monthKey()).split("-").map(Number),d=new Date(y||new Date().getFullYear(),m||new Date().getMonth()+1,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
   function localSortKey(r){return Number(r?.closedAtMs||r?.createdAtMs||r?.updatedAtMs||r?.deletedAtMs||0)||0}
@@ -600,6 +600,16 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         state.attendanceDate=selectedAttendanceDate;
         await loadAttendanceForDate(selectedAttendanceDate);
       }
+      if(pageBefore==="trx"){
+        await refreshAll(true);
+      }
+      if(pageBefore==="rekapTrx"){
+        if(typeof loadTrxForMonth === 'function' && state.trxViewMode === 'month'){
+          await loadTrxForMonth(state.trxSelectedMonth, true);
+        } else if(typeof loadTrxForDate === 'function'){
+          await loadTrxForDate(state.trxSelectedDate, true);
+        }
+      }
     }finally{
       refreshFromHeaderBusy=false;
     }
@@ -677,7 +687,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff - otomatis ikut update dari link. Swipe back Android akan kembali ke halaman admin sebelumnya.</div></div></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div></section>`}
   window.openEmbeddedKasir=()=>go("cashier");
 
-  const APP_PAGES=new Set(["home","trx","bonus","gajian","team","ops","cashier","control","rismaClosing","unlockRequests","onlineOrders"]);
+  const APP_PAGES=new Set(["home","trx","rekapTrx","bonus","gajian","team","ops","cashier","control","rismaClosing","unlockRequests","onlineOrders"]);
   function normalizePage(page){page=String(page||"home");return APP_PAGES.has(page)?page:"home"}
   function routeFromLocation(){const raw=decodeURIComponent(String(location.hash||"").replace(/^#\/?/,""));return normalizePage(raw||"home")}
   function writeAppHistory(page,{replace=false}={}){page=normalizePage(page);try{const hash="#"+page,stateData={rockyAdminPage:page};if(replace){history.replaceState(stateData,"",hash);return}const current=history.state&&history.state.rockyAdminPage;if(location.hash!==hash||current!==page)history.pushState(stateData,"",hash)}catch(e){}}
@@ -685,7 +695,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.addEventListener("popstate",e=>{if(modalBackIgnore>0){modalBackIgnore--;if(modalHistoryCleanup&&!visibleModals().length&&e.state?.rockyModalId){requestModalHistoryBack();return}if(!visibleModals().length)modalHistoryCleanup=false;return}if(closeTopModalFromBack())return;state.page=normalizePage(e.state?.rockyAdminPage||routeFromLocation());render()});
   writeAppHistory(routeFromLocation(),{replace:true});
 
-  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
+  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
 
   /* === PATCH: Ringkasan Bonus Harian + Receipt Printer === */
   const moneyValue=n=>Math.round(Number(n||0));
@@ -939,24 +949,856 @@ function receiptProductNumbered(note,indent=""){const sep=receiptLine();return r
 function receiptSummaryLine(label,value,indent=""){const s=String(label||"-").slice(0,12).padEnd(11," ");return`${indent}${s} : ${String(value??"").trim()}`}
 receiptTextForTx=function(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk:\n${receiptProductNumbered(t.note)}\n\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`};
 receiptTextForTodayTransactions=function(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    Produk:\n${receiptProductNumbered(t.note,"    ")}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL BAYAR",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`};
-function openAdminLiteTxDetail(id){const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const name=String(t.name||userName(t.user)||"-"),items=receiptProductItems(t.note),pay=txPaymentLabel(t);const body=`<div class="card pad mb" style="box-shadow:none"><div class="tiny">Total Bayar</div><div class="amt num">${rp(t.amount)}</div><div class="meta" style="margin-top:6px">${esc(name)} - ${txTimeLabel(t)} - ${esc(pay)}</div></div><div class="card pad" style="box-shadow:none"><div class="tiny">Daftar Barang</div>${adminLiteProductDetailHtml(t.note||"Transaksi")}</div>`;const footer=`<button class="btn full" onclick="closeDynamicSheet('adminLiteTxDetailModal')"><i class="fas fa-arrow-left"></i> Kembali</button>`;openDynamicSheet("adminLiteTxDetailModal","Detail Transaksi",`${name} - ${txTimeLabel(t)} - ${items.length} item`,body,footer)}
-window.openAdminLiteTxDetail=openAdminLiteTxDetail;
-function getAdminTxTotalQty(note){const noteLines=String(note||"").split("\n").map(x=>x.trim()).filter(Boolean);let totalQty=0;if(noteLines.length>0&&noteLines[0]!=="Transaksi"&&noteLines[0]!=="-"){for(const item of noteLines){const lower=item.toLowerCase();if(lower.includes(" qty ")){const q=parseInt(lower.split(" qty ")[1],10);totalQty+=isNaN(q)?1:q}else{totalQty+=1}}}return totalQty}
-renderTxList=function(list,withActions=true){if(!list.length)return`<div class="empty">Belum ada transaksi</div>`;return`<div class="list">${list.map(t=>`<div class="item ${txPaymentLabel(t).toLowerCase().includes('qris')?'item-qris':''}" style="align-items:center;padding:12px 14px;${isTxAfterLatestWithdrawal(t)?'border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;':''}"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">${esc(t.name||userName(t.user))}</div><div class="meta" style="font-size:11px;margin-top:2px">${txTimeLabel(t)} - ${receiptProductItems(t.note).length} item - ${txPaymentLabel(t)}</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">${withActions?`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">${rp(t.amount)}</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail('${esc(t.id)}')" title="Detail">${(()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?`<span style="font-weight:900;font-size:13px">${tq}</span>`:'<i class="fas fa-list"></i>'})()}</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx('${esc(t.id)}')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction('${esc(t.id)}')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction('${esc(t.id)}')" title="Hapus"><i class="fas fa-trash"></i></button>`:`<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">${rp(t.amount)}</div>`}</div></div>`).join("")}</div>`};
-renderTrx=function(){
-  const list=todayTx(),total=list.reduce((s,t)=>s+Number(t.amount||0),0),printAll=list.length?`<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>`:"";
-  const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
-  return`<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${printAll}${renderTxList(list,true)}</div>`
+
+/* === TRANSAKSI PER TANGGAL & BULAN ROCKY ADMIN === */
+const INDO_DAYS = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+const INDO_MONTHS = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const INDO_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+function formatIndoDateLong(dk){
+  if(!dk) return "-";
+  const parts = String(dk).slice(0,10).split("-").map(Number);
+  if(parts.length < 3 || isNaN(parts[0])) return dk;
+  const dt = new Date(parts[0], parts[1]-1, parts[2]);
+  const dayName = INDO_DAYS[dt.getDay()] || "";
+  const monthName = INDO_MONTHS[parts[1]-1] || "";
+  return dayName + ", " + parts[2] + " " + monthName + " " + parts[0];
+}
+
+function formatIndoDateShort(dk){
+  if(!dk) return "-";
+  const parts = String(dk).slice(0,10).split("-").map(Number);
+  if(parts.length < 3 || isNaN(parts[0])) return dk;
+  const monthName = INDO_MONTHS_SHORT[parts[1]-1] || "";
+  return parts[2] + " " + monthName + " " + parts[0];
+}
+
+function formatIndoMonthYear(mk){
+  if(!mk) return "-";
+  const parts = String(mk).slice(0,7).split("-").map(Number);
+  if(parts.length < 2 || isNaN(parts[0])) return mk;
+  const monthName = INDO_MONTHS[parts[1]-1] || "";
+  return monthName + " " + parts[0];
+}
+
+function findTxById(id){
+  const sid = String(id);
+  let t = (state.tx||[]).find(x => String(x.id) === sid);
+  if(t) return t;
+  for(const k in (state.trxDateCache||{})){
+    t = (state.trxDateCache[k]||[]).find(x => String(x.id) === sid);
+    if(t) return t;
+  }
+  for(const k in (state.trxMonthCache||{})){
+    t = (state.trxMonthCache[k]||[]).find(x => String(x.id) === sid);
+    if(t) return t;
+  }
+  return null;
+}
+
+function syncSavedTxToCaches(savedTx){
+  if(!savedTx||!savedTx.id) return;
+  const dk = String(savedTx.dateKey||dateKey()).slice(0,10);
+  const mk = String(savedTx.monthKey||monthKey()).slice(0,7);
+  if(state.trxDateCache[dk]){
+    const arr = state.trxDateCache[dk];
+    const idx = arr.findIndex(x => String(x.id) === String(savedTx.id));
+    if(idx >= 0) arr[idx] = {...arr[idx], ...savedTx};
+    else arr.unshift(savedTx);
+    arr.sort((a,b) => txTimeMs(b) - txTimeMs(a));
+  }
+  if(state.trxMonthCache[mk]){
+    const arr = state.trxMonthCache[mk];
+    const idx = arr.findIndex(x => String(x.id) === String(savedTx.id));
+    if(idx >= 0) arr[idx] = {...arr[idx], ...savedTx};
+    else arr.unshift(savedTx);
+    arr.sort((a,b) => txTimeMs(b) - txTimeMs(a));
+  }
+}
+
+function syncDeletedTxToCaches(id, patch){
+  const sid = String(id);
+  for(const k in (state.trxDateCache||{})){
+    const arr = state.trxDateCache[k]||[];
+    const idx = arr.findIndex(x => String(x.id) === sid);
+    if(idx >= 0){
+      if(patch) arr[idx] = {...arr[idx], ...patch};
+      else arr.splice(idx, 1);
+    }
+  }
+  for(const k in (state.trxMonthCache||{})){
+    const arr = state.trxMonthCache[k]||[];
+    const idx = arr.findIndex(x => String(x.id) === sid);
+    if(idx >= 0){
+      if(patch) arr[idx] = {...arr[idx], ...patch};
+      else arr.splice(idx, 1);
+    }
+  }
+}
+
+let trxLoadingDate = false;
+let trxLoadingMonth = false;
+
+window.fetchAndShowTrxDate = async function(dk, force=false){
+  if(!dk) dk = state.trxSelectedDate || dateKey();
+  trxLoadingDate = true;
+  render();
+  try{
+    await loadTrxForDate(dk, force);
+    state.trxDateLoaded[dk] = true;
+  }catch(e){
+    toast("Gagal memuat transaksi: " + (e.message||e), true);
+  }finally{
+    trxLoadingDate = false;
+    render();
+  }
 };
-window.openTransactionModal=()=>{$("trxTitle").textContent="Tambah Transaksi";$("trxId").value="";$("trxAmount").value="";$("trxUser").innerHTML=optionUsers(state.user?.username);resetAdminLiteProductItems("");modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
-window.editTransaction=id=>{const t=state.tx.find(x=>x.id===id);if(!t)return toast("Transaksi tidak ditemukan",true);$("trxTitle").textContent="Edit Transaksi";$("trxId").value=t.id;$("trxUser").innerHTML=optionUsers(t.user);resetAdminLiteProductItems(t.note||"");$("trxAmount").value=rupiah(t.amount);modal("trxModal");setTimeout(()=>$("adminTrxProductInput")?.focus?.(),80)};
-window.saveTransaction=async(printAfterSave=false,paymentMethod="")=>{const id=$("trxId").value,username=cleanUser($("trxUser").value),u=userBy(username),amount=parseMoney($("trxAmount").value),note=adminLiteProductText();if(!username||!u)return toast("Pilih user",true);if(amount<=0)return toast("Nominal wajib lebih dari 0",true);if(!paymentMethod){adminLitePendingTxDraft={id,username,amount,note,printAfterSave:Boolean(printAfterSave)};return openAdminLitePaymentModal(adminLitePendingTxDraft)}const payment=normalizeAdminLitePaymentMethod(paymentMethod);if(!payment)return toast("Pilih Cash atau QRIS / Transfer",true);const paymentText=adminLitePaymentLabel(payment);setBusy(true);try{const old=id?state.tx.find(t=>t.id===id):null,createdAtMs=id?Number(old?.createdAtMs||Date.now()):Date.now(),payload={...trialFlagsForUser(u),user:username,name:u.name||username,note,amount,paymentMethod:payment,paymentLabel:paymentText,paymentStatus:"success",paymentCashOutType:payment==="qris_transfer"?"qris":"",isNonCashPayment:payment==="qris_transfer",paymentConfirmed:true,paymentConfirmedAtMs:Date.now(),dateKey:dateKey(),monthKey:monthKey(),userRole:u.role||"staff",role:u.role||"staff",bonusGroup:isDaily(u)?"harian":"staff",bonusRate:getUserRate(u),bonusPercent:Number((getUserRate(u)*100).toFixed(3)),transactionBonusRate:getUserRate(u),transactionBonusPercent:Number((getUserRate(u)*100).toFixed(3)),bonusLogicVersion:3,source:old?.source||"admin_lite_manual",deleted:false,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username,updatedByName:state.user.name};let savedId=id;if(id){await setDoc(doc(db,"transactions",id),payload,{merge:true, localDoc: old})}else{const ref=await addDoc(collection(db,"transactions"),{...payload,createdAt:serverTimestamp(),createdAtMs,createdBy:state.user.username});savedId=ref.id}const savedTx={id:savedId,...(old||{}),...payload,createdAtMs};localUpsert("tx",savedTx);closeDynamicSheet("adminLitePaymentModal");closeModal("trxModal");adminLitePendingTxDraft=null;finishLocalWrite();if(printAfterSave){toast("Transaksi tersimpan, mencetak struk");setTimeout(()=>directPrintReceiptText(receiptTextForTx(savedTx),"Struk Transaksi Baru"),120)}else toast(`Transaksi tersimpan - ${paymentText}`)}catch(e){toast(e.message||"Gagal simpan transaksi",true)}finally{setBusy(false)}};
-window.addAdminLiteProductItem=addAdminLiteProductItem;window.removeAdminLiteProductItem=removeAdminLiteProductItem;window.handleAdminLiteProductKey=handleAdminLiteProductKey;window.updateAdminLiteProductAddButton=updateAdminLiteProductAddButton;window.pickAdminTrxProductSuggest=pickAdminTrxProductSuggest;window.hideAdminTrxProductSuggest=hideAdminTrxProductSuggest;
-const deleteManualBonusOriginalForTargetReset=window.deleteManualBonus;
-window.deleteManualBonus=async id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||!isTargetAutoBonusRow(row))return deleteManualBonusOriginalForTargetReset(id);if(isDeleted(row))return toast("Bonus target otomatis tidak ditemukan",true);const pin=await askPin(`Reset bonus target otomatis untuk ${userName(row.user)}?\nNominal: ${rp(Math.abs(Number(row.amount||0)))}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,status:"deleted",deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"manualBonuses",id),patch,{merge:true});await resetAdminTargetAutoBonusAfterDelete(row);localMerge("manual",id,patch);finishLocalWrite();toast("Bonus target otomatis direset")}catch(e){toast(e.message||"Gagal reset bonus target",true)}finally{setBusy(false)}};
-window.deleteTargetAutoBonus=window.deleteManualBonus;
-const deleteTransactionOriginalForTargetReset=window.deleteTransaction;
-window.deleteTransaction=async id=>{await deleteTransactionOriginalForTargetReset(id);adminApplyDailyTarget().catch(e=>console.warn("cek target setelah hapus gagal",e?.code||e?.message||e))};
+
+window.fetchAndShowTrxMonth = async function(mk, force=false){
+  if(!mk) mk = state.trxSelectedMonth || monthKey();
+  trxLoadingMonth = true;
+  render();
+  try{
+    await loadTrxForMonth(mk, force);
+    state.trxMonthLoaded[mk] = true;
+  }catch(e){
+    toast("Gagal memuat rekap bulanan: " + (e.message||e), true);
+  }finally{
+    trxLoadingMonth = false;
+    render();
+  }
+};
+
+async function loadTrxForDate(dk, force=false){
+  if(!dk) dk = dateKey();
+  if(!force && state.trxDateCache[dk]) return state.trxDateCache[dk];
+  setBusy(true);
+  try{
+    const q = query(collection(db, "transactions"), where("dateKey", "==", dk), limit(2500));
+    const snap = await getDocs(q);
+    const rows = [];
+    snap.forEach(docSnap => {
+      const d = { id: docSnap.id, ...docSnap.data() };
+      if(!isDeleted(d) && !isTrialRecord(d)) rows.push(d);
+    });
+    if(dk === dateKey()){
+      const map = new Map();
+      rows.forEach(r => map.set(String(r.id), r));
+      (todayTx()||[]).forEach(r => map.set(String(r.id), r));
+      rows.length = 0;
+      map.forEach(v => rows.push(v));
+    }
+    rows.sort((a,b) => txTimeMs(b) - txTimeMs(a));
+    state.trxDateCache[dk] = rows;
+    state.trxDateLoaded[dk] = true;
+    return rows;
+  }catch(e){
+    console.error("loadTrxForDate error", e);
+    toast("Gagal memuat transaksi: " + (e.message||e), true);
+    return state.trxDateCache[dk] || [];
+  }finally{
+    setBusy(false);
+  }
+}
+window.loadTrxForDate = loadTrxForDate;
+
+async function loadTrxForMonth(mk, force=false){
+  if(!mk) mk = monthKey();
+  if(!force && state.trxMonthCache[mk]) return state.trxMonthCache[mk];
+  setBusy(true);
+  try{
+    const q = query(collection(db, "transactions"), where("monthKey", "==", mk), limit(4000));
+    const snap = await getDocs(q);
+    const rows = [];
+    snap.forEach(docSnap => {
+      const d = { id: docSnap.id, ...docSnap.data() };
+      if(!isDeleted(d) && !isTrialRecord(d)) rows.push(d);
+    });
+    if(mk === monthKey()){
+      const localToday = (visibleTx()||[]).filter(t => (t.monthKey || extractDateKey(t).slice(0,7)) === mk);
+      const map = new Map();
+      rows.forEach(r => map.set(String(r.id), r));
+      localToday.forEach(r => map.set(String(r.id), r));
+      rows.length = 0;
+      map.forEach(v => rows.push(v));
+    }
+    rows.sort((a,b) => txTimeMs(b) - txTimeMs(a));
+    state.trxMonthCache[mk] = rows;
+    state.trxMonthLoaded[mk] = true;
+    const byDate = {};
+    rows.forEach(r => {
+      const dk = extractDateKey(r);
+      if(dk){
+        if(!byDate[dk]) byDate[dk] = [];
+        byDate[dk].push(r);
+      }
+    });
+    for(const d in byDate){
+      state.trxDateCache[d] = byDate[d];
+      state.trxDateLoaded[d] = true;
+    }
+    return rows;
+  }catch(e){
+    console.error("loadTrxForMonth error", e);
+    toast("Gagal memuat transaksi bulanan: " + (e.message||e), true);
+    return state.trxMonthCache[mk] || [];
+  }finally{
+    setBusy(false);
+  }
+}
+window.loadTrxForMonth = loadTrxForMonth;
+
+function filterTrxList(list){
+  return (list||[]).filter(t => {
+    if(isDeleted(t) || isTrialRecord(t)) return false;
+    if(state.trxUserFilter && state.trxUserFilter !== "all"){
+      if(cleanUser(t.user) !== cleanUser(state.trxUserFilter)) return false;
+    }
+    if(state.trxPaymentFilter && state.trxPaymentFilter !== "all"){
+      const pay = String(t.paymentMethod||"").toLowerCase();
+      const isQris = pay.includes("qris") || pay.includes("transfer") || t.isNonCashPayment === true;
+      if(state.trxPaymentFilter === "cash" && isQris) return false;
+      if(state.trxPaymentFilter === "qris_transfer" && !isQris) return false;
+    }
+    return true;
+  });
+}
+
+function getActiveTrxDateList(){
+  const dk = state.trxSelectedDate || dateKey();
+  const baseList = state.trxDateCache[dk] || [];
+  return filterTrxList(baseList);
+}
+
+function getActiveTrxMonthList(){
+  const mk = state.trxSelectedMonth || monthKey();
+  const baseList = state.trxMonthCache[mk] || [];
+  return filterTrxList(baseList);
+}
+
+function openAdminLiteTxDetail(id){
+  const t = findTxById(id);
+  if(!t) return toast("Transaksi tidak ditemukan", true);
+  const name = String(t.name||userName(t.user)||"-"),
+        items = receiptProductItems(t.note),
+        pay = txPaymentLabel(t),
+        dateStr = formatIndoDateLong(extractDateKey(t));
+  const body = '<div class="card pad mb" style="box-shadow:none">' +
+    '<div class="tiny">Total Bayar</div>' +
+    '<div class="amt num">' + rp(t.amount) + '</div>' +
+    '<div class="meta" style="margin-top:6px">' + esc(name) + ' - ' + txTimeLabel(t) + ' (' + dateStr + ') - ' + esc(pay) + '</div>' +
+  '</div>' +
+  '<div class="card pad" style="box-shadow:none">' +
+    '<div class="tiny">Daftar Barang</div>' +
+    adminLiteProductDetailHtml(t.note||"Transaksi") +
+  '</div>';
+  const footer = '<button class="btn full" onclick="closeDynamicSheet(\'adminLiteTxDetailModal\')"><i class="fas fa-arrow-left"></i> Kembali</button>';
+  openDynamicSheet("adminLiteTxDetailModal", "Detail Transaksi", name + " - " + txTimeLabel(t) + " - " + items.length + " item", body, footer);
+}
+window.openAdminLiteTxDetail = openAdminLiteTxDetail;
+
+function getAdminTxTotalQty(note){
+  const noteLines = String(note||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  let totalQty = 0;
+  if(noteLines.length > 0 && noteLines[0] !== "Transaksi" && noteLines[0] !== "-"){
+    for(const item of noteLines){
+      const lower = item.toLowerCase();
+      if(lower.includes(" qty ")){
+        const q = parseInt(lower.split(" qty ")[1], 10);
+        totalQty += isNaN(q) ? 1 : q;
+      } else {
+        totalQty += 1;
+      }
+    }
+  }
+  return totalQty;
+}
+
+renderTxList = function(list, withActions=true){
+  if(!list.length) return '<div class="empty">Belum ada transaksi</div>';
+  return '<div class="list">' + list.map(t=>'<div class="item ' + (txPaymentLabel(t).toLowerCase().includes("qris")?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div><div class="meta" style="font-size:11px;margin-top:2px">' + (state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '') + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + (withActions?('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>'):('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>')) + '</div></div>').join("") + '</div>';
+};
+
+window.printReceiptFromTx = function(id){
+  const t = findTxById(id);
+  if(!t) return toast("Transaksi tidak ditemukan", true);
+  openReceiptPreview(receiptTextForTx(t), "Struk - " + dateId(extractDateKey(t)));
+};
+
+function receiptTextForDateTransactions(list, dk){
+  const items = [...list].sort((a,b)=>txTimeMs(a)-txTimeMs(b));
+  const total = items.reduce((s,t)=>s+Number(t.amount||0),0);
+  const totalCash = items.reduce((s,t)=>{
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    return s + (isQ ? 0 : Number(t.amount||0));
+  }, 0);
+  const totalQris = total - totalCash;
+  const totalQty = items.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  const rows = items.map((t,i)=>String(i+1).padStart(2,"0") + ". " + txTimeLabel(t) + " - " + String(t.name||userName(t.user)||"-") + "\n    Produk:\n" + receiptProductNumbered(t.note,"    ") + "\n" + receiptSummaryLine("Total Bayar",rp(t.amount),"    ") + "\n" + receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")).join("\n\n");
+  return "ROCKY HIJAB\nTRANSAKSI " + formatIndoDateShort(dk).toUpperCase() + "\n" + receiptLine() + "\nTanggal : " + dateId(dk) + "\nAdmin   : " + (state.user?.name||state.user?.username||"-") + "\nJumlah  : " + items.length + " trx (" + totalQty + " pcs)\n" + receiptLine() + "\n" + rows + "\n" + receiptLine() + "\n" + receiptSummaryLine("TOTAL CASH",rp(totalCash)) + "\n" + receiptSummaryLine("TOTAL QRIS",rp(totalQris)) + "\n" + receiptLine() + "\n" + receiptSummaryLine("TOTAL",rp(total)) + "\n" + receiptLine() + "\nTerima kasih\n\n\n";
+}
+
+window.printFilteredDateTransactions = function(){
+  const list = getActiveTrxDateList();
+  if(!list.length) return toast("Tidak ada transaksi untuk dicetak", true);
+  openReceiptPreview(receiptTextForDateTransactions(list, state.trxSelectedDate||dateKey()), "Struk Trx - " + (state.trxSelectedDate||dateKey()));
+};
+
+window.printTodayTransactions = function(){
+  const items = [...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b));
+  if(!items.length) return toast("Belum ada transaksi hari ini", true);
+  openReceiptPreview(receiptTextForTodayTransactions(), "Struk Transaksi Hari Ini");
+};
+
+function receiptTextForMonthSummary(monthList, mk){
+  const total = monthList.reduce((s,t)=>s+Number(t.amount||0),0);
+  const totalCash = monthList.reduce((s,t)=>{
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    return s + (isQ ? 0 : Number(t.amount||0));
+  }, 0);
+  const totalQris = total - totalCash;
+  const totalQty = monthList.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  
+  const dayMap = {};
+  monthList.forEach(t => {
+    const dk = extractDateKey(t);
+    if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
+    const amt = Number(t.amount||0);
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    dayMap[dk].total += amt;
+    dayMap[dk].count += 1;
+    dayMap[dk].qty += getAdminTxTotalQty(t.note);
+    if(isQ) dayMap[dk].qris += amt;
+    else dayMap[dk].cash += amt;
+  });
+  const days = Object.values(dayMap).sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
+  const dayRows = days.map(d => d.dateKey.slice(8,10) + " " + formatIndoDateShort(d.dateKey).slice(3,6) + " : " + String(d.count).padStart(2) + " trx | " + rp(d.total)).join("\n");
+  
+  return "ROCKY HIJAB\nREKAP BULANAN\n" + formatIndoMonthYear(mk).toUpperCase() + "\n" + receiptLine() + "\nPeriode : " + formatIndoMonthYear(mk) + "\nAdmin   : " + (state.user?.name||state.user?.username||"-") + "\nHari Aktif: " + days.length + " hari\nJumlah  : " + monthList.length + " trx (" + totalQty + " pcs)\n" + receiptLine() + "\nRINCIAN HARIAN:\n" + dayRows + "\n" + receiptLine() + "\n" + receiptSummaryLine("TOTAL CASH",rp(totalCash)) + "\n" + receiptSummaryLine("TOTAL QRIS",rp(totalQris)) + "\n" + receiptLine() + "\n" + receiptSummaryLine("TOTAL OMZET",rp(total)) + "\n" + receiptLine() + "\nTerima kasih\n\n\n";
+}
+
+window.printFilteredMonthSummary = function(){
+  const list = getActiveTrxMonthList();
+  if(!list.length) return toast("Tidak ada data transaksi untuk dicetak", true);
+  openReceiptPreview(receiptTextForMonthSummary(list, state.trxSelectedMonth||monthKey()), "Rekap Bulanan - " + (state.trxSelectedMonth||monthKey()));
+};
+
+window.setTrxMode = function(mode){
+  state.trxViewMode = mode;
+  render();
+};
+
+window.changeTrxDate = function(val){
+  if(!val) return;
+  state.trxSelectedDate = String(val).slice(0,10);
+  render();
+};
+
+window.shiftTrxDate = function(delta){
+  const current = state.trxSelectedDate || dateKey();
+  const parts = current.split("-").map(Number);
+  const dt = new Date(parts[0], parts[1]-1, parts[2]);
+  dt.setDate(dt.getDate() + delta);
+  state.trxSelectedDate = dateKey(dt);
+  render();
+};
+
+window.setTrxDateToday = function(){
+  state.trxSelectedDate = dateKey();
+  render();
+};
+
+window.changeTrxMonth = function(val){
+  if(!val) return;
+  state.trxSelectedMonth = String(val).slice(0,7);
+  render();
+};
+
+window.shiftTrxMonth = function(delta){
+  const current = state.trxSelectedMonth || monthKey();
+  const parts = current.split("-").map(Number);
+  const dt = new Date(parts[0], parts[1]-1+delta, 1);
+  state.trxSelectedMonth = monthKey(dt);
+  render();
+};
+
+window.setTrxMonthCurrent = function(){
+  state.trxSelectedMonth = monthKey();
+  render();
+};
+
+window.changeTrxUserFilter = function(val){
+  state.trxUserFilter = val || "all";
+  render();
+};
+
+window.changeTrxPaymentFilter = function(val){
+  state.trxPaymentFilter = val || "all";
+  render();
+};
+
+window.setTrxMonthTab = function(tab){
+  state.trxMonthTab = tab || "rekap";
+  render();
+};
+
+window.viewTrxDateFromMonth = function(dk){
+  state.trxSelectedDate = dk;
+  state.trxViewMode = "date";
+  const mk = String(dk).slice(0,7);
+  const mList = state.trxMonthCache[mk] || [];
+  state.trxDateCache[dk] = mList.filter(t => extractDateKey(t) === dk);
+  state.trxDateLoaded[dk] = true;
+  state.page = "rekapTrx";
+  render();
+  try{ window.scrollTo({top: 0, behavior: "smooth"}); }catch(e){}
+};
+
+function renderTrxFilterBar(){
+  const staffUsers = (state.users||[]).filter(u => cleanUser(u.username) && !isDeleted(u));
+  const kasirOptions = '<option value="all"' + (state.trxUserFilter==="all"?" selected":"") + '>-- Semua Kasir --</option>' +
+    staffUsers.map(u => '<option value="' + esc(u.username) + '"' + (cleanUser(state.trxUserFilter)===cleanUser(u.username)?" selected":"") + '>' + esc(u.name||u.username) + '</option>').join("");
+  
+  return '<div class="card pad mb" style="padding:10px 12px;margin-bottom:10px">' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px">' +
+      '<i class="fas fa-filter"></i> Filter Transaksi' +
+    '</div>' +
+    '<div class="grid2" style="gap:8px">' +
+      '<div>' +
+        '<label style="font-size:10.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Kasir / User</label>' +
+        '<select class="input" style="height:36px;min-height:36px;font-size:12px;padding:4px 8px;border-radius:10px" onchange="changeTrxUserFilter(this.value)">' +
+          kasirOptions +
+        '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:10.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Pembayaran</label>' +
+        '<select class="input" style="height:36px;min-height:36px;font-size:12px;padding:4px 8px;border-radius:10px" onchange="changeTrxPaymentFilter(this.value)">' +
+          '<option value="all"' + (state.trxPaymentFilter==="all"?" selected":"") + '>Semua Metode</option>' +
+          '<option value="cash"' + (state.trxPaymentFilter==="cash"?" selected":"") + '>Hanya Cash</option>' +
+          '<option value="qris_transfer"' + (state.trxPaymentFilter==="qris_transfer"?" selected":"") + '>Hanya QRIS / Transfer</option>' +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderTrxDateView(){
+  const dk = state.trxSelectedDate || dateKey();
+  const isToday = dk === dateKey();
+  const isLoaded = Boolean(state.trxDateLoaded && state.trxDateLoaded[dk]);
+  
+  const navBar = '<div class="trx-mode-toggle mb">' +
+    '<button class="trx-mode-btn active" onclick="setTrxMode(\'date\')"><i class="fas fa-calendar-day"></i> Per Tanggal</button>' +
+    '<button class="trx-mode-btn" onclick="setTrxMode(\'month\')"><i class="fas fa-calendar-alt"></i> Per Bulan</button>' +
+  '</div>' +
+  '<div class="trx-nav-bar">' +
+    '<button class="trx-nav-btn" onclick="shiftTrxDate(-1)" title="Hari Sebelumnya"><i class="fas fa-chevron-left"></i></button>' +
+    '<div style="display:flex;align-items:center;gap:6px">' +
+      '<input type="date" class="input" style="flex:1;height:40px;min-height:40px;font-size:13px;font-weight:700;text-align:center;padding:4px 8px;border-radius:11px" value="' + state.trxSelectedDate + '" onchange="changeTrxDate(this.value)">' +
+      (isToday ? '' : '<button class="btn" style="min-height:40px;padding:0 10px;font-size:11px;font-weight:700;border-radius:10px;white-space:nowrap" onclick="setTrxDateToday()">Hari Ini</button>') +
+    '</div>' +
+    '<button class="trx-nav-btn" onclick="shiftTrxDate(1)" title="Hari Berikutnya"><i class="fas fa-chevron-right"></i></button>' +
+  '</div>' +
+  '<div style="text-align:center;font-size:13px;font-weight:750;color:var(--text-main);margin:-4px 0 10px">' +
+    formatIndoDateLong(dk) + (isToday ? ' <span class="chip" style="font-size:10px;padding:2px 7px;background:var(--primary-soft);color:var(--primary);margin-left:4px">Hari Ini</span>' : '') +
+  '</div>';
+  
+  if(trxLoadingDate){
+    return navBar + '<div class="card pad mb" style="text-align:center;padding:34px 16px;border-radius:16px">' +
+      '<i class="fas fa-circle-notch fa-spin" style="font-size:26px;color:var(--primary);margin-bottom:8px"></i>' +
+      '<div style="font-size:13.5px;font-weight:750;color:var(--text-main)">Memuat transaksi tanggal ' + formatIndoDateShort(dk) + '...</div>' +
+    '</div>';
+  }
+  
+  if(!isLoaded){
+    return navBar + '<div class="card pad mb read-saver-card" style="text-align:center;padding:28px 16px;border-radius:18px">' +
+      '<div style="width:48px;height:48px;border-radius:14px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:22px;margin:0 auto 12px">' +
+        '<i class="fas fa-calendar-day"></i>' +
+      '</div>' +
+      '<div style="font-weight:800;font-size:14.5px;color:var(--text-main);margin-bottom:4px">' +
+        'Transaksi ' + formatIndoDateLong(dk) +
+      '</div>' +
+      '<div class="meta" style="font-size:11.5px;max-width:320px;margin:0 auto 16px">' +
+        'Data transaksi tidak diambil otomatis agar aplikasi tetap cepat & hemat kuota. Tekan tombol di bawah untuk menampilkan data.' +
+      '</div>' +
+      '<button class="btn primary" style="min-height:44px;padding:0 24px;font-size:13px;font-weight:800;border-radius:12px;display:inline-flex;align-items:center;gap:8px" onclick="fetchAndShowTrxDate(\'' + dk + '\')">' +
+        '<i class="fas fa-cloud-arrow-down"></i> Tampilkan Data Transaksi' +
+      '</button>' +
+    '</div>';
+  }
+  
+  const list = getActiveTrxDateList();
+  const total = list.reduce((s,t)=>s+Number(t.amount||0), 0);
+  const totalCash = list.reduce((s,t)=>{
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    return s + (isQ ? 0 : Number(t.amount||0));
+  }, 0);
+  const totalQris = total - totalCash;
+  const totalQty = list.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  
+  const statusBar = '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px">' +
+    '<div class="meta" style="font-size:11px;font-weight:700;color:var(--success)">' +
+      '<i class="fas fa-check-circle"></i> Data termuat: ' + list.length + ' transaksi' +
+    '</div>' +
+    '<button class="btn" style="min-height:28px;padding:2px 8px;font-size:10.5px;font-weight:700;border-radius:8px" onclick="fetchAndShowTrxDate(\'' + dk + '\', true)">' +
+      '<i class="fas fa-rotate"></i> Muat Ulang' +
+    '</button>' +
+  '</div>';
+  
+  const printBtn = list.length ? ('<div class="card pad mb trx-print-card">' +
+    '<button class="btn primary full" onclick="printFilteredDateTransactions()">' +
+      '<i class="fas fa-print"></i> Cetak Struk Transaksi (' + list.length + ')' +
+    '</button>' +
+    '<div class="meta" style="margin-top:6px">Cetak struk ringkasan & seluruh transaksi tanggal ini.</div>' +
+  '</div>') : "";
+  
+  return navBar +
+    statusBar +
+    renderTrxFilterBar() +
+    '<div class="card pad mb">' +
+      '<div class="grid2">' +
+        '<div>' +
+          '<div class="tiny">Total Omzet</div>' +
+          '<div class="amt num" style="color:var(--primary)">' + rp(total) + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">Jumlah Data</div>' +
+          '<div class="amt num">' + list.length + ' trx (' + totalQty + ' pcs)</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">Cash</div>' +
+          '<div class="amt num" style="font-size:13px;color:var(--success)">' + rp(totalCash) + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">QRIS / Transfer</div>' +
+          '<div class="amt num" style="font-size:13px;color:var(--primary)">' + rp(totalQris) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    printBtn +
+    renderTxList(list, true);
+}
+
+function renderTrxMonthView(){
+  const mk = state.trxSelectedMonth || monthKey();
+  const isCurrentMonth = mk === monthKey();
+  const isLoaded = Boolean(state.trxMonthLoaded && state.trxMonthLoaded[mk]);
+  
+  const navBar = '<div class="trx-mode-toggle mb">' +
+    '<button class="trx-mode-btn" onclick="setTrxMode(\'date\')"><i class="fas fa-calendar-day"></i> Per Tanggal</button>' +
+    '<button class="trx-mode-btn active" onclick="setTrxMode(\'month\')"><i class="fas fa-calendar-alt"></i> Per Bulan</button>' +
+  '</div>' +
+  '<div class="trx-nav-bar">' +
+    '<button class="trx-nav-btn" onclick="shiftTrxMonth(-1)" title="Bulan Lalu"><i class="fas fa-chevron-left"></i></button>' +
+    '<div style="display:flex;align-items:center;gap:6px">' +
+      '<input type="month" class="input" style="flex:1;height:40px;min-height:40px;font-size:13px;font-weight:700;text-align:center;padding:4px 8px;border-radius:11px" value="' + state.trxSelectedMonth + '" onchange="changeTrxMonth(this.value)">' +
+      (isCurrentMonth ? '' : '<button class="btn" style="min-height:40px;padding:0 10px;font-size:11px;font-weight:700;border-radius:10px;white-space:nowrap" onclick="setTrxMonthCurrent()">Bulan Ini</button>') +
+    '</div>' +
+    '<button class="trx-nav-btn" onclick="shiftTrxMonth(1)" title="Bulan Depan"><i class="fas fa-chevron-right"></i></button>' +
+  '</div>' +
+  '<div style="text-align:center;font-size:13px;font-weight:750;color:var(--text-main);margin:-4px 0 10px">' +
+    formatIndoMonthYear(mk) + (isCurrentMonth ? ' <span class="chip" style="font-size:10px;padding:2px 7px;background:var(--primary-soft);color:var(--primary);margin-left:4px">Bulan Berjalan</span>' : '') +
+  '</div>';
+  
+  if(trxLoadingMonth){
+    return navBar + '<div class="card pad mb" style="text-align:center;padding:34px 16px;border-radius:16px">' +
+      '<i class="fas fa-circle-notch fa-spin" style="font-size:26px;color:var(--primary);margin-bottom:8px"></i>' +
+      '<div style="font-size:13.5px;font-weight:750;color:var(--text-main)">Memuat rekap transaksi bulan ' + formatIndoMonthYear(mk) + '...</div>' +
+    '</div>';
+  }
+  
+  if(!isLoaded){
+    return navBar + '<div class="card pad mb read-saver-card" style="text-align:center;padding:28px 16px;border-radius:18px">' +
+      '<div style="width:48px;height:48px;border-radius:14px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:22px;margin:0 auto 12px">' +
+        '<i class="fas fa-calendar-alt"></i>' +
+      '</div>' +
+      '<div style="font-weight:800;font-size:14.5px;color:var(--text-main);margin-bottom:4px">' +
+        'Rekap Bulan ' + formatIndoMonthYear(mk) +
+      '</div>' +
+      '<div class="meta" style="font-size:11.5px;max-width:320px;margin:0 auto 16px">' +
+        'Data bulanan hanya diambil saat dipanggil agar tidak membebani database dan handphone.' +
+      '</div>' +
+      '<button class="btn primary" style="min-height:44px;padding:0 24px;font-size:13px;font-weight:800;border-radius:12px;display:inline-flex;align-items:center;gap:8px" onclick="fetchAndShowTrxMonth(\'' + mk + '\')">' +
+        '<i class="fas fa-cloud-arrow-down"></i> Tampilkan Rekap Bulanan' +
+      '</button>' +
+    '</div>';
+  }
+  
+  const monthList = getActiveTrxMonthList();
+  const total = monthList.reduce((s,t)=>s+Number(t.amount||0), 0);
+  const totalCash = monthList.reduce((s,t)=>{
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    return s + (isQ ? 0 : Number(t.amount||0));
+  }, 0);
+  const totalQris = total - totalCash;
+  const totalQty = monthList.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  
+  const dayMap = {};
+  monthList.forEach(t => {
+    const dk = extractDateKey(t);
+    if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
+    const amt = Number(t.amount||0);
+    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    dayMap[dk].total += amt;
+    dayMap[dk].count += 1;
+    dayMap[dk].qty += getAdminTxTotalQty(t.note);
+    if(isQ) dayMap[dk].qris += amt;
+    else dayMap[dk].cash += amt;
+  });
+  const days = Object.values(dayMap).sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
+  const activeDays = days.length;
+  
+  const statusBar = '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px">' +
+    '<div class="meta" style="font-size:11px;font-weight:700;color:var(--success)">' +
+      '<i class="fas fa-check-circle"></i> Periode ' + formatIndoMonthYear(mk) + ': ' + monthList.length + ' transaksi (' + activeDays + ' hari aktif)' +
+    '</div>' +
+    '<button class="btn" style="min-height:28px;padding:2px 8px;font-size:10.5px;font-weight:700;border-radius:8px" onclick="fetchAndShowTrxMonth(\'' + mk + '\', true)">' +
+      '<i class="fas fa-rotate"></i> Muat Ulang' +
+    '</button>' +
+  '</div>';
+  
+  const printBtn = monthList.length ? ('<div class="card pad mb trx-print-card">' +
+    '<button class="btn primary full" onclick="printFilteredMonthSummary()">' +
+      '<i class="fas fa-print"></i> Cetak Rekap Bulanan (' + formatIndoMonthYear(mk) + ')' +
+    '</button>' +
+    '<div class="meta" style="margin-top:6px">Cetak struk ringkasan bulanan & rincian tiap hari ke printer bluetooth.</div>' +
+  '</div>') : "";
+  
+  let tabContent = "";
+  if(state.trxMonthTab === "semua"){
+    tabContent = renderTxList(monthList, true);
+  } else {
+    if(!days.length){
+      tabContent = '<div class="empty">Belum ada transaksi di bulan ini</div>';
+    } else {
+      tabContent = days.map(day => 
+        '<div class="trx-day-card">' +
+          '<div class="trx-day-card-head">' +
+            '<div style="min-width:0;flex:1">' +
+              '<div class="trx-day-date">' + formatIndoDateLong(day.dateKey) + '</div>' +
+              '<div class="trx-day-meta">' +
+                '<span><i class="fas fa-receipt" style="color:var(--text-muted)"></i> <b>' + day.count + '</b> trx</span>' +
+                '<span><i class="fas fa-shirt" style="color:var(--text-muted)"></i> <b>' + day.qty + '</b> pcs</span>' +
+                '<span><i class="fas fa-money-bill-wave" style="color:var(--success)"></i> ' + rp(day.cash) + '</span>' +
+                '<span><i class="fas fa-qrcode" style="color:var(--primary)"></i> ' + rp(day.qris) + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div style="text-align:right;flex-shrink:0">' +
+              '<div class="trx-day-amt">' + rp(day.total) + '</div>' +
+              '<button class="btn" style="min-height:28px;padding:3px 9px;font-size:11px;font-weight:700;border-radius:8px;margin-top:6px" onclick="viewTrxDateFromMonth(\'' + day.dateKey + '\')">' +
+                '<i class="fas fa-arrow-right"></i> Lihat Trx' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      ).join("");
+    }
+  }
+  
+  return navBar +
+    statusBar +
+    renderTrxFilterBar() +
+    '<div class="card pad mb">' +
+      '<div class="grid2">' +
+        '<div>' +
+          '<div class="tiny">Total Omzet Bulan Ini</div>' +
+          '<div class="amt num" style="color:var(--primary)">' + rp(total) + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">Hari Aktif</div>' +
+          '<div class="amt num">' + activeDays + ' hari (' + monthList.length + ' trx)</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">Cash</div>' +
+          '<div class="amt num" style="font-size:13px;color:var(--success)">' + rp(totalCash) + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tiny">QRIS / Transfer</div>' +
+          '<div class="amt num" style="font-size:13px;color:var(--primary)">' + rp(totalQris) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    printBtn +
+    '<div class="trx-subtab-bar">' +
+      '<button class="trx-subtab-btn ' + (state.trxMonthTab==="rekap"?"active":"") + '" onclick="setTrxMonthTab(\'rekap\')">' +
+        '<i class="fas fa-layer-group"></i> Rekap Harian (' + activeDays + ' Hari)' +
+      '</button>' +
+      '<button class="trx-subtab-btn ' + (state.trxMonthTab==="semua"?"active":"") + '" onclick="setTrxMonthTab(\'semua\')">' +
+        '<i class="fas fa-list"></i> Semua Transaksi (' + monthList.length + ')' +
+      '</button>' +
+    '</div>' +
+    tabContent;
+}
+
+renderTrx = function(){
+  const list = todayTx(),
+        total = list.reduce((s,t) => s + Number(t.amount||0), 0),
+        printAll = list.length ? `<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>` : "";
+  const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
+  return `<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${printAll}${renderTxList(list,true)}</div>`;
+};
+
+function renderTrxReportPage(){
+  const subView = state.trxViewMode === 'month' ? renderTrxMonthView() : renderTrxDateView();
+  return '<div class="wrap">' + header("Rekap Transaksi","Data transaksi per tanggal & bulan") + subView + '</div>';
+}
+window.renderTrxReportPage = renderTrxReportPage;
+
+window.openTransactionModal = () => {
+  $("trxTitle").textContent = "Tambah Transaksi";
+  $("trxId").value = "";
+  $("trxAmount").value = "";
+  $("trxUser").innerHTML = optionUsers(state.user?.username);
+  resetAdminLiteProductItems("");
+  modal("trxModal");
+  setTimeout(() => $("adminTrxProductInput")?.focus?.(), 80);
+};
+
+window.editTransaction = id => {
+  const t = findTxById(id);
+  if(!t) return toast("Transaksi tidak ditemukan", true);
+  $("trxTitle").textContent = "Edit Transaksi";
+  $("trxId").value = t.id;
+  $("trxUser").innerHTML = optionUsers(t.user);
+  resetAdminLiteProductItems(t.note || "");
+  $("trxAmount").value = rupiah(t.amount);
+  modal("trxModal");
+  setTimeout(() => $("adminTrxProductInput")?.focus?.(), 80);
+};
+
+window.saveTransaction = async(printAfterSave=false, paymentMethod="") => {
+  const id = $("trxId").value,
+        username = cleanUser($("trxUser").value),
+        u = userBy(username),
+        amount = parseMoney($("trxAmount").value),
+        note = adminLiteProductText();
+  if(!username || !u) return toast("Pilih user", true);
+  if(amount <= 0) return toast("Nominal wajib lebih dari 0", true);
+  if(!paymentMethod){
+    adminLitePendingTxDraft = { id, username, amount, note, printAfterSave: Boolean(printAfterSave) };
+    return openAdminLitePaymentModal(adminLitePendingTxDraft);
+  }
+  const payment = normalizeAdminLitePaymentMethod(paymentMethod);
+  if(!payment) return toast("Pilih Cash atau QRIS / Transfer", true);
+  const paymentText = adminLitePaymentLabel(payment);
+  setBusy(true);
+  try{
+    const old = id ? findTxById(id) : null,
+          createdAtMs = id ? Number(old?.createdAtMs || Date.now()) : Date.now(),
+          targetDateKey = old?.dateKey || dateKey(),
+          targetMonthKey = old?.monthKey || monthKey(),
+          payload = {
+            ...trialFlagsForUser(u),
+            user: username,
+            name: u.name || username,
+            note,
+            amount,
+            paymentMethod: payment,
+            paymentLabel: paymentText,
+            paymentStatus: "success",
+            paymentCashOutType: payment === "qris_transfer" ? "qris" : "",
+            isNonCashPayment: payment === "qris_transfer",
+            paymentConfirmed: true,
+            paymentConfirmedAtMs: Date.now(),
+            dateKey: targetDateKey,
+            monthKey: targetMonthKey,
+            userRole: u.role || "staff",
+            role: u.role || "staff",
+            bonusGroup: isDaily(u) ? "harian" : "staff",
+            bonusRate: getUserRate(u),
+            bonusPercent: Number((getUserRate(u)*100).toFixed(3)),
+            transactionBonusRate: getUserRate(u),
+            transactionBonusPercent: Number((getUserRate(u)*100).toFixed(3)),
+            bonusLogicVersion: 3,
+            source: old?.source || "admin_lite_manual",
+            deleted: false,
+            updatedAt: serverTimestamp(),
+            updatedAtMs: Date.now(),
+            updatedBy: state.user.username,
+            updatedByName: state.user.name
+          };
+    let savedId = id;
+    if(id){
+      await setDoc(doc(db, "transactions", id), payload, { merge: true, localDoc: old });
+    } else {
+      const ref = await addDoc(collection(db, "transactions"), { ...payload, createdAt: serverTimestamp(), createdAtMs, createdBy: state.user.username });
+      savedId = ref.id;
+    }
+    const savedTx = { id: savedId, ...(old||{}), ...payload, createdAtMs };
+    localUpsert("tx", savedTx);
+    syncSavedTxToCaches(savedTx);
+    closeDynamicSheet("adminLitePaymentModal");
+    closeModal("trxModal");
+    adminLitePendingTxDraft = null;
+    finishLocalWrite();
+    if(state.page === 'trx' || state.page === 'rekapTrx') render();
+    if(printAfterSave){
+      toast("Transaksi tersimpan, mencetak struk");
+      setTimeout(() => directPrintReceiptText(receiptTextForTx(savedTx), "Struk Transaksi Baru"), 120);
+    } else {
+      toast("Transaksi tersimpan - " + paymentText);
+    }
+  }catch(e){
+    toast(e.message || "Gagal simpan transaksi", true);
+  }finally{
+    setBusy(false);
+  }
+};
+
+window.addAdminLiteProductItem = addAdminLiteProductItem;
+window.removeAdminLiteProductItem = removeAdminLiteProductItem;
+window.handleAdminLiteProductKey = handleAdminLiteProductKey;
+window.updateAdminLiteProductAddButton = updateAdminLiteProductAddButton;
+window.pickAdminTrxProductSuggest = pickAdminTrxProductSuggest;
+window.hideAdminTrxProductSuggest = hideAdminTrxProductSuggest;
+
+const deleteManualBonusOriginalForTargetReset = window.deleteManualBonus;
+window.deleteManualBonus = async id => {
+  const row = state.manual.find(x => String(x.id) === String(id));
+  if(!row || !isTargetAutoBonusRow(row)) return deleteManualBonusOriginalForTargetReset(id);
+  if(isDeleted(row)) return toast("Bonus target otomatis tidak ditemukan", true);
+  const pin = await askPin("Reset bonus target otomatis untuk " + userName(row.user) + "?\nNominal: " + rp(Math.abs(Number(row.amount||0))) + "\n\nMasukkan PIN admin:");
+  if(!pin) return;
+  if(String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+  setBusy(true);
+  try{
+    const patch = { deleted: true, status: "deleted", deletedAt: serverTimestamp(), deletedAtMs: Date.now(), deletedBy: state.user.username, deletedByName: state.user.name };
+    await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
+    await resetAdminTargetAutoBonusAfterDelete(row);
+    localMerge("manual", id, patch);
+    finishLocalWrite();
+    toast("Bonus target otomatis direset");
+  }catch(e){
+    toast(e.message || "Gagal reset bonus target", true);
+  }finally{
+    setBusy(false);
+  }
+};
+window.deleteTargetAutoBonus = window.deleteManualBonus;
+
+window.deleteTransaction = async id => {
+  const t = findTxById(id);
+  if(!t) return toast("Transaksi tidak ditemukan", true);
+  const pin = await askPin("Hapus transaksi ini?\n" + (t.name||userName(t.user)||"-") + " - " + rp(t.amount) + "\n" + String(t.note||"Transaksi").trim() + "\n\nMasukkan PIN admin:");
+  if(!pin) return;
+  if(String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+  if(!confirm("Yakin hapus transaksi ini? Data dibuat soft-delete.")) return;
+  setBusy(true);
+  try{
+    const patch = { deleted: true, deletedAt: serverTimestamp(), deletedAtMs: Date.now(), deletedBy: state.user.username, deletedByName: state.user.name };
+    await setDoc(doc(db, "transactions", id), patch, { merge: true, localDoc: t });
+    localMerge("tx", id, patch);
+    syncDeletedTxToCaches(id, patch);
+    finishLocalWrite();
+    if(state.page === 'trx' || state.page === 'rekapTrx') render();
+    toast("Transaksi dihapus");
+    adminApplyDailyTarget().catch(e => console.warn("cek target setelah hapus gagal", e?.code||e?.message||e));
+  }catch(e){
+    toast(e.message || "Gagal hapus", true);
+  }finally{
+    setBusy(false);
+  }
+};
 
 /* === KASMINI STYLE HOME MENU OVERRIDE - ROCKY ADMIN === */
 header=(title,subtitle)=>`<div class="ks-page-head"><button class="ks-page-back" onclick="go('home')" title="Kembali"><i class="fas fa-chevron-left"></i></button><div class="ks-page-title"><h1>${esc(title)}</h1><div class="sub">${esc(subtitle||'')}</div></div><button class="ks-page-action" onclick="refreshFromHeader()" title="Refresh"><i class="fas fa-rotate"></i></button></div>`;
@@ -1078,7 +1920,7 @@ renderHome=function(){
     ['Catatan','Home Staff','fa-clipboard-list',"go('control')"],
     ['Closing','Risma','fa-route',"go('rismaClosing')"],
     ['Printer','Pengaturan','fa-print',"openPrinterSettingsModal()"],
-    [loaded?'Reload':'Load','Bulanan','fa-cloud-arrow-down',`loadMonthlyLite(${loaded?'true':'false'})`],
+    ['Rekap','Bulanan','fa-calendar-days',"go('rekapTrx')"],
     ['Atur Target','Harian','fa-sliders',"openAdminDailyTargetSettings()"],
     ['Jadwal Target','Harian','fa-calendar-alt',"openAdminTargetScheduleModal()"],
     ['Tema',currentTheme()==='dark'?'Terang':'Gelap',currentTheme()==='dark'?'fa-sun':'fa-moon',"toggleTheme();render()"],
@@ -1090,7 +1932,7 @@ render=function(){
   if(!state.user)return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -1461,19 +2303,24 @@ window.openStaffTxHistory = function(){
 };
 
 // ---- Tombol Refresh di halaman Transaksi (Riwayat) ----
-const __baseRenderTrxRefreshPatch = renderTrx;
-renderTrx = function(){
-  let html = __baseRenderTrxRefreshPatch();
-  const refreshBtn = `<button class="btn icon" onclick="trxPageRefresh()" title="Refresh transaksi hari ini" style="position:absolute;right:14px;top:14px;z-index:10;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);color:#ecfaf5;border-radius:13px;width:38px;height:38px;min-height:38px;font-size:15px;box-shadow:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)"><i class="fas fa-rotate" id="trxRefreshIcon"></i></button>`;
-  // inject tombol di dalam .top dengan position relative
-  html = html.replace('<div class="top">', '<div class="top" style="position:relative">' + refreshBtn);
-  return html;
-};
 window.trxPageRefresh = async function(){
-  const icon = document.getElementById('trxRefreshIcon');
-  if(icon){ icon.style.transition='transform 0.6s ease'; icon.style.transform='rotate(360deg)'; setTimeout(()=>{ icon.style.transition='none'; icon.style.transform=''; },650); }
-  toast('Memuat ulang transaksi...');
-  try{ await refreshAll(true); }catch(e){ toast(e.message||'Gagal refresh',true); }
+  const icon = document.getElementById("trxRefreshIcon");
+  if(icon){ icon.style.transition="transform 0.6s ease"; icon.style.transform="rotate(360deg)"; setTimeout(()=>{ icon.style.transition="none"; icon.style.transform=""; },650); }
+  toast("Memuat ulang transaksi...");
+  try{
+    if(state.page === "rekapTrx"){
+      if(state.trxViewMode === "month"){
+        await loadTrxForMonth(state.trxSelectedMonth, true);
+      } else {
+        await loadTrxForDate(state.trxSelectedDate, true);
+      }
+      toast("Data rekap berhasil dimuat ulang");
+    } else {
+      await refreshAll(true);
+      toast("Transaksi hari ini berhasil dimuat ulang");
+    }
+    render();
+  }catch(e){ toast(e.message||"Gagal refresh",true); }
 };
 
 // ---- Tombol Refresh di Home ----
@@ -1498,7 +2345,7 @@ render = function(){
   if(!state.user) return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
