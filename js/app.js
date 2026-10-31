@@ -687,7 +687,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff - otomatis ikut update dari link. Swipe back Android akan kembali ke halaman admin sebelumnya.</div></div></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div></section>`}
   window.openEmbeddedKasir=()=>go("cashier");
 
-  const APP_PAGES=new Set(["home","trx","rekapTrx","bonus","gajian","team","ops","cashier","control","rismaClosing","unlockRequests","onlineOrders"]);
+  const APP_PAGES=new Set(["home","trx","rekapTrx","backupData","bonus","gajian","team","ops","cashier","control","rismaClosing","unlockRequests","onlineOrders"]);
   function normalizePage(page){page=String(page||"home");return APP_PAGES.has(page)?page:"home"}
   function routeFromLocation(){const raw=decodeURIComponent(String(location.hash||"").replace(/^#\/?/,""));return normalizePage(raw||"home")}
   function writeAppHistory(page,{replace=false}={}){page=normalizePage(page);try{const hash="#"+page,stateData={rockyAdminPage:page};if(replace){history.replaceState(stateData,"",hash);return}const current=history.state&&history.state.rockyAdminPage;if(location.hash!==hash||current!==page)history.pushState(stateData,"",hash)}catch(e){}}
@@ -695,7 +695,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.addEventListener("popstate",e=>{if(modalBackIgnore>0){modalBackIgnore--;if(modalHistoryCleanup&&!visibleModals().length&&e.state?.rockyModalId){requestModalHistoryBack();return}if(!visibleModals().length)modalHistoryCleanup=false;return}if(closeTopModalFromBack())return;state.page=normalizePage(e.state?.rockyAdminPage||routeFromLocation());render()});
   writeAppHistory(routeFromLocation(),{replace:true});
 
-  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
+  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
 
   /* === PATCH: Ringkasan Bonus Harian + Receipt Printer === */
   const moneyValue=n=>Math.round(Number(n||0));
@@ -1923,7 +1923,7 @@ renderHome=function(){
     ['Rekap','Bulanan','fa-calendar-days',"go('rekapTrx')"],
     ['Atur Target','Harian','fa-sliders',"openAdminDailyTargetSettings()"],
     ['Jadwal Target','Harian','fa-calendar-alt',"openAdminTargetScheduleModal()"],
-    ['Tema',currentTheme()==='dark'?'Terang':'Gelap',currentTheme()==='dark'?'fa-sun':'fa-moon',"toggleTheme();render()"],
+    ['Backup','Data','fa-database',"go('backupData')"],
     ['Keluar','Akun','fa-right-from-bracket',"logout()"]
   ];
   return `<section class="ks-home"><div class="ks-top"><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} - ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div><div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
@@ -1932,7 +1932,7 @@ render=function(){
   if(!state.user)return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -2345,7 +2345,7 @@ render = function(){
   if(!state.user) return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -4021,6 +4021,7 @@ window.deleteAdminProduk = async function(id, name) {
 // --- END PATCH: KELOLA PRODUK ---
 
 APP_PAGES.add('products');
+APP_PAGES.add('backupData');
 
 Promise.all([loadAdminProduk(), loadInvestmentBatches()]).then(() => { if (state.page === 'products') render(); });
 function formatShort(num) {
@@ -4221,3 +4222,505 @@ window.executeShockAlarm = async function() {
 };
 
 
+
+
+/* =========================================================
+   === FITUR BACKUP DATA (JSON & XLS) & RESET DATABASE ===
+   ========================================================= */
+
+const BACKUP_PROTECTED_TABLES = new Set([
+  'investment_batch_catalog',
+  'admin_investor',
+  'admin_users',
+  'dailyTargets',
+  'firestore_docs',
+  'investment_batches',
+  'investment_purchases',
+  'investors',
+  'ops_access',
+  'produk',
+  'projects',
+  'users'
+]);
+
+const BACKUP_DELETABLE_TABLES = [
+  'transactions',
+  'closings',
+  'attendance',
+  'manualBonuses',
+  'drawer_withdrawals',
+  'online_orders',
+  'staff_change_reserve',
+  'staff_leave_requests'
+];
+
+const ALL_BACKUP_FETCH_TABLES = [
+  'transactions',
+  'closings',
+  'attendance',
+  'manualBonuses',
+  'drawer_withdrawals',
+  'online_orders',
+  'staff_change_reserve',
+  'staff_leave_requests',
+  'produk',
+  'users',
+  'dailyTargets',
+  'investment_batch_catalog',
+  'investment_batches',
+  'investment_purchases',
+  'investors',
+  'admin_investor',
+  'admin_users',
+  'ops_access',
+  'projects'
+];
+
+function downloadFileBlob(content, fileName, mimeType = 'application/octet-stream') {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+async function ensureSheetJsLoaded() {
+  if (window.XLSX) return true;
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s2.onload = () => resolve(true);
+      s2.onerror = () => resolve(false);
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  });
+}
+
+function normalizeBackupRow(row) {
+  if (!row) return {};
+  if (row.data && typeof row.data === 'object') {
+    return { id: row.id, ...row.data, _server_created_at: row.created_at };
+  }
+  return { ...row };
+}
+
+async function fetchAllRowsFromTable(tableName) {
+  let allRows = [];
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    try {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .range(from, from + pageSize - 1);
+      if (error) {
+        console.warn('Error fetching table ' + tableName + ':', error);
+        break;
+      }
+      if (data && data.length) {
+        allRows.push(...data);
+      }
+      if (!data || data.length < pageSize) {
+        break;
+      }
+      from += pageSize;
+    } catch (e) {
+      console.warn('Fetch error table ' + tableName + ':', e);
+      break;
+    }
+  }
+  return allRows;
+}
+
+window.exportBackupJson = async function() {
+  setBusy(true);
+  try {
+    toast('Mengumpulkan seluruh data database...');
+    const backupData = {
+      app: 'Rocky Hijab POS (Admin Only)',
+      version: window.__APP_VERSION__ || '20261031_06',
+      exported_at: new Date().toISOString(),
+      exported_at_local: new Date().toLocaleString('id-ID'),
+      exported_by: state.user?.name || state.user?.username || 'admin',
+      summary: {},
+      tables: {}
+    };
+
+    for (const t of ALL_BACKUP_FETCH_TABLES) {
+      try {
+        const rows = await fetchAllRowsFromTable(t);
+        const normalized = rows.map(normalizeBackupRow);
+        backupData.tables[t] = normalized;
+        backupData.summary[t + '_count'] = normalized.length;
+      } catch (err) {
+        backupData.tables[t] = [];
+        backupData.summary[t + '_count'] = 0;
+      }
+    }
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const dateStr = dateKey();
+    downloadFileBlob(jsonStr, 'backup_rocky_hijab_FULL_' + dateStr + '.json', 'application/json');
+    toast('Backup JSON berhasil diunduh!');
+  } catch (e) {
+    toast('Gagal membuat backup JSON: ' + (e.message || e), true);
+  } finally {
+    setBusy(false);
+  }
+};
+
+function generateFallbackHtmlXls(tables) {
+  let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+  html += '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Transaksi</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>';
+  html += '<h2>Laporan Transaksi Rocky Hijab</h2>';
+  html += '<table border="1" cellpadding="6" cellspacing="0">';
+  html += '<tr style="background:#10b981;color:#fff;font-weight:bold"><th>ID</th><th>Tanggal</th><th>Kasir</th><th>Keterangan / Produk</th><th>Total (Rp)</th><th>Metode Bayar</th><th>Status</th></tr>';
+  (tables.transactions || []).forEach(t => {
+    html += '<tr>' +
+      '<td>' + esc(t.id || '') + '</td>' +
+      '<td>' + esc(t.dateKey || '') + '</td>' +
+      '<td>' + esc(t.user || t.cashier || '') + '</td>' +
+      '<td>' + esc(t.note || t.name || '') + '</td>' +
+      '<td>' + Number(t.amount || 0) + '</td>' +
+      '<td>' + esc(t.paymentMethod || (t.isNonCashPayment ? 'QRIS/Transfer' : 'Cash')) + '</td>' +
+      '<td>' + (t.deleted ? 'Dihapus' : 'Selesai') + '</td>' +
+    '</tr>';
+  });
+  html += '</table></body></html>';
+  downloadFileBlob(html, 'backup_transaksi_' + dateKey() + '.xls', 'application/vnd.ms-excel');
+}
+
+window.exportBackupXls = async function() {
+  setBusy(true);
+  try {
+    toast('Menyiapkan file Excel (XLS/XLSX)...');
+    const hasSheetJs = await ensureSheetJsLoaded();
+
+    const [txRows, closingRows, attRows, bonusRows, prodRows, userRows, batchRows] = await Promise.all([
+      fetchAllRowsFromTable('transactions').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('closings').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('attendance').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('manualBonuses').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('produk').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('users').then(r => r.map(normalizeBackupRow)),
+      fetchAllRowsFromTable('investment_batches').then(r => r.map(normalizeBackupRow))
+    ]);
+
+    if (hasSheetJs && window.XLSX) {
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Transaksi
+      const formattedTx = txRows.map(t => ({
+        'ID Transaksi': t.id || '',
+        'Tanggal': t.dateKey || '',
+        'Waktu': t.time || (t.createdAt ? new Date(t.createdAt).toLocaleTimeString('id-ID') : ''),
+        'Kasir': t.user || t.cashier || '',
+        'Keterangan / Produk': t.note || t.name || '',
+        'Total (Rp)': Number(t.amount || 0),
+        'Metode Bayar': t.paymentMethod || (t.isNonCashPayment ? 'QRIS/Transfer' : 'Cash'),
+        'Diskon': Number(t.discount || 0),
+        'Status': t.deleted ? 'Dihapus' : 'Selesai'
+      }));
+      const wsTx = XLSX.utils.json_to_sheet(formattedTx.length ? formattedTx : [{ 'Info': 'Tidak ada data transaksi' }]);
+      XLSX.utils.book_append_sheet(wb, wsTx, 'Transaksi');
+
+      // Sheet 2: Closing
+      const formattedCl = closingRows.map(c => ({
+        'ID Closing': c.id || '',
+        'Tanggal': c.dateKey || '',
+        'Kasir': c.user || '',
+        'Total Penjualan (Rp)': Number(c.totalSales || c.totalAmount || c.total || 0),
+        'Cash Fisik (Rp)': Number(c.cashFisik || c.actualCash || 0),
+        'Selisih (Rp)': Number(c.difference || c.selisih || 0),
+        'Waktu Closing': c.closedAt ? new Date(c.closedAt).toLocaleString('id-ID') : ''
+      }));
+      const wsCl = XLSX.utils.json_to_sheet(formattedCl.length ? formattedCl : [{ 'Info': 'Tidak ada data closing' }]);
+      XLSX.utils.book_append_sheet(wb, wsCl, 'Closing Kasir');
+
+      // Sheet 3: Absensi
+      const formattedAtt = attRows.map(a => ({
+        'ID': a.id || '',
+        'Tanggal': a.dateKey || '',
+        'Staff': a.user || a.name || '',
+        'Jam Masuk': a.time || (a.createdAt ? new Date(a.createdAt).toLocaleTimeString('id-ID') : ''),
+        'Status': a.status || 'Hadir'
+      }));
+      const wsAtt = XLSX.utils.json_to_sheet(formattedAtt.length ? formattedAtt : [{ 'Info': 'Tidak ada data absensi' }]);
+      XLSX.utils.book_append_sheet(wb, wsAtt, 'Absensi Staff');
+
+      // Sheet 4: Bonus Manual
+      const formattedB = bonusRows.map(b => ({
+        'ID': b.id || '',
+        'Tanggal': b.dateKey || '',
+        'Staff': b.user || b.targetUsername || '',
+        'Nominal (Rp)': Number(b.amount || 0),
+        'Keterangan': b.note || ''
+      }));
+      const wsB = XLSX.utils.json_to_sheet(formattedB.length ? formattedB : [{ 'Info': 'Tidak ada data bonus' }]);
+      XLSX.utils.book_append_sheet(wb, wsB, 'Bonus Manual');
+
+      // Sheet 5: Produk
+      const formattedP = prodRows.map(p => ({
+        'ID': p.id || '',
+        'Nama Produk': p.nama_produk || '',
+        'Harga Modal (Rp)': Number(p.modal || 0),
+        'Harga Jual (Rp)': Number(p.harga_jual || 0),
+        'Investor': p.is_investor ? 'Ya' : 'Tidak',
+        'Persentase Investor': p.persentase_keuntungan_investor ? (p.persentase_keuntungan_investor + '%') : '-'
+      }));
+      const wsP = XLSX.utils.json_to_sheet(formattedP.length ? formattedP : [{ 'Info': 'Tidak ada data produk' }]);
+      XLSX.utils.book_append_sheet(wb, wsP, 'Produk');
+
+      // Sheet 6: Users & Staff
+      const formattedU = userRows.map(u => ({
+        'Username': u.username || '',
+        'Nama': u.name || '',
+        'Role': u.role || 'staff',
+        'Status': u.active === false ? 'Nonaktif' : 'Aktif'
+      }));
+      const wsU = XLSX.utils.json_to_sheet(formattedU.length ? formattedU : [{ 'Info': 'Tidak ada data user' }]);
+      XLSX.utils.book_append_sheet(wb, wsU, 'User & Staff');
+
+      // Sheet 7: Ringkasan
+      const wsInfo = XLSX.utils.json_to_sheet([
+        { 'Parameter': 'Aplikasi', 'Nilai': 'Rocky Hijab POS (Admin Only)' },
+        { 'Parameter': 'Waktu Backup', 'Nilai': new Date().toLocaleString('id-ID') },
+        { 'Parameter': 'Pengekspor', 'Nilai': state.user?.name || state.user?.username || 'admin' },
+        { 'Parameter': 'Total Transaksi', 'Nilai': txRows.length },
+        { 'Parameter': 'Total Closing', 'Nilai': closingRows.length },
+        { 'Parameter': 'Total Absensi', 'Nilai': attRows.length },
+        { 'Parameter': 'Total Produk', 'Nilai': prodRows.length },
+        { 'Parameter': 'Total User', 'Nilai': userRows.length }
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsInfo, 'Ringkasan');
+
+      XLSX.writeFile(wb, 'backup_rocky_hijab_' + dateKey() + '.xlsx');
+      toast('Backup Excel (.xlsx) berhasil diunduh!');
+    } else {
+      generateFallbackHtmlXls({ transactions: txRows, closings: closingRows, attendance: attRows, produk: prodRows });
+      toast('Backup Excel (.xls) berhasil diunduh!');
+    }
+  } catch (e) {
+    toast('Gagal membuat backup Excel: ' + (e.message || e), true);
+  } finally {
+    setBusy(false);
+  }
+};
+
+window.handleResetDatabaseWithPin = async function() {
+  if (!state.user) return toast('Sesi habis, silakan login ulang', true);
+
+  // 1. PIN verification
+  const pin = await askPin(
+    'PERINGATAN: HAPUS SEMUA DATA TRANSAKSI\n\n' +
+    'Tindakan ini akan mengosongkan riwayat transaksi penjualan, closing kasir, absensi & bonus harian.\n' +
+    '(12 Tabel Master & Akun seperti Produk, User, Investor tetap DIJAMIN AMAN)\n\n' +
+    'Masukkan PIN Admin untuk konfirmasi:'
+  );
+  if (!pin) return;
+  if (String(pin) !== String(state.user?.pin || '')) {
+    return toast('PIN Admin salah!', true);
+  }
+
+  // 2. Secondary confirmation dialog
+  const conf = confirm(
+    'KONFIRMASI TERAKHIR!\n\n' +
+    'Apakah Anda sudah mengunduh Backup JSON atau XLS?\n' +
+    'Seluruh data penjualan dan transaksi akan dihapus dan tidak dapat dikembalikan.\n\n' +
+    'Klik OK untuk mulai menghapus data sekarang.'
+  );
+  if (!conf) return;
+
+  setBusy(true);
+  try {
+    // 3. Verify strict protection
+    for (const t of BACKUP_DELETABLE_TABLES) {
+      if (BACKUP_PROTECTED_TABLES.has(t)) {
+        throw new Error('Tabel ' + t + ' dilindungi dan tidak boleh dihapus!');
+      }
+    }
+
+    let deletedTablesCount = 0;
+    for (const table of BACKUP_DELETABLE_TABLES) {
+      try {
+        const { error } = await supabase.from(table).delete().not('id', 'is', null);
+        if (error) {
+          console.warn('Gagal hapus tabel ' + table + ':', error);
+        } else {
+          deletedTablesCount++;
+        }
+      } catch (err) {
+        console.warn('Error delete tabel ' + table + ':', err);
+      }
+    }
+
+    // 4. Clear local memory cache
+    state.tx = [];
+    state.transactions = [];
+    state.attendance = [];
+    state.closings = [];
+    state.manual = [];
+    state.drawerWithdrawals = [];
+    state.onlineOrders = [];
+    state.trxDateCache = {};
+    state.trxMonthCache = {};
+    state.trxDateLoaded = {};
+    state.trxMonthLoaded = {};
+
+    // 5. Clear localStorage transactional caches
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('admin_seen_staff_trx_')).forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem('rocky_admin_seen_tx_ids');
+      localStorage.removeItem('rocky_admin_cache_v1');
+    } catch (e) {}
+
+    toast('Seluruh data transaksi berhasil dihapus!');
+    render();
+  } catch (e) {
+    toast('Gagal menghapus data: ' + (e.message || e), true);
+  } finally {
+    setBusy(false);
+  }
+};
+
+window.refreshBackupPage = function() {
+  toast('Menyegarkan halaman...');
+  render();
+};
+
+function renderBackupDataPage() {
+  const protectedList = Array.from(BACKUP_PROTECTED_TABLES);
+  const deletableList = BACKUP_DELETABLE_TABLES;
+
+  const protectedBadges = protectedList.map(t => 
+    '<span class="backup-pill-badge backup-pill-safe"><i class="fas fa-check"></i> ' + esc(t) + '</span>'
+  ).join('');
+
+  const deletableBadges = deletableList.map(t => 
+    '<span class="backup-pill-badge backup-pill-del"><i class="fas fa-trash-can"></i> ' + esc(t) + '</span>'
+  ).join('');
+
+  return '<div class="wrap">' +
+    '<div class="top">' +
+      '<div class="brand" style="display:flex;align-items:center;gap:10px">' +
+        '<button class="btn icon" onclick="go(\'home\')" title="Kembali ke Beranda" style="border-radius:12px">' +
+          '<i class="fas fa-arrow-left"></i>' +
+        '</button>' +
+        '<div>' +
+          '<h1>Backup & Data</h1>' +
+          '<div class="sub">Unduh salinan data & kelola reset database</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button class="btn icon" onclick="refreshBackupPage()" title="Refresh">' +
+          '<i class="fas fa-rotate"></i>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+
+    // Card 1: Overview
+    '<div class="card pad mb" style="border-radius:20px;padding:18px">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">' +
+        '<div style="width:44px;height:44px;border-radius:14px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:20px;flex-shrink:0">' +
+          '<i class="fas fa-database"></i>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-weight:800;font-size:15px;color:var(--text-main)">Pusat Kelola & Cadangan Data</div>' +
+          '<div class="meta" style="font-size:11.5px">Simpan salinan database ke file atau bersihkan data transaksi berkala.</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="backup-stat-grid">' +
+        '<div class="backup-stat-card">' +
+          '<div class="meta" style="font-size:11px;font-weight:700">Tabel Terlindungi</div>' +
+          '<div class="backup-stat-val" style="color:var(--success)">12 Tabel</div>' +
+          '<div style="font-size:10px;color:var(--text-soft);margin-top:2px">Tidak akan terhapus</div>' +
+        '</div>' +
+        '<div class="backup-stat-card">' +
+          '<div class="meta" style="font-size:11px;font-weight:700">Tabel Transaksional</div>' +
+          '<div class="backup-stat-val" style="color:var(--danger)">8 Tabel</div>' +
+          '<div style="font-size:10px;color:var(--text-soft);margin-top:2px">Riwayat & operasional</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Card 2: Unduh Backup
+    '<div class="card pad mb" style="border-radius:20px;padding:20px 18px">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<i class="fas fa-cloud-arrow-down" style="color:var(--primary);font-size:17px"></i>' +
+        '<strong style="font-size:14.5px;color:var(--text-main)">Unduh Salinan Data (Backup)</strong>' +
+      '</div>' +
+      '<p class="meta" style="font-size:12px;margin-bottom:16px;line-height:1.5">' +
+        'Pilih format file backup yang diinginkan. Anda dapat mengunduh format JSON untuk arsip sistem, atau XLS (Excel) untuk pembukuan dan analisis.' +
+      '</p>' +
+
+      '<div style="display:grid;grid-template-columns:1fr;gap:10px">' +
+        '<button class="btn primary full" style="min-height:48px;border-radius:13px;font-size:13.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px" onclick="exportBackupJson()">' +
+          '<i class="fas fa-file-code" style="font-size:18px"></i>' +
+          '<span>Download Backup JSON (Lengkap)</span>' +
+        '</button>' +
+
+        '<button class="btn primary full" style="min-height:48px;border-radius:13px;font-size:13.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%)" onclick="exportBackupXls()">' +
+          '<i class="fas fa-file-excel" style="font-size:18px"></i>' +
+          '<span>Download Backup XLS (Multi-Sheet Excel)</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="meta" style="font-size:11px;margin-top:10px;text-align:center">' +
+        '<i class="fas fa-circle-info"></i> File XLS otomatis memiliki lembar kerja: Transaksi, Closing, Absensi, Bonus, dan Katalog Produk.' +
+      '</div>' +
+    '</div>' +
+
+    // Card 3: Zona Bahaya (Reset Transaksi)
+    '<div class="backup-danger-box">' +
+      '<div style="display:flex;align-items:center;gap:8px;color:var(--danger);font-weight:800;font-size:15px;margin-bottom:6px">' +
+        '<i class="fas fa-triangle-exclamation"></i>' +
+        '<span>Zona Bahaya: Hapus Semua Data Transaksi</span>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-main);margin-bottom:14px;line-height:1.5">' +
+        'Fitur ini akan mengosongkan seluruh riwayat penjualan dan operasional kasir untuk memulai periode baru dari awal. <strong>Wajib konfirmasi PIN Admin</strong> sebelum eksekusi.' +
+      '</p>' +
+
+      // Box 1: Protected Tables
+      '<div style="background:var(--surface);border:1px solid rgba(16,185,129,.3);border-radius:14px;padding:12px;margin-bottom:12px">' +
+        '<div style="font-size:11.5px;font-weight:800;color:var(--success);margin-bottom:8px;display:flex;align-items:center;gap:6px">' +
+          '<i class="fas fa-shield-halved"></i> TABEL MASTER & AKUN (DIJAMIN AMAN & TIDAK DIHAPUS):' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+          protectedBadges +
+        '</div>' +
+      '</div>' +
+
+      // Box 2: Deletable Tables
+      '<div style="background:var(--surface);border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:12px;margin-bottom:16px">' +
+        '<div style="font-size:11.5px;font-weight:800;color:var(--danger);margin-bottom:8px;display:flex;align-items:center;gap:6px">' +
+          '<i class="fas fa-trash-can"></i> DATA OPERASIONAL YANG AKAN DIKOSONGKAN:' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+          deletableBadges +
+        '</div>' +
+      '</div>' +
+
+      '<button class="btn red full" style="min-height:50px;border-radius:14px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px" onclick="handleResetDatabaseWithPin()">' +
+        '<i class="fas fa-trash-can"></i> Hapus Semua Data Transaksi (Wajib PIN)' +
+      '</button>' +
+      '<div class="meta" style="font-size:11px;margin-top:8px;text-align:center;color:var(--text-soft)">' +
+        '<i class="fas fa-lock"></i> Memerlukan verifikasi PIN admin & konfirmasi ganda.' +
+      '</div>' +
+    '</div>' +
+
+  '</div>';
+}
+
+window.renderBackupDataPage = renderBackupDataPage;
