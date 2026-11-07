@@ -4555,7 +4555,12 @@ window.handleResetDatabaseWithPin = async function() {
     let deletedTablesCount = 0;
     for (const table of BACKUP_DELETABLE_TABLES) {
       try {
-        const { error } = await supabase.from(table).delete().not('id', 'is', null);
+        let q = supabase.from(table).delete().not('id', 'is', null);
+        // Proteksi: jangan hapus dokumen konfigurasi sistem (__*) pada tabel closings
+        if (table === 'closings') {
+          q = q.not('id', 'like', '__%');
+        }
+        const { error } = await q;
         if (error) {
           console.warn('Gagal hapus tabel ' + table + ':', error);
         } else {
@@ -4598,6 +4603,250 @@ window.handleResetDatabaseWithPin = async function() {
 window.refreshBackupPage = function() {
   toast('Menyegarkan halaman...');
   render();
+};
+
+
+// === FITUR RESTORE / PEMULIHAN DATA DATABASE DARI FILE BACKUP JSON ===
+if (!state.backupRestore) {
+  state.backupRestore = {
+    file: null,
+    fileName: '',
+    parsed: null,
+    restoreMode: 'transaksional' // 'transaksional' | 'all'
+  };
+}
+
+window.handleBackupFileSelect = function(e) {
+  const file = e.target?.files?.[0];
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.json')) {
+    return toast('File cadangan harus berformat .json', true);
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const content = evt.target.result;
+      const parsed = JSON.parse(content);
+
+      if (!parsed || (!parsed.tables && typeof parsed !== 'object')) {
+        return toast('Format file backup tidak valid', true);
+      }
+
+      let tablesObj = parsed.tables;
+      if (!tablesObj && typeof parsed === 'object') {
+        tablesObj = parsed;
+      }
+
+      state.backupRestore = {
+        file: file,
+        fileName: file.name,
+        parsed: {
+          app: parsed.app || 'Rocky Hijab POS',
+          exported_at_local: parsed.exported_at_local || parsed.exported_at || new Date().toLocaleString('id-ID'),
+          exported_by: parsed.exported_by || 'Admin',
+          tables: tablesObj || {}
+        },
+        restoreMode: 'transaksional'
+      };
+
+      toast('File backup valid! Silakan periksa rincian data sebelum memulihkan.');
+      render();
+    } catch (err) {
+      console.error('Gagal membaca file backup:', err);
+      toast('File JSON rusak atau tidak valid: ' + (err.message || err), true);
+    }
+  };
+  reader.readAsText(file);
+};
+
+window.setBackupRestoreMode = function(mode) {
+  if (state.backupRestore) {
+    state.backupRestore.restoreMode = mode;
+    render();
+  }
+};
+
+window.cancelRestoreBackup = function() {
+  state.backupRestore = {
+    file: null,
+    fileName: '',
+    parsed: null,
+    restoreMode: 'transaksional'
+  };
+  const input = document.getElementById('restoreFileInput');
+  if (input) input.value = '';
+  render();
+};
+
+function renderRestorePreviewHtml() {
+  if (!state.backupRestore?.parsed) return '';
+
+  const parsed = state.backupRestore.parsed;
+  const tables = parsed.tables || {};
+  const tableNames = Object.keys(tables);
+  const isAll = state.backupRestore.restoreMode === 'all';
+
+  let totalRecords = 0;
+  let transaksionalRecords = 0;
+  const badges = tableNames.map(t => {
+    const count = Array.isArray(tables[t]) ? tables[t].length : 0;
+    totalRecords += count;
+    const isTransaksional = BACKUP_DELETABLE_TABLES.includes(t);
+    if (isTransaksional) transaksionalRecords += count;
+
+    return '<span class="backup-pill-badge ' + (isTransaksional ? 'backup-pill-del' : 'backup-pill-safe') + '" style="font-size:10.5px;padding:3px 8px;">' +
+      '<i class="fas ' + (isTransaksional ? 'fa-clock-rotate-left' : 'fa-database') + '"></i> ' + esc(t) + ' (' + count + ')' +
+    '</span>';
+  }).join('');
+
+  return '<div style="background:var(--surface-inset,#f8fafc);border:1.5px solid var(--primary);border-radius:16px;padding:14px;margin-top:12px;">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+      '<div style="font-weight:800;font-size:13.5px;color:var(--text-main);display:flex;align-items:center;gap:6px;">' +
+        '<i class="fas fa-file-circle-check" style="color:var(--primary)"></i> File Cadangan Siap Dipulihkan' +
+      '</div>' +
+      '<button class="btn icon" style="width:26px;height:26px;min-width:26px;padding:0;font-size:11px;" onclick="cancelRestoreBackup()" title="Batal">' +
+        '<i class="fas fa-xmark"></i>' +
+      '</button>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--text-soft);line-height:1.6;margin-bottom:10px;">' +
+      '<div><b>File:</b> ' + esc(state.backupRestore.fileName) + '</div>' +
+      '<div><b>Waktu Cadangan:</b> ' + esc(parsed.exported_at_local || '-') + '</div>' +
+      '<div><b>Pengekspor:</b> ' + esc(parsed.exported_by || 'Admin') + '</div>' +
+      '<div><b>Total Data:</b> <span style="font-weight:800;color:var(--primary);">' + totalRecords + ' record</span> (' + transaksionalRecords + ' transaksional)</div>' +
+    '</div>' +
+    '<div style="font-size:11px;font-weight:800;color:var(--text-main);margin-bottom:6px;">Rincian Data Per Tabel:</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto;margin-bottom:12px;padding:6px;background:var(--surface,#fff);border-radius:10px;border:1px solid var(--line,#e2e8f0);">' +
+      (badges || '<div class="meta" style="font-size:11px">Tidak ada data tabel</div>') +
+    '</div>' +
+    '<div style="margin-bottom:12px;">' +
+      '<div style="font-size:11px;font-weight:800;color:var(--text-main);margin-bottom:6px;">Pilih Cakupan Pemulihan:</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
+        '<button type="button" class="btn ' + (!isAll ? 'primary' : '') + '" style="font-size:11px;padding:8px 6px;border-radius:10px;font-weight:800;border:1.5px solid ' + (!isAll ? 'var(--primary)' : 'var(--line,#e2e8f0)') + ';" onclick="setBackupRestoreMode(\'transaksional\')">' +
+          '<i class="fas fa-receipt"></i> Transaksional Saja (' + transaksionalRecords + ')' +
+        '</button>' +
+        '<button type="button" class="btn ' + (isAll ? 'primary' : '') + '" style="font-size:11px;padding:8px 6px;border-radius:10px;font-weight:800;border:1.5px solid ' + (isAll ? 'var(--primary)' : 'var(--line,#e2e8f0)') + ';" onclick="setBackupRestoreMode(\'all\')">' +
+          '<i class="fas fa-boxes-stacked"></i> Semua Tabel (' + totalRecords + ')' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+    '<button class="btn primary full" style="min-height:46px;border-radius:12px;font-size:13.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="executeRestoreBackupWithPin()">' +
+      '<i class="fas fa-rotate-left"></i> Mulai Pulihkan Data (Wajib PIN)' +
+    '</button>' +
+  '</div>';
+}
+
+window.executeRestoreBackupWithPin = async function() {
+  if (!state.user) return toast('Sesi habis, silakan login ulang', true);
+  if (!state.backupRestore?.parsed) return toast('Pilih file backup JSON terlebih dahulu', true);
+
+  const parsed = state.backupRestore.parsed;
+  const tables = parsed.tables || {};
+  const tableNames = Object.keys(tables);
+
+  if (!tableNames.length) {
+    return toast('Tidak ada data tabel di dalam file backup ini', true);
+  }
+
+  const isAllMode = state.backupRestore.restoreMode === 'all';
+  const targetTables = tableNames.filter(t => {
+    if (isAllMode) return true;
+    return BACKUP_DELETABLE_TABLES.includes(t);
+  });
+
+  if (!targetTables.length) {
+    return toast('Tidak ada tabel yang cocok untuk dipulihkan dalam mode ini', true);
+  }
+
+  let totalRowsToRestore = 0;
+  targetTables.forEach(t => {
+    totalRowsToRestore += Array.isArray(tables[t]) ? tables[t].length : 0;
+  });
+
+  // 1. Verifikasi PIN Admin
+  const pin = await askPin(
+    'KONFIRMASI RESTORE / PEMULIHAN DATA\n\n' +
+    'File: ' + state.backupRestore.fileName + '\n' +
+    'Mode: ' + (isAllMode ? 'SEMUA TABEL (Master + Transaksi)' : 'HANYA DATA TRANSAKSIONAL') + '\n' +
+    'Total Data: ' + totalRowsToRestore + ' data di ' + targetTables.length + ' tabel.\n\n' +
+    'Masukkan PIN Admin untuk konfirmasi:'
+  );
+  if (!pin) return;
+  if (String(pin) !== String(state.user?.pin || '')) {
+    return toast('PIN Admin salah!', true);
+  }
+
+  // 2. Konfirmasi Ganda
+  const conf = confirm(
+    'YAKIN MULAI RESTORE DATA?\n\n' +
+    'Data dari file cadangan akan dimasukkan ke database Supabase.\n' +
+    'Data yang memiliki ID sama akan diperbarui (upsert).\n\n' +
+    'Klik OK untuk memulai proses pemulihan sekarang.'
+  );
+  if (!conf) return;
+
+  setBusy(true);
+  try {
+    let restoredCount = 0;
+    const BATCH_SIZE = 50;
+
+    for (const t of targetTables) {
+      const rows = Array.isArray(tables[t]) ? tables[t] : [];
+      if (!rows.length) continue;
+
+      toast('Memulihkan tabel ' + t + ' (' + rows.length + ' data)...');
+
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const chunk = rows.slice(i, i + BATCH_SIZE);
+        const batchPayload = chunk.map(r => {
+          const { id, _server_created_at, ...data } = r;
+          const cleanId = String(id || makeId(t + '_'));
+          return {
+            id: cleanId,
+            data: data
+          };
+        });
+
+        const { error } = await supabase.from(t).upsert(batchPayload, { onConflict: 'id' });
+        if (error) {
+          console.warn('Gagal upsert tabel ' + t + ' chunk ' + i + ':', error);
+        } else {
+          restoredCount += chunk.length;
+        }
+      }
+    }
+
+    // Reset local cache agar data baru termuat
+    state.tx = [];
+    state.transactions = [];
+    state.attendance = [];
+    state.closings = [];
+    state.manual = [];
+    state.drawerWithdrawals = [];
+    state.onlineOrders = [];
+    state.trxDateCache = {};
+    state.trxMonthCache = {};
+    state.trxDateLoaded = {};
+    state.trxMonthLoaded = {};
+
+    try {
+      localStorage.removeItem('rocky_admin_seen_tx_ids');
+      localStorage.removeItem('rocky_admin_cache_v1');
+    } catch (e) {}
+
+    toast('Sukses! ' + restoredCount + ' data berhasil dipulihkan.');
+    cancelRestoreBackup();
+    if (typeof refreshAll === 'function') {
+      await refreshAll(true, true);
+    }
+    render();
+  } catch (err) {
+    console.error('Error saat restore backup:', err);
+    toast('Gagal memulihkan data: ' + (err.message || err), true);
+  } finally {
+    setBusy(false);
+  }
 };
 
 function renderBackupDataPage() {
@@ -4682,7 +4931,26 @@ function renderBackupDataPage() {
       '</div>' +
     '</div>' +
 
-    // Card 3: Zona Bahaya (Reset Transaksi)
+
+    // Card 3: Pulihkan Data (Restore)
+    '<div class="card pad mb" style="border-radius:20px;padding:20px 18px">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<i class="fas fa-cloud-arrow-up" style="color:var(--primary);font-size:17px"></i>' +
+        '<strong style="font-size:14.5px;color:var(--text-main)">Pulihkan Data (Restore Backup JSON)</strong>' +
+      '</div>' +
+      '<p class="meta" style="font-size:12px;margin-bottom:14px;line-height:1.5">' +
+        'Unggah file backup JSON Rocky Hijab untuk mengembalikan data ke database. Data yang memiliki ID sama akan diperbarui (upsert) tanpa menghapus data lainnya.' +
+      '</p>' +
+      '<div style="border:2px dashed var(--line,#cbd5e1);border-radius:14px;padding:16px;text-align:center;background:var(--surface,#f8fafc);cursor:pointer;" onclick="document.getElementById(\'restoreFileInput\').click()">' +
+        '<input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="handleBackupFileSelect(event)">' +
+        '<i class="fas fa-file-import" style="font-size:28px;color:var(--primary);margin-bottom:6px;display:inline-block"></i>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text-main)">Klik untuk Pilih File Backup (.json)</div>' +
+        '<div class="meta" style="font-size:11px;margin-top:2px">Format file: backup_rocky_hijab_FULL_*.json</div>' +
+      '</div>' +
+      renderRestorePreviewHtml() +
+    '</div>' +
+
+    // Card 4: Zona Bahaya (Reset Transaksi)
     '<div class="backup-danger-box">' +
       '<div style="display:flex;align-items:center;gap:8px;color:var(--danger);font-weight:800;font-size:15px;margin-bottom:6px">' +
         '<i class="fas fa-triangle-exclamation"></i>' +
@@ -4724,3 +4992,4 @@ function renderBackupDataPage() {
 }
 
 window.renderBackupDataPage = renderBackupDataPage;
+window.renderRestorePreviewHtml = renderRestorePreviewHtml;
