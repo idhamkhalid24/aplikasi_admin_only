@@ -610,6 +610,11 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
           await loadTrxForDate(state.trxSelectedDate, true);
         }
       }
+      if(pageBefore==="transfer"){
+        if(typeof loadTransferData === 'function'){
+          await loadTransferData(true);
+        }
+      }
     }finally{
       refreshFromHeaderBusy=false;
     }
@@ -687,15 +692,15 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function renderCashier(){return`<section class="cashier-page"><div class="cashier-admin-bar"><div class="grow"><div class="title"><i class="fas fa-cash-register"></i> Kasir Staff</div><div class="meta">Sumber: GitHub Pages kasir_staff - otomatis ikut update dari link. Swipe back Android akan kembali ke halaman admin sebelumnya.</div></div></div><div class="cashier-frame-wrap"><iframe id="embeddedKasirFrame" class="cashier-frame" title="Kasir Staff" src="${CASHIER_STAFF_URL}" referrerpolicy="no-referrer" loading="lazy" allow="clipboard-read; clipboard-write"></iframe></div><div class="card pad" style="margin:10px 0"><div class="meta">Kalau halaman kasir tidak tampil karena jaringan/cache browser, buka langsung: <a href="${CASHIER_STAFF_URL}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:800">Buka Kasir GitHub</a></div></div></section>`}
   window.openEmbeddedKasir=()=>go("cashier");
 
-  const APP_PAGES=new Set(["home","trx","rekapTrx","backupData","bonus","gajian","team","ops","cashier","control","rismaClosing","unlockRequests","onlineOrders"]);
+  const APP_PAGES=new Set(["home","trx","rekapTrx","backupData","bonus","gajian","team","ops","cashier","control","transfer","unlockRequests","onlineOrders"]);
   function normalizePage(page){page=String(page||"home");return APP_PAGES.has(page)?page:"home"}
   function routeFromLocation(){const raw=decodeURIComponent(String(location.hash||"").replace(/^#\/?/,""));return normalizePage(raw||"home")}
   function writeAppHistory(page,{replace=false}={}){page=normalizePage(page);try{const hash="#"+page,stateData={rockyAdminPage:page};if(replace){history.replaceState(stateData,"",hash);return}const current=history.state&&history.state.rockyAdminPage;if(location.hash!==hash||current!==page)history.pushState(stateData,"",hash)}catch(e){}}
-  function setAppPage(page,{push=true,replace=false}={}){state.page=normalizePage(page);if(push)writeAppHistory(state.page,{replace});render()}
+  function setAppPage(page,{push=true,replace=false}={}){state.page=normalizePage(page);if(push)writeAppHistory(state.page,{replace});render();if(state.page==="transfer"&&typeof ensureTransferLoaded==="function"){ensureTransferLoaded()}}
   window.addEventListener("popstate",e=>{if(modalBackIgnore>0){modalBackIgnore--;if(modalHistoryCleanup&&!visibleModals().length&&e.state?.rockyModalId){requestModalHistoryBack();return}if(!visibleModals().length)modalHistoryCleanup=false;return}if(closeTopModalFromBack())return;state.page=normalizePage(e.state?.rockyAdminPage||routeFromLocation());render()});
   writeAppHistory(routeFromLocation(),{replace:true});
 
-  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
+  function render(){if(!state.user)return showLogin();const inCashier=state.page==="cashier";$("tabs").classList.toggle("hide",inCashier);document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));$("fab").classList.toggle("hide",state.page!=="home");const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,transfer:renderTransferPage,unlockRequests:renderUnlockRequestsPage};$("view").innerHTML=map[state.page]?.()||renderHome();syncUserSelects()}window.go=page=>setAppPage(page,{push:true});window.render=render;
 
   /* === PATCH: Ringkasan Bonus Harian + Receipt Printer === */
   const moneyValue=n=>Math.round(Number(n||0));
@@ -721,10 +726,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function receiptLine(ch="-",n=32){return String(ch).repeat(n)}
   const ADMIN_LITE_PAYMENT_METHODS={cash:"Cash",qris_transfer:"QRIS / Transfer"};
   let adminLitePendingTxDraft=null,adminLitePaymentSubmitting=false;
-  function normalizeAdminLitePaymentMethod(v){const s=cleanUser(String(v||"").replace(/[^a-zA-Z0-9]+/g,"_"));if(s==="cash"||s==="tunai")return "cash";if(s==="qris"||s==="transfer"||s==="qris_transfer"||s==="qris_dan_transfer"||s==="qris_transfer_bank")return "qris_transfer";return ""}
+  function normalizeAdminLitePaymentMethod(v){const s=cleanUser(String(v||"").replace(/[^a-zA-Z0-9]+/g,"_"));if(s==="cash"||s==="tunai")return "cash";if(s==="qris"||s==="transfer"||s==="transfer_bank"||s==="bank_transfer"||s==="edc"||s==="qris_barcode"||s==="qris_transfer"||s==="qris_dan_transfer"||s==="qris_transfer_bank")return "qris_transfer";return ""}
   function adminLitePaymentLabel(v){const m=normalizeAdminLitePaymentMethod(v);return m?ADMIN_LITE_PAYMENT_METHODS[m]:String(v||"").trim()}
   function txPaymentMethod(t={}){return normalizeAdminLitePaymentMethod(t.paymentMethod||t.payment_method||t.paymentLabel||t.payment_label||t.paymentType||t.payment_type||t.metodePembayaran||t.metode_pembayaran)||"cash"}
-  function txPaymentLabel(t={}){return ADMIN_LITE_PAYMENT_METHODS[txPaymentMethod(t)]||"Cash"}
+  function txPaymentLabel(t={}){const ch=String(t?.paymentChannel||"").toLowerCase(),pm=String(t?.paymentMethod||t?.payment_method||"").toLowerCase(),lbl=String(t?.paymentLabel||t?.payment_label||"").trim();if(ch==="edc"||pm==="transfer"||lbl.toLowerCase().includes("edc")||lbl.toLowerCase().includes("transfer bank"))return "EDC / Transfer";if(ch==="qris_barcode"||t?.qrisOrderId||lbl.toLowerCase()==="qris barcode")return "QRIS Barcode";return ADMIN_LITE_PAYMENT_METHODS[txPaymentMethod(t)]||"Cash"}
   function txPaymentBadge(t={}){const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
@@ -867,7 +872,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function renderClosingStatusList(){const global=getTodayGlobalClosing(),globalSelected=state.closingTarget==="global",users=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin");const globalRow=`<div class="closing-option-row ${globalSelected?"selected":""}" onclick="setClosingTarget('global')"><div class="grow"><div class="closing-title">Semua / Global</div><div class="closing-meta">${global?"SUDAH CLOSING":"PILIH UNTUK CLOSING SEMUA USER VALID"}</div></div><div class="closing-right"><span class="chip ${global?"ok":"warn"}">${global?"Sudah Closing":"Global"}</span><span class="closing-radio ${globalSelected?"on":""}"></span></div></div>`;const userRows=users.map(u=>{const selected=cleanUser(state.closingTarget)===cleanUser(u.username),status=closingStatusLabelForUser(u),chip=closingStatusChipClass(u);return`<div class="closing-option-row ${selected?"selected":""}" onclick="setClosingTarget('${esc(u.username)}')"><div class="grow"><div class="closing-title">${esc(u.name||u.username)} (@${esc(u.username)})</div><div class="closing-meta">${esc(status)}</div></div><div class="closing-right"><span class="chip ${chip}">${esc(status.replace("HARIAN - ",""))}</span><span class="closing-radio ${selected?"on":""}"></span></div></div>`}).join("");return`<div class="closing-status-list">${globalRow}${userRows||`<div class="empty">Belum ada user closing</div>`}</div>`}
   function renderOps(){
     const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),activeClosing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing,deadlineSnapshot=getClosingDeadlineSnapshot(),delay=activeClosing?Number(activeClosing.delayMinutes||0):closingDelayMinutes(now(),deadlineSnapshot),built=activeClosing?buildClosingBonusByUserForEdit(activeClosing,delay,targetUsername):buildClosingBonusByUser(delay,targetUsername),attList=state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===state.attendanceDate),deadlineText=activeClosing?`Deadline snapshot data ini: ${formatClosingDeadline(activeClosing)}`:`Deadline closing baru: ${deadlineSnapshot.deadline}`;
-    return`<div class="wrap">${header("Ops","Closing & absen seperti admin")}${renderClosingDeadlineSettingsCard()}<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Akses Oprasional</div><div class="meta">Beri akses menu Ops & QRIS hari ini</div></div><button class="btn primary" onclick="openOpsAccessModal()"><i class="fas fa-key"></i> Beri Akses</button></div></div><div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Tarik Uang Laci</div><div class="meta">Catat uang ditarik & kembalian laci</div></div><button class="btn green" onclick="openDrawerWithdrawalModal()"><i class="fas fa-money-bill-wave"></i> Tarik Uang</button></div></div><div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Closing</div><div class="meta">Target bisa Global / per user</div></div><span class="chip ${activeClosing?"ok":"warn"}">${activeClosing?"Sudah Closing":"Belum Closing"}</span></div><div class="sep"></div><select class="input mb" onchange="setClosingTarget(this.value)">${optionClosingUsers()}</select><div class="meta" style="margin:-4px 0 10px">${deadlineText}</div><div class="ops-hero mb"><div class="grid3"><div><div class="tiny">Lewat</div><div class="amt num">${delay} mnt</div></div><div><div class="tiny">Target</div><div class="amt num">${built.targetUsers.length}</div></div><div><div class="tiny">Bonus</div><div class="amt num">${rp(activeClosing?.totalBonus??built.totalBonus)}</div></div></div><div class="meta" style="margin-top:8px">${targetUsername?`Target: ${esc(target?.name||targetUsername)}${lockedByGlobal?" - terkunci global":""}`:"Global: staff yang sudah absen + harian"}</div></div><div class="grid2 mb"><button class="btn primary full" ${activeClosing?"disabled":""} onclick="handleClosingToday()"><i class="fas fa-lock"></i> Closing</button><button class="btn amber full" ${activeClosing?"":"disabled"} onclick="handleEditClosingTime()"><i class="fas fa-clock"></i> Edit Jam</button></div><button class="btn red full" ${activeClosing?"":"disabled"} onclick="handleCancelClosingToday()"><i class="fas fa-unlock"></i> Batal Closing</button></div>${renderRismaManualClosingShortcut()}<div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Absen</div><div class="meta">Tambah, edit, hapus absen pakai PIN</div></div><button class="btn green" onclick="openAdminAttendanceModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="sep"></div><div class="filter-row mb"><input class="input" type="date" value="${esc(state.attendanceDate)}" onchange="setAttendanceDate(this.value)"><button class="btn" onclick="setAttendanceDate('${dateKey()}')">Hari Ini</button></div>${renderAttendanceList(attList)}</div></div>`
+    return`<div class="wrap">${header("Ops","Closing & absen seperti admin")}${renderClosingDeadlineSettingsCard()}<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Akses Oprasional</div><div class="meta">Beri akses menu Ops & QRIS hari ini</div></div><button class="btn primary" onclick="openOpsAccessModal()"><i class="fas fa-key"></i> Beri Akses</button></div></div><div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Tarik Uang Laci</div><div class="meta">Catat uang ditarik & kembalian laci</div></div><button class="btn green" onclick="openDrawerWithdrawalModal()"><i class="fas fa-money-bill-wave"></i> Tarik Uang</button></div></div><div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Closing</div><div class="meta">Target bisa Global / per user</div></div><span class="chip ${activeClosing?"ok":"warn"}">${activeClosing?"Sudah Closing":"Belum Closing"}</span></div><div class="sep"></div><select class="input mb" onchange="setClosingTarget(this.value)">${optionClosingUsers()}</select><div class="meta" style="margin:-4px 0 10px">${deadlineText}</div><div class="ops-hero mb"><div class="grid3"><div><div class="tiny">Lewat</div><div class="amt num">${delay} mnt</div></div><div><div class="tiny">Target</div><div class="amt num">${built.targetUsers.length}</div></div><div><div class="tiny">Bonus</div><div class="amt num">${rp(activeClosing?.totalBonus??built.totalBonus)}</div></div></div><div class="meta" style="margin-top:8px">${targetUsername?`Target: ${esc(target?.name||targetUsername)}${lockedByGlobal?" - terkunci global":""}`:"Global: staff yang sudah absen + harian"}</div></div><div class="grid2 mb"><button class="btn primary full" ${activeClosing?"disabled":""} onclick="handleClosingToday()"><i class="fas fa-lock"></i> Closing</button><button class="btn amber full" ${activeClosing?"":"disabled"} onclick="handleEditClosingTime()"><i class="fas fa-clock"></i> Edit Jam</button></div><button class="btn red full" ${activeClosing?"":"disabled"} onclick="handleCancelClosingToday()"><i class="fas fa-unlock"></i> Batal Closing</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Absen</div><div class="meta">Tambah, edit, hapus absen pakai PIN</div></div><button class="btn green" onclick="openAdminAttendanceModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="sep"></div><div class="filter-row mb"><input class="input" type="date" value="${esc(state.attendanceDate)}" onchange="setAttendanceDate(this.value)"><button class="btn" onclick="setAttendanceDate('${dateKey()}')">Hari Ini</button></div>${renderAttendanceList(attList)}</div></div>`
   }
   window.setClosingTarget=val=>{state.closingTarget=val||"global";render()};window.setAttendanceDate=val=>{const dk=String(val||dateKey()).slice(0,10);state.attendanceDate=dk;loadAttendanceForDate(dk)};
   
@@ -1216,7 +1221,7 @@ function getAdminTxTotalQty(note){
 
 renderTxList = function(list, withActions=true){
   if(!list.length) return '<div class="empty">Belum ada transaksi</div>';
-  return '<div class="list">' + list.map(t=>'<div class="item ' + (txPaymentLabel(t).toLowerCase().includes("qris")?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div><div class="meta" style="font-size:11px;margin-top:2px">' + (state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '') + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + (withActions?('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>'):('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>')) + '</div></div>').join("") + '</div>';
+  return '<div class="list">' + list.map(t=>'<div class="item ' + (txPaymentMethod(t)==="qris_transfer"?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div><div class="meta" style="font-size:11px;margin-top:2px">' + (state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '') + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + (withActions?('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>'):('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>')) + '</div></div>').join("") + '</div>';
 };
 
 window.printReceiptFromTx = function(id){
@@ -1229,7 +1234,7 @@ function receiptTextForDateTransactions(list, dk){
   const items = [...list].sort((a,b)=>txTimeMs(a)-txTimeMs(b));
   const total = items.reduce((s,t)=>s+Number(t.amount||0),0);
   const totalCash = items.reduce((s,t)=>{
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
@@ -1253,7 +1258,7 @@ window.printTodayTransactions = function(){
 function receiptTextForMonthSummary(monthList, mk){
   const total = monthList.reduce((s,t)=>s+Number(t.amount||0),0);
   const totalCash = monthList.reduce((s,t)=>{
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
@@ -1264,7 +1269,7 @@ function receiptTextForMonthSummary(monthList, mk){
     const dk = extractDateKey(t);
     if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
     const amt = Number(t.amount||0);
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     dayMap[dk].total += amt;
     dayMap[dk].count += 1;
     dayMap[dk].qty += getAdminTxTotalQty(t.note);
@@ -1430,7 +1435,7 @@ function renderTrxDateView(){
   const list = getActiveTrxDateList();
   const total = list.reduce((s,t)=>s+Number(t.amount||0), 0);
   const totalCash = list.reduce((s,t)=>{
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
@@ -1527,7 +1532,7 @@ function renderTrxMonthView(){
   const monthList = getActiveTrxMonthList();
   const total = monthList.reduce((s,t)=>s+Number(t.amount||0), 0);
   const totalCash = monthList.reduce((s,t)=>{
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
@@ -1538,7 +1543,7 @@ function renderTrxMonthView(){
     const dk = extractDateKey(t);
     if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
     const amt = Number(t.amount||0);
-    const isQ = String(t.paymentMethod||"").toLowerCase().includes("qris") || t.isNonCashPayment===true;
+    const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     dayMap[dk].total += amt;
     dayMap[dk].count += 1;
     dayMap[dk].qty += getAdminTxTotalQty(t.note);
@@ -1918,7 +1923,7 @@ renderHome=function(){
     ['User','Admin','fa-users',"go('team')"],
     ['Kasir','Staff','fa-cash-register',"go('cashier')"],
     ['Catatan','Home Staff','fa-clipboard-list',"go('control')"],
-    ['Closing','Risma','fa-route',"go('rismaClosing')"],
+    ['Transfer','EDC & QRIS','fa-money-bill-transfer',"go('transfer')"],
     ['Printer','Pengaturan','fa-print',"openPrinterSettingsModal()"],
     ['Rekap','Bulanan','fa-calendar-days',"go('rekapTrx')"],
     ['Atur Target','Harian','fa-sliders',"openAdminDailyTargetSettings()"],
@@ -1932,7 +1937,7 @@ render=function(){
   if(!state.user)return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,transfer:renderTransferPage,unlockRequests:renderUnlockRequestsPage,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -2216,6 +2221,14 @@ function startTransactionsRealtime(){
          clearTimeout(txRealtimeDebounceTimer);
          txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
       })
+      .on('postgres_changes',{event:'*',schema:'public',table:'qris_payments'}, payload=>{
+         clearTimeout(txRealtimeDebounceTimer);
+         txRealtimeDebounceTimer = setTimeout(()=>{
+           if (typeof loadTransferData === 'function' && (state.page === 'transfer' || state.transferQrisDateLoaded?.[dateKey()])) {
+             loadTransferData(true, { silent: true });
+           }
+         }, 1200);
+      })
       .subscribe();
       
     if (typeof cashDb !== 'undefined' && cashDb.channel) {
@@ -2345,7 +2358,7 @@ render = function(){
   if(!state.user) return showLogin();
   $("tabs").classList.add("hide");
   $("fab").classList.add("hide");
-  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,rismaClosing:renderRismaManualClosingPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
+  const map={home:renderHome,trx:renderTrx,rekapTrx:renderTrxReportPage,backupData:renderBackupDataPage,bonus:renderBonus,gajian:renderPayroll,team:renderTeam,ops:renderOps,cashier:renderCashier,control:renderControlPage,transfer:renderTransferPage,unlockRequests:renderUnlockRequestsPage,onlineOrders:renderOnlineOrders,products:renderProductsPage};
   $("view").innerHTML=map[state.page]?.()||renderHome();
   syncUserSelects();
   syncThemeUi();
@@ -4993,3 +5006,585 @@ function renderBackupDataPage() {
 
 window.renderBackupDataPage = renderBackupDataPage;
 window.renderRestorePreviewHtml = renderRestorePreviewHtml;
+
+// === MENU TRANSFER: DATA QRIS BARCODE & EDC / TRANSFER ===
+state.transferViewMode = state.transferViewMode || "date";
+state.transferDate = state.transferDate || dateKey();
+state.transferSelectedMonth = state.transferSelectedMonth || monthKey();
+state.transferFilter = state.transferFilter || "all";
+state.transferSearch = state.transferSearch || "";
+state.transferQrisDateCache = state.transferQrisDateCache || {};
+state.transferQrisMonthCache = state.transferQrisMonthCache || {};
+state.transferQrisDateLoaded = state.transferQrisDateLoaded || {};
+state.transferQrisMonthLoaded = state.transferQrisMonthLoaded || {};
+state.transferLoading = false;
+state.transferError = "";
+window.__lastTransferEntries = [];
+
+function isQrisRowPaid(r = {}) {
+  const st = String(r?.status || "").trim().toLowerCase();
+  return st === "settlement" || st === "capture" || st === "paid" || st === "success" || st === "lunas";
+}
+
+function isTransferTxEdc(t = {}) {
+  const ch = String(t?.paymentChannel || "").trim().toLowerCase();
+  const pm = String(t?.paymentMethod || t?.payment_method || "").trim().toLowerCase();
+  const lbl = String(t?.paymentLabel || t?.payment_label || "").trim().toLowerCase();
+  return ch === "edc" || pm === "transfer" || lbl.includes("edc") || lbl.includes("transfer bank");
+}
+
+function isTransferTxNonCash(t = {}) {
+  if (!t || isDeleted(t) || isTrialRecord(t)) return false;
+  return txPaymentMethod(t) === "qris_transfer" || t.isNonCashPayment === true;
+}
+
+function transferTimeWibLabel(ms) {
+  const n = Number(ms || 0) || Date.now();
+  try {
+    return new Date(n).toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Jakarta",
+    }).replace(".", ":");
+  } catch (e) {
+    return "-";
+  }
+}
+
+async function fetchQrisPaymentsForDate(dk) {
+  const cleanDk = String(dk || dateKey()).slice(0, 10);
+  const { data, error } = await supabase
+    .from("qris_payments")
+    .select("*")
+    .eq("date_key", cleanDk)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data || []).filter((r) => {
+    if (!isQrisRowPaid(r)) return false;
+    const uname = cleanUser(r.cashier_username || "");
+    const u = uname ? userBy(uname) : null;
+    if (u && isDummyUser(u)) return false;
+    return true;
+  });
+}
+
+async function fetchQrisPaymentsForMonth(mk) {
+  const cleanMk = String(mk || monthKey()).slice(0, 7);
+  const monthStart = `${cleanMk}-01`;
+  const nextStart = nextMonthStartKey(cleanMk);
+  const { data, error } = await supabase
+    .from("qris_payments")
+    .select("*")
+    .gte("date_key", monthStart)
+    .lt("date_key", nextStart)
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+  return (data || []).filter((r) => {
+    if (!isQrisRowPaid(r)) return false;
+    const uname = cleanUser(r.cashier_username || "");
+    const u = uname ? userBy(uname) : null;
+    if (u && isDummyUser(u)) return false;
+    return true;
+  });
+}
+
+async function loadTransferData(force = false, { silent = false } = {}) {
+  if (!state.user) return [];
+  const mode = state.transferViewMode === "month" ? "month" : "date";
+  if (!silent) {
+    state.transferLoading = true;
+    state.transferError = "";
+    if (state.page === "transfer") render();
+  }
+  try {
+    if (mode === "month") {
+      const mk = String(state.transferSelectedMonth || monthKey()).slice(0, 7);
+      const tasks = [];
+      if (force || !state.transferQrisMonthLoaded[mk]) {
+        tasks.push(
+          fetchQrisPaymentsForMonth(mk).then((rows) => {
+            state.transferQrisMonthCache[mk] = rows;
+            state.transferQrisMonthLoaded[mk] = true;
+          }),
+        );
+      }
+      if (force || !state.trxMonthLoaded?.[mk]) {
+        tasks.push(loadTrxForMonth(mk, force));
+      }
+      await Promise.all(tasks);
+    } else {
+      const dk = String(state.transferDate || dateKey()).slice(0, 10);
+      const tasks = [];
+      if (force || !state.transferQrisDateLoaded[dk]) {
+        tasks.push(
+          fetchQrisPaymentsForDate(dk).then((rows) => {
+            state.transferQrisDateCache[dk] = rows;
+            state.transferQrisDateLoaded[dk] = true;
+          }),
+        );
+      }
+      if (force || !state.trxDateLoaded?.[dk]) {
+        tasks.push(loadTrxForDate(dk, force));
+      }
+      await Promise.all(tasks);
+    }
+    state.transferError = "";
+  } catch (err) {
+    console.error("loadTransferData error:", err);
+    state.transferError = err?.message || "Gagal memuat data Transfer";
+    if (!silent) toast(state.transferError, true);
+  } finally {
+    state.transferLoading = false;
+    if (state.page === "transfer") render();
+  }
+  return buildTransferEntries();
+}
+window.loadTransferData = loadTransferData;
+
+function ensureTransferLoaded() {
+  const mode = state.transferViewMode === "month" ? "month" : "date";
+  if (mode === "month") {
+    const mk = String(state.transferSelectedMonth || monthKey()).slice(0, 7);
+    if (!state.transferQrisMonthLoaded?.[mk] || !state.trxMonthLoaded?.[mk]) {
+      loadTransferData(false);
+    }
+  } else {
+    const dk = String(state.transferDate || dateKey()).slice(0, 10);
+    if (!state.transferQrisDateLoaded?.[dk] || !state.trxDateLoaded?.[dk]) {
+      loadTransferData(false);
+    }
+  }
+}
+window.ensureTransferLoaded = ensureTransferLoaded;
+
+function buildTransferEntries() {
+  const mode = state.transferViewMode === "month" ? "month" : "date";
+  const dk = String(state.transferDate || dateKey()).slice(0, 10);
+  const mk = String(state.transferSelectedMonth || monthKey()).slice(0, 7);
+
+  const qrisRows = mode === "month"
+    ? (state.transferQrisMonthCache?.[mk] || [])
+    : (state.transferQrisDateCache?.[dk] || []);
+
+  let txPool = [];
+  if (mode === "month") {
+    const base = state.trxMonthCache?.[mk] || [];
+    if (mk === monthKey()) {
+      const map = new Map();
+      base.forEach((t) => map.set(String(t.id), t));
+      (todayTx() || []).filter((t) => extractDateKey(t).slice(0, 7) === mk).forEach((t) => map.set(String(t.id), t));
+      txPool = [...map.values()];
+    } else {
+      txPool = [...base];
+    }
+  } else {
+    const base = state.trxDateCache?.[dk] || [];
+    if (dk === dateKey()) {
+      const map = new Map();
+      base.forEach((t) => map.set(String(t.id), t));
+      (todayTx() || []).forEach((t) => map.set(String(t.id), t));
+      txPool = [...map.values()];
+    } else {
+      txPool = [...base];
+    }
+  }
+
+  const nonCashTx = txPool.filter(isTransferTxNonCash);
+  const qrisItems = qrisRows.map((q) => {
+    const createdMs = Date.parse(q.created_at || "") || Date.now();
+    const rowDk = String(q.date_key || dateKey(new Date(createdMs))).slice(0, 10);
+    const uname = cleanUser(q.cashier_username || "");
+    const amt = Number(q.amount || 0);
+    return {
+      uid: "qris_" + String(q.order_id || q.id || createdMs),
+      source: "qris_payments",
+      channel: "qris_barcode",
+      channelLabel: "QRIS Barcode",
+      orderId: String(q.order_id || ""),
+      status: String(q.status || "settlement").toUpperCase(),
+      username: uname,
+      cashierName: String(q.cashier_name || userName(uname) || uname || "Kasir"),
+      amount: amt,
+      note: String(q.note || "").trim() || "Pembayaran QRIS Barcode",
+      dateKey: rowDk,
+      timeMs: createdMs,
+      qrisRaw: q,
+      txRaw: null,
+      txId: "",
+    };
+  });
+
+  const qrisByOrderId = new Map();
+  qrisItems.forEach((item) => {
+    if (item.orderId) qrisByOrderId.set(item.orderId, item);
+  });
+  const matchedQrisUids = new Set();
+
+  const extraTxItems = [];
+  for (const t of nonCashTx) {
+    const edc = isTransferTxEdc(t);
+    const qOrderId = String(t.qrisOrderId || "").trim();
+
+    if (!edc && qOrderId && qrisByOrderId.has(qOrderId)) {
+      const match = qrisByOrderId.get(qOrderId);
+      matchedQrisUids.add(match.uid);
+      match.txRaw = t;
+      match.txId = String(t.id);
+      continue;
+    }
+
+    if (!edc) {
+      const tUser = cleanUser(t.user || "");
+      const tAmt = Number(t.amount || 0);
+      const tDk = extractDateKey(t);
+      const tMs = txTimeMs(t);
+      const legacyMatch = qrisItems.find((q) =>
+        !matchedQrisUids.has(q.uid) &&
+        q.username === tUser &&
+        q.amount === tAmt &&
+        q.dateKey === tDk &&
+        Math.abs(q.timeMs - tMs) <= 120000
+      );
+      if (legacyMatch) {
+        matchedQrisUids.add(legacyMatch.uid);
+        legacyMatch.txRaw = t;
+        legacyMatch.txId = String(t.id);
+        continue;
+      }
+    }
+
+    const ch = String(t.paymentChannel || "").trim().toLowerCase();
+    const uname = cleanUser(t.user || "");
+    const channel = edc ? "edc" : (ch === "qris_barcode" ? "qris_barcode" : "qris_other");
+    const channelLabel = edc
+      ? "EDC / Transfer"
+      : (channel === "qris_barcode" ? "QRIS Barcode" : "QRIS / Transfer");
+
+    extraTxItems.push({
+      uid: "tx_" + String(t.id),
+      source: "transactions",
+      channel,
+      channelLabel,
+      orderId: qOrderId,
+      status: "BERHASIL",
+      username: uname,
+      cashierName: String(t.name || userName(uname) || uname || "Kasir"),
+      amount: Number(t.amount || 0),
+      note: String(t.note || "Transaksi").trim() || "Transaksi",
+      dateKey: extractDateKey(t),
+      timeMs: txTimeMs(t),
+      qrisRaw: null,
+      txRaw: t,
+      txId: String(t.id),
+    });
+  }
+
+  return [...qrisItems, ...extraTxItems].sort((a, b) => Number(b.timeMs || 0) - Number(a.timeMs || 0));
+}
+
+window.setTransferViewMode = function (mode) {
+  state.transferViewMode = mode === "month" ? "month" : "date";
+  render();
+  ensureTransferLoaded();
+};
+
+window.changeTransferDate = function (val) {
+  if (!val) return;
+  state.transferDate = String(val).slice(0, 10);
+  render();
+  ensureTransferLoaded();
+};
+
+window.shiftTransferDate = function (delta) {
+  const cur = String(state.transferDate || dateKey()).slice(0, 10);
+  const parts = cur.split("-").map(Number);
+  const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+  dt.setDate(dt.getDate() + Number(delta || 0));
+  state.transferDate = dateKey(dt);
+  render();
+  ensureTransferLoaded();
+};
+
+window.setTransferDateToday = function () {
+  state.transferDate = dateKey();
+  render();
+  ensureTransferLoaded();
+};
+
+window.changeTransferMonth = function (val) {
+  if (!val) return;
+  state.transferSelectedMonth = String(val).slice(0, 7);
+  render();
+  ensureTransferLoaded();
+};
+
+window.shiftTransferMonth = function (delta) {
+  const cur = String(state.transferSelectedMonth || monthKey()).slice(0, 7);
+  const parts = cur.split("-").map(Number);
+  const dt = new Date(parts[0], parts[1] - 1 + Number(delta || 0), 1);
+  state.transferSelectedMonth = monthKey(dt);
+  render();
+  ensureTransferLoaded();
+};
+
+window.setTransferMonthCurrent = function () {
+  state.transferSelectedMonth = monthKey();
+  render();
+  ensureTransferLoaded();
+};
+
+window.setTransferFilter = function (filter) {
+  state.transferFilter = filter || "all";
+  render();
+};
+
+window.setTransferSearch = function (val) {
+  state.transferSearch = String(val || "");
+  render();
+  const el = document.getElementById("transferSearchInput");
+  if (el) {
+    el.focus();
+    const len = el.value.length;
+    try { el.setSelectionRange(len, len); } catch (e) {}
+  }
+};
+
+window.openTransferEntryDetail = function (uid) {
+  const entry = (window.__lastTransferEntries || []).find((x) => String(x.uid) === String(uid));
+  if (!entry) return toast("Data pembayaran tidak ditemukan", true);
+
+  const badgeClass = entry.channel === "edc" ? "warn" : (entry.channel === "qris_barcode" ? "ok" : "");
+  const timeStr = transferTimeWibLabel(entry.timeMs);
+  const dateStr = entry.dateKey ? formatIndoDateLong(entry.dateKey) : "-";
+  const orderHtml = entry.orderId
+    ? `<div class="row" style="justify-content:space-between;align-items:center;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--surface-inset,#f8fafc);border:1px solid var(--line,#e2e8f0)">
+        <div style="min-width:0">
+          <div class="tiny">Order ID QRIS</div>
+          <div style="font-family:monospace;font-size:12px;font-weight:800;word-break:break-all">${esc(entry.orderId)}</div>
+        </div>
+        <button class="btn" style="min-height:32px;padding:4px 10px;font-size:11px" onclick="copyTextValue('${esc(entry.orderId)}','Order ID disalin')"><i class="fas fa-copy"></i> Salin</button>
+      </div>`
+    : "";
+
+  const body = `
+    <div class="card pad mb" style="box-shadow:none">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <span class="chip ${badgeClass}">${esc(entry.channelLabel)}</span>
+        <span class="chip ok">${esc(entry.status)}</span>
+      </div>
+      <div class="amt num" style="font-size:24px;color:var(--primary);margin-top:10px">${rp(entry.amount)}</div>
+      <div class="meta" style="margin-top:6px"><i class="fas fa-user"></i> ${esc(entry.cashierName)} (@${esc(entry.username || "-")})</div>
+      <div class="meta" style="margin-top:3px"><i class="fas fa-clock"></i> ${esc(dateStr)} &bull; ${esc(timeStr)} WIB</div>
+      ${orderHtml}
+    </div>
+    <div class="card pad" style="box-shadow:none">
+      <div class="tiny" style="margin-bottom:6px">Keterangan / Produk</div>
+      ${entry.txRaw ? adminLiteProductDetailHtml(entry.note || "Transaksi") : `<div style="font-size:13px;font-weight:700;color:var(--text-main)">${esc(entry.note || "-")}</div>`}
+    </div>
+  `;
+
+  const footer = entry.txRaw
+    ? `<div class="grid2" style="gap:8px">
+        <button class="btn green" onclick="closeDynamicSheet('transferDetailModal');printReceiptFromTx('${esc(entry.txId)}')"><i class="fas fa-print"></i> Cetak Struk</button>
+        <button class="btn" onclick="closeDynamicSheet('transferDetailModal')"><i class="fas fa-arrow-left"></i> Tutup</button>
+      </div>`
+    : `<button class="btn full" onclick="closeDynamicSheet('transferDetailModal')"><i class="fas fa-arrow-left"></i> Tutup</button>`;
+
+  openDynamicSheet("transferDetailModal", "Detail Pembayaran Transfer", entry.channelLabel + " - " + timeStr + " WIB", body, footer);
+};
+
+window.copyTextValue = async function (text, successMsg = "Disalin") {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(String(text || ""));
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = String(text || "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    toast(successMsg);
+  } catch (e) {
+    toast("Gagal menyalin", true);
+  }
+};
+
+function renderTransferPage() {
+  const mode = state.transferViewMode === "month" ? "month" : "date";
+  const dk = String(state.transferDate || dateKey()).slice(0, 10);
+  const mk = String(state.transferSelectedMonth || monthKey()).slice(0, 7);
+  const isToday = dk === dateKey();
+  const isCurrentMonth = mk === monthKey();
+
+  const entries = buildTransferEntries();
+  window.__lastTransferEntries = entries;
+
+  const qrisBarcodeRows = entries.filter((e) => e.channel === "qris_barcode");
+  const edcRows = entries.filter((e) => e.channel === "edc");
+  const otherRows = entries.filter((e) => e.channel === "qris_other");
+
+  const totalAll = entries.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalQrisBarcode = qrisBarcodeRows.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalEdc = edcRows.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalOther = otherRows.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const filter = state.transferFilter || "all";
+  const search = String(state.transferSearch || "").trim().toLowerCase();
+
+  const visibleEntries = entries.filter((e) => {
+    if (filter !== "all" && e.channel !== filter) return false;
+    if (search) {
+      const hay = [
+        e.cashierName,
+        e.username,
+        e.note,
+        e.orderId,
+        e.channelLabel,
+        String(e.amount),
+      ].join(" ").toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const isLoaded = mode === "month"
+    ? Boolean(state.transferQrisMonthLoaded?.[mk] && state.trxMonthLoaded?.[mk])
+    : Boolean(state.transferQrisDateLoaded?.[dk] && state.trxDateLoaded?.[dk]);
+
+  const navHtml = mode === "month"
+    ? `<div class="trx-nav-bar">
+        <button class="trx-nav-btn" onclick="shiftTransferMonth(-1)" title="Bulan Sebelumnya"><i class="fas fa-chevron-left"></i></button>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="month" class="input" style="flex:1;height:40px;min-height:40px;font-size:13px;font-weight:700;text-align:center;padding:4px 8px;border-radius:11px" value="${esc(mk)}" onchange="changeTransferMonth(this.value)">
+          ${isCurrentMonth ? "" : '<button class="btn" style="min-height:40px;padding:0 10px;font-size:11px;font-weight:700;border-radius:10px;white-space:nowrap" onclick="setTransferMonthCurrent()">Bulan Ini</button>'}
+        </div>
+        <button class="trx-nav-btn" onclick="shiftTransferMonth(1)" title="Bulan Berikutnya"><i class="fas fa-chevron-right"></i></button>
+      </div>
+      <div style="text-align:center;font-size:13px;font-weight:750;color:var(--text-main);margin:-4px 0 10px">
+        ${esc(formatIndoMonthYear(mk))}${isCurrentMonth ? ' <span class="chip" style="font-size:10px;padding:2px 7px;background:var(--primary-soft);color:var(--primary);margin-left:4px">Bulan Ini</span>' : ''}
+      </div>`
+    : `<div class="trx-nav-bar">
+        <button class="trx-nav-btn" onclick="shiftTransferDate(-1)" title="Hari Sebelumnya"><i class="fas fa-chevron-left"></i></button>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="date" class="input" style="flex:1;height:40px;min-height:40px;font-size:13px;font-weight:700;text-align:center;padding:4px 8px;border-radius:11px" value="${esc(dk)}" onchange="changeTransferDate(this.value)">
+          ${isToday ? "" : '<button class="btn" style="min-height:40px;padding:0 10px;font-size:11px;font-weight:700;border-radius:10px;white-space:nowrap" onclick="setTransferDateToday()">Hari Ini</button>'}
+        </div>
+        <button class="trx-nav-btn" onclick="shiftTransferDate(1)" title="Hari Berikutnya"><i class="fas fa-chevron-right"></i></button>
+      </div>
+      <div style="text-align:center;font-size:13px;font-weight:750;color:var(--text-main);margin:-4px 0 10px">
+        ${esc(formatIndoDateLong(dk))}${isToday ? ' <span class="chip" style="font-size:10px;padding:2px 7px;background:var(--primary-soft);color:var(--primary);margin-left:4px">Hari Ini</span>' : ''}
+      </div>`;
+
+  const filterChips = [
+    ["all", `Semua (${entries.length})`],
+    ["qris_barcode", `QRIS Barcode (${qrisBarcodeRows.length})`],
+    ["edc", `EDC / Transfer (${edcRows.length})`],
+    ...(otherRows.length ? [["qris_other", `QRIS Kasir (${otherRows.length})`]] : []),
+  ].map(([k, label]) =>
+    `<button class="online-filter ${filter === k ? "active" : ""}" onclick="setTransferFilter('${k}')">${label}</button>`
+  ).join("");
+
+  const listHtml = state.transferLoading && !isLoaded
+    ? `<div class="card pad mb" style="text-align:center;padding:34px 16px;border-radius:16px">
+        <i class="fas fa-circle-notch fa-spin" style="font-size:26px;color:var(--primary);margin-bottom:8px"></i>
+        <div style="font-size:13.5px;font-weight:750;color:var(--text-main)">Memuat data QRIS & EDC...</div>
+      </div>`
+    : (visibleEntries.length
+      ? `<div class="list">${visibleEntries.map((e) => {
+          const isEdc = e.channel === "edc";
+          const isQrisBarcode = e.channel === "qris_barcode";
+          const icoBg = isEdc ? "rgba(234,88,12,.14)" : (isQrisBarcode ? "rgba(2,132,199,.14)" : "var(--success-soft)");
+          const icoColor = isEdc ? "#ea580c" : (isQrisBarcode ? "#0284c7" : "var(--success)");
+          const icoName = isEdc ? "fa-credit-card" : (isQrisBarcode ? "fa-qrcode" : "fa-money-bill-transfer");
+          const chipCls = isEdc ? "warn" : "ok";
+          const dateBadge = mode === "month" && e.dateKey ? `${formatIndoDateShort(e.dateKey)} &bull; ` : "";
+          return `<div class="item" onclick="openTransferEntryDetail('${esc(e.uid)}')" style="cursor:pointer;align-items:center;padding:12px 14px">
+            <div class="ico" style="width:40px;height:40px;flex:0 0 40px;border-radius:12px;background:${icoBg};color:${icoColor}"><i class="fas ${icoName}"></i></div>
+            <div class="grow" style="min-width:0">
+              <div class="name" style="font-size:13.5px">${esc(e.cashierName)}</div>
+              <div class="meta" style="font-size:11px;margin-top:2px">${dateBadge}${esc(transferTimeWibLabel(e.timeMs))} WIB &bull; ${esc(e.note)}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;align-items:center">
+                <span class="chip ${chipCls}" style="padding:2px 7px;font-size:9.5px;text-transform:none;letter-spacing:0">${esc(e.channelLabel)}</span>
+                ${e.orderId ? `<span class="chip" style="padding:2px 7px;font-size:9px;font-family:monospace;text-transform:none;letter-spacing:0">${esc(e.orderId)}</span>` : ""}
+              </div>
+            </div>
+            <div class="right" style="text-align:right;flex-shrink:0">
+              <div class="amt num" style="font-size:14px;color:var(--primary)">${rp(e.amount)}</div>
+              <div class="meta" style="font-size:10px;color:var(--success);font-weight:800;margin-top:3px"><i class="fas fa-circle-check"></i> ${esc(e.status)}</div>
+            </div>
+          </div>`;
+        }).join("")}</div>`
+      : `<div class="empty">Belum ada pembayaran QRIS Barcode atau EDC pada periode ini.</div>`);
+
+  return `
+    <div class="wrap">
+      <div class="top">
+        <div class="brand" style="display:flex;align-items:center;gap:10px">
+          <button class="btn icon" onclick="go('home')" title="Kembali" style="border-radius:12px"><i class="fas fa-arrow-left"></i></button>
+          <div>
+            <h1>Transfer</h1>
+            <div class="sub">Data pembayaran QRIS Barcode & EDC berhasil</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn icon" onclick="loadTransferData(true)" title="Muat ulang data Transfer"><i class="fas fa-rotate ${state.transferLoading ? "fa-spin" : ""}"></i></button>
+        </div>
+      </div>
+
+      <div class="trx-mode-toggle mb">
+        <button class="trx-mode-btn ${mode === "date" ? "active" : ""}" onclick="setTransferViewMode('date')"><i class="fas fa-calendar-day"></i> Per Tanggal</button>
+        <button class="trx-mode-btn ${mode === "month" ? "active" : ""}" onclick="setTransferViewMode('month')"><i class="fas fa-calendar-alt"></i> Per Bulan</button>
+      </div>
+
+      ${navHtml}
+
+      ${state.transferError ? `<div class="card pad mb" style="border-color:rgba(239,68,68,.3);color:var(--danger)"><b>Error:</b> ${esc(state.transferError)}</div>` : ""}
+
+      <div class="card pad mb">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="tiny">Total Masuk Non-Cash</div>
+            <div class="amt num" style="font-size:22px;color:var(--primary);margin-top:3px">${rp(totalAll)}</div>
+          </div>
+          <span class="chip ok">${entries.length} transaksi</span>
+        </div>
+        <div class="sep"></div>
+        <div class="${otherRows.length ? "grid3" : "grid2"}" style="gap:8px">
+          <div>
+            <div class="tiny">QRIS Barcode</div>
+            <div class="amt num" style="font-size:13.5px;color:#0284c7">${rp(totalQrisBarcode)}</div>
+            <div class="meta">${qrisBarcodeRows.length} trx</div>
+          </div>
+          <div>
+            <div class="tiny">EDC / Transfer</div>
+            <div class="amt num" style="font-size:13.5px;color:#ea580c">${rp(totalEdc)}</div>
+            <div class="meta">${edcRows.length} trx</div>
+          </div>
+          ${otherRows.length ? `<div>
+            <div class="tiny">QRIS Kasir</div>
+            <div class="amt num" style="font-size:13.5px;color:var(--success)">${rp(totalOther)}</div>
+            <div class="meta">${otherRows.length} trx</div>
+          </div>` : ""}
+        </div>
+      </div>
+
+      <div class="online-filter-row" style="margin-bottom:10px">${filterChips}</div>
+
+      <div class="mb" style="position:relative">
+        <i class="fas fa-search" style="position:absolute;left:14px;top:14px;color:var(--muted)"></i>
+        <input id="transferSearchInput" type="text" class="input" style="margin:0;padding-left:38px !important" placeholder="Cari kasir, Order ID QRIS, nominal..." value="${esc(state.transferSearch || "")}" oninput="setTransferSearch(this.value)">
+      </div>
+
+      ${listHtml}
+    </div>
+  `;
+}
+window.renderTransferPage = renderTransferPage;
+
