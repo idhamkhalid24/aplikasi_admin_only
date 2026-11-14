@@ -122,7 +122,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
         fetch(ROCKY_NOTIFY_SETTINGS_URL,{
           method:'POST',
           headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
-          body:JSON.stringify({action:'set',mode,updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+          body:JSON.stringify({action:'set',mode,adminEnabled:mode==='admin'||mode==='both',serverEnabled:mode==='server'||mode==='both',bootRockyEnabled:mode!=='off',updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
           signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
         }).catch(()=>{});
       }
