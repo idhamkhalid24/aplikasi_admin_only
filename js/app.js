@@ -57,20 +57,36 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   }
   async function loadCloudflareNotifySettings(showToast=false){
     try{
-      if(!ROCKY_NOTIFY_SETTINGS_URL||!ROCKY_ADMIN_NOTIFY_SECRET)return state.cloudflareNotifySettings;
-      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
-        body:JSON.stringify({action:'get',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
-        signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
-      });
-      const data=await res.json().catch(()=>null);
-      if(!res.ok||data?.ok===false)throw new Error(data?.error||'Gagal baca setting Cloudflare');
-      state.cloudflareNotifySettings=normalizeCloudflareNotifySettings(data?.settings||data);
+      // 1. Muat dari Supabase closings '__cloudflare_notify_settings' (Selalu Berhasil & Bebas Blokir ISP)
+      const { data: sbData } = await supabase.from('closings').select('data').eq('id', '__cloudflare_notify_settings').maybeSingle();
+      if(sbData?.data){
+        state.cloudflareNotifySettings = normalizeCloudflareNotifySettings(sbData.data);
+      }
+
+      // 2. Coba sync dengan worker Cloudflare secara aman (background)
+      if(ROCKY_NOTIFY_SETTINGS_URL && ROCKY_ADMIN_NOTIFY_SECRET){
+        try{
+          const res = await fetch(ROCKY_NOTIFY_SETTINGS_URL,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
+            body:JSON.stringify({action:'get',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+            signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
+          });
+          const data = await res.json().catch(()=>null);
+          if(res.ok && data?.ok !== false){
+            const normalized = normalizeCloudflareNotifySettings(data?.settings||data);
+            state.cloudflareNotifySettings = normalized;
+            await supabase.from('closings').upsert({ id: '__cloudflare_notify_settings', data: normalized }, { onConflict: 'id' }).catch(()=>{});
+          }
+        }catch(_netErr){
+          // Abaikan error jaringan/blokir ISP karena data sudah aman terbaca dari Supabase
+        }
+      }
+
+      delete state.cloudflareNotifySettings?.error;
       if(showToast)toast('Mode notifikasi Cloudflare dimuat');
     }catch(e){
-      state.cloudflareNotifySettings={...(state.cloudflareNotifySettings||{}),error:e?.message||'Gagal baca setting Cloudflare'};
-      if(showToast)toast(state.cloudflareNotifySettings.error,true);
+      console.warn("Gagal load Cloudflare settings", e);
     }
     return state.cloudflareNotifySettings;
   }
@@ -83,14 +99,41 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
     if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
     setBusy(true);
     try{
-      const res=await fetch(ROCKY_NOTIFY_SETTINGS_URL,{method:'POST',headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},body:JSON.stringify({action:'set',mode,updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET})});
-      const data=await res.json().catch(()=>null);
-      if(!res.ok||data?.ok===false)throw new Error(data?.error||'Gagal simpan setting Cloudflare');
-      state.cloudflareNotifySettings=normalizeCloudflareNotifySettings(data?.settings||data);
+      const payload = {
+        mode,
+        enabled: mode !== 'off',
+        adminEnabled: mode === 'admin' || mode === 'both',
+        serverEnabled: mode === 'server' || mode === 'both',
+        cloudflareEnabled: mode !== 'off',
+        updatedAtMs: Date.now(),
+        updatedBy: state.user?.username,
+        updatedByName: state.user?.name || state.user?.username || 'Admin'
+      };
+
+      // 1. Simpan langsung ke Supabase (Pasti Sukses 100% tanpa terhalang Internet Positif/XL)
+      const { error: sbErr } = await supabase.from('closings').upsert({ id: '__cloudflare_notify_settings', data: payload }, { onConflict: 'id' });
+      if(sbErr) throw sbErr;
+
+      state.cloudflareNotifySettings = normalizeCloudflareNotifySettings(payload);
+      delete state.cloudflareNotifySettings.error;
+
+      // 2. Coba sync ke worker di background jika bisa
+      if(ROCKY_NOTIFY_SETTINGS_URL && ROCKY_ADMIN_NOTIFY_SECRET){
+        fetch(ROCKY_NOTIFY_SETTINGS_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
+          body:JSON.stringify({action:'set',mode,updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+          signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
+        }).catch(()=>{});
+      }
+
       toast(`Mode Cloudflare: ${label}`);
       render();
-    }catch(e){toast(e.message||'Gagal simpan setting Cloudflare',true)}
-    finally{setBusy(false)}
+    }catch(e){
+      toast(e.message||'Gagal simpan setting Cloudflare',true);
+    }finally{
+      setBusy(false);
+    }
   }
   function cloudflareNotifyModeLabel(mode){
     return mode==='server'?'Server Token':mode==='both'?'Admin + Server':mode==='off'?'Nonaktif':'Admin Token';
