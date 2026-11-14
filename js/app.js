@@ -250,6 +250,58 @@ function normalizeWaNotifySettings(data) {
   
   window.loadWaNotifySettings = loadWaNotifySettings;
 
+  function normalizeBootRockyNotifySettings(data) {
+    return { enabled: data?.enabled ?? true, updatedAtMs: data?.updatedAtMs, updatedByName: data?.updatedByName };
+  }
+
+  async function loadBootRockyNotifySettings() {
+    try {
+      const { data, error } = await supabase.from('closings').select('data').eq('id', '__boot_rocky_notify_settings').maybeSingle();
+      if(error) throw error;
+      state.bootRockyNotifySettings = data?.data ? normalizeBootRockyNotifySettings(data.data) : normalizeBootRockyNotifySettings({});
+    } catch(e) {
+      console.warn("Gagal load Boot Rocky Notify Settings", e);
+    }
+  }
+
+  window.saveBootRockyNotifyMode = async function(enabled) {
+    const label = enabled ? 'Aktif' : 'Nonaktif';
+    const pin = await askPin(`Ubah notifikasi Boot Rocky Hijab ke ${label}?\nMasukkan PIN admin:`);
+    if(!pin) return;
+    if(String(pin) !== String(state.user?.pin || '')) return toast('PIN salah', true);
+    setBusy(true);
+    try {
+      const payload = {
+        enabled: enabled,
+        updatedAtMs: Date.now(),
+        updatedBy: state.user?.username,
+        updatedByName: state.user?.name || state.user?.username || 'Admin'
+      };
+      
+      const { error } = await supabase.from('closings').upsert({ id: '__boot_rocky_notify_settings', data: payload }, { onConflict: 'id' });
+      if(error) throw error;
+      
+      state.bootRockyNotifySettings = normalizeBootRockyNotifySettings(payload);
+      toast(`Notifikasi Boot Rocky Hijab: ${label}`);
+      render();
+    } catch(e) {
+      toast('Gagal simpan setting Boot Rocky Hijab', true);
+    }
+    setBusy(false);
+  }
+
+  window.renderBootRockyNotifyControl = function() {
+    const s = normalizeBootRockyNotifySettings(state.bootRockyNotifySettings);
+    const updated = s.updatedAtMs ? formatConfigTime(s.updatedAtMs) : 'Belum pernah diupdate';
+    const isActive = s.enabled;
+    const btnClassOn = isActive ? 'primary' : '';
+    const btnClassOff = !isActive ? 'red' : '';
+    
+    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny" style="color:var(--primary)"><i class="fas fa-robot"></i> Boot Rocky Hijab (APK)</div><div class="title" style="margin-top:4px">Status: <span style="color:var(--${isActive?'success':'danger'})">${isActive ? 'Aktif' : 'Nonaktif'}</span></div><div class="meta">Pilih apakah aplikasi kasir akan mengirim push notifikasi transaksi real-time ke aplikasi HP <b>Boot Rocky Hijab</b> milik Bos.</div></div><span class="chip ${isActive ? 'ok' : 'bad'}">${isActive ? 'ON' : 'OFF'}</span></div><div class="sep"></div><div class="grid2 mb"><button class="btn ${btnClassOn} full" onclick="saveBootRockyNotifyMode(true)"><i class="fas fa-check"></i> Aktif</button><button class="btn ${btnClassOff} full" onclick="saveBootRockyNotifyMode(false)"><i class="fas fa-xmark"></i> Nonaktif</button></div><button class="btn full" onclick="loadBootRockyNotifySettings().then(render)"><i class="fas fa-rotate"></i> Refresh Status</button><div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName ? ` - ${esc(s.updatedByName)}` : ''}</div></div>`;
+  }
+  
+  window.loadBootRockyNotifySettings = loadBootRockyNotifySettings;
+
   // === SUPABASE CONFIG - SELARAS SERVER PUSAT ===
   // Browser hanya boleh pakai anon public key, jangan service_role / sb_secret.
   const SUPABASE_URL = 'https://ismjupxoiywttkrekmfg.supabase.co';
@@ -635,6 +687,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         fetchCashFisik().catch(()=>null),
         loadWaNotifySettings().catch(()=>null),
         loadTelegramNotifySettings().catch(()=>null),
+        loadBootRockyNotifySettings().catch(()=>null),
         fetchReserveToday()
       ]);
 
@@ -863,7 +916,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   async function closeRismaManualTargetsNow(){const selectedUsers=rismaSelectedTargetsFromDom();if(!selectedUsers.length)return toast("Pilih minimal 1 target dulu",true);let data=rismaTargetData(selectedUsers);if(!data.open.length)return toast("Semua target terpilih sudah closing hari ini",true);const today=dateKey(),deadlineSnapshot=getClosingDeadlineSnapshot(),delay=closingDelayMinutes(now(),deadlineSnapshot),currentClosingTime=currentWibTimeLabel();let totalBonus=0,validCount=0;for(const u of data.open){const built=buildClosingBonusByUser(delay,cleanUser(u.username));if(built.targetUsers.length){validCount+=1;totalBonus+=Number(built.totalBonus||0)}}if(!validCount)return toast("Tidak ada target valid untuk diclosing",true);const pin=await askPin(`Closing sekaligus sesuai arahan Risma?\nDeadline: ${deadlineSnapshot.deadline}\nTarget dipilih: ${data.selected.length} user\nAkan diclosing sekarang: ${validCount} user\nSudah closing/dilewati: ${data.closed.length} user\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user?.pin||""))return toast("PIN salah",true);if(!confirm(`Yakin closing SEKALIGUS ${validCount} target terpilih?\nJam closing: ${currentClosingTime} WIB\nDeadline: ${deadlineSnapshot.deadline}\nLewat deadline: ${delay} menit\nTotal bonus closing: ${rp(totalBonus)}\n\nUser yang sudah closing tidak akan dibuat ulang.`))return;setBusy(true);try{await persistRismaManualClosingConfig(selectedUsers);let success=0,skipped=0,finalBonus=0;for(const u of data.open){const username=cleanUser(u.username);if(todayClosingStatusForUser(username).closed){skipped++;continue}const built=buildClosingBonusByUser(delay,username);if(!built.targetUsers.length){skipped++;continue}const payload=buildRismaClosingPayload(u,today,currentClosingTime,delay,built,deadlineSnapshot);await setDoc(doc(db,"closings",payload.id),payload,{merge:true});localUpsert("closing",payload);success++;finalBonus+=Number(built.totalBonus||0)}finishLocalWrite();if(success)toast(`Closing ${success} target berhasil - ${rp(finalBonus)}${skipped?` - ${skipped} dilewati`:""}`);else toast("Tidak ada target baru yang diclosing",true)}catch(e){toast(e.message||"Gagal closing target Risma",true)}finally{setBusy(false)}}
   window.closeRismaManualTargetsNow=closeRismaManualTargetsNow;
 
-  function renderControlPage(){return`<div class="wrap">${header("Catatan Staff","Catatan Home Staff & Harian")}<div class="control-stack">${renderCloudflareNotifyControl()}${renderTelegramNotifyControl()}${renderWaNotifyControl()}${renderStaffDailyHomeNoteControl()}</div></div>`}
+  function renderControlPage(){return`<div class="wrap">${header("Catatan Staff","Catatan Home Staff & Harian")}<div class="control-stack">${renderCloudflareNotifyControl()}${renderTelegramNotifyControl()}${renderBootRockyNotifyControl()}${renderWaNotifyControl()}${renderStaffDailyHomeNoteControl()}</div></div>`}
   function renderRismaManualClosingShortcut(){const allowed=rismaAllowedUsers();const users=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin"&&(isDaily(u)||hasAttendanceToday(u.username)));const closedCount=users.filter(u=>allowed.includes(cleanUser(u.username))&&todayClosingStatusForUser(u.username).closed).length;const updated=formatConfigTime(state.rismaManualClosing?.updatedAtMs);return`<div class="card pad mb risma-shortcut-card" onclick="go('rismaClosing')" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-route"></i> Arahan Closing</div><div class="title" style="margin-top:4px">Arahan Closing untuk Risma</div><div class="meta">Klik buka untuk masuk ke halaman khusus tujuan closing manual Risma.</div></div><span class="chip warn"><i class="fas fa-chevron-right"></i> Buka</span></div><div class="sep"></div><div class="grid2"><div><div class="tiny">Target dipilih</div><div class="amt num">${allowed.length} user</div></div><div><div class="tiny">Sudah closing</div><div class="amt num" style="color:${closedCount?"var(--success)":"var(--text-soft)"}">${closedCount} user</div></div></div><div class="meta" style="margin-top:10px">Update terakhir: ${esc(updated)}</div></div>`}
   renderRismaManualClosingShortcut=function(){const allowed=rismaAllowedUsers();const users=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin"&&(isClosingAllowedWithoutAttendance(u)||hasAttendanceToday(u.username)));const closedCount=users.filter(u=>allowed.includes(cleanUser(u.username))&&todayClosingStatusForUser(u.username).closed).length;const updated=formatConfigTime(state.rismaManualClosing?.updatedAtMs);return`<div class="card pad mb risma-shortcut-card" onclick="go('rismaClosing')" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-route"></i> Arahan Closing</div><div class="title" style="margin-top:4px">Arahan Closing untuk Risma</div><div class="meta">Klik buka untuk masuk ke halaman khusus tujuan closing manual Risma.</div></div><span class="chip warn"><i class="fas fa-chevron-right"></i> Buka</span></div><div class="sep"></div><div class="grid2"><div><div class="tiny">Target dipilih</div><div class="amt num">${allowed.length} user</div></div><div><div class="tiny">Sudah closing</div><div class="amt num" style="color:${closedCount?"var(--success)":"var(--text-soft)"}">${closedCount} user</div></div></div><div class="meta" style="margin-top:10px">Update terakhir: ${esc(updated)}</div></div>`};
   function renderRismaManualClosingPage(){return`<div class="wrap">${header("Arahan Closing Risma","Halaman khusus tujuan closing manual")}<div class="control-stack">${renderRismaManualClosingControl()}</div></div>`}
