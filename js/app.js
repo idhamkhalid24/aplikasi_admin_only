@@ -51,10 +51,31 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
     try { if (status === 'approved') { const WA_KARYAWAN = { 'azy': '6281514696906', 'risma': '6285694890480', 'once': '6283105588348', 'reva': '6283872186904', 'karyawan5': '6285555555555', 'karyawan6': '6286666666666', 'karyawan7': '6287777777777', 'karyawan8': '6288888888888', 'karyawan9': '6289999999999', 'karyawan10': '6281010101010', 'karyawan11': '6281212121212', 'karyawan12': '6281313131313', 'karyawan13': '6281414141414', 'karyawan14': '6281515151515', 'karyawan15': '6281616161616', 'karyawan16': '6281717171717', 'karyawan17': '6281818181818', 'karyawan18': '6281919191919', 'karyawan19': '6282020202020', 'karyawan20': '6282121212121' }; const waNumber = WA_KARYAWAN[username.toLowerCase()]; if (waNumber) { const wabaToken = 'EAAPfZACwhRpIBSjwCE4fsRmzY2NI1y4NkZC3Y8aLpAZA4nO18Sm1IrnCF8alQU7m37iaaELYM0YpXyFqqDZADm9SCNa8LDZCEIcuRsm2AvAlVWdMAu0ZA3qc38f2fCNLQ54EZBX9pMb2XGjqT1dB4L1PtzVcads86AUzJnuOBmZBZCzA7dYOVysTwKVuDWZC2R4BuxjwZDZD'; const phoneId = '1380820008441355'; fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, { method: 'POST', headers: { 'Authorization': `Bearer ${wabaToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ messaging_product: 'whatsapp', to: waNumber, type: 'text', text: { body: `? *FITUR DIBUKA BOS!*\n\nPermintaan buka fitur lo udah di-ACC.\nSilakan ulangi absen (Kirim Lokasi) sekarang!` } }) }).catch(() => {}); } } } catch(e) {} return notifyRockyStaff(ROCKY_STAFF_NOTIFY_UNLOCK_REVIEW_URL,{targetUsername:username,username,user:username,name:row.name||userName(username)||username,status:String(status||row.status||''),unlockId:String(row.id||row.docId||''),lockId:String(row.lockId||row.parentLockId||''),missedDate:String(row.missedDate||''),targetDate:String(row.targetDate||row.dateKey||''),dateKey:String(row.dateKey||''),reason:String(row.reason||row.note||''),updatedByName:state.user?.name||state.user?.username||''},'Notif review buka fitur staff');
   }
   function normalizeCloudflareNotifySettings(data={}){
-    const raw=data?.settings||data||{},modeRaw=String(raw.mode||'admin').toLowerCase();
-    const mode=['admin','server','both','off'].includes(modeRaw)?modeRaw:'admin';
-    return{mode,adminEnabled:mode==='admin'||mode==='both',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
+    const raw=data?.settings||data||{},modeRaw=String(raw.mode||'both').toLowerCase();
+    const bootRockyEnabled = raw.bootRockyEnabled !== undefined
+      ? Boolean(raw.bootRockyEnabled)
+      : (modeRaw === 'boot' || modeRaw === 'both' || modeRaw === 'all' || modeRaw === 'admin');
+    const adminEnabled = raw.adminEnabled !== undefined
+      ? Boolean(raw.adminEnabled)
+      : (modeRaw === 'admin' || modeRaw === 'both' || modeRaw === 'all');
+    const serverEnabled = raw.serverEnabled !== undefined
+      ? Boolean(raw.serverEnabled)
+      : (modeRaw === 'server' || modeRaw === 'both' || modeRaw === 'all');
+    const cloudflareEnabled = modeRaw !== 'off' && (bootRockyEnabled || adminEnabled || serverEnabled);
+
+    return {
+      mode: modeRaw,
+      bootRockyEnabled,
+      adminEnabled,
+      serverEnabled,
+      cloudflareEnabled,
+      staffEnabled: raw.staffEnabled !== false,
+      updatedAtMs: Number(raw.updatedAtMs || 0),
+      updatedByName: String(raw.updatedByName || ''),
+      storageBinding: String(raw.storageBinding || '')
+    };
   }
+
   async function loadCloudflareNotifySettings(showToast=false){
     try{
       // 1. Muat dari Supabase closings '__cloudflare_notify_settings' (Selalu Berhasil & Bebas Blokir ISP)
@@ -84,67 +105,190 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
       }
 
       delete state.cloudflareNotifySettings?.error;
-      if(showToast)toast('Mode notifikasi Cloudflare dimuat');
+      if(showToast)toast('Mode notifikasi kasir dimuat');
     }catch(e){
       console.warn("Gagal load Cloudflare settings", e);
     }
     return state.cloudflareNotifySettings;
   }
-  async function saveCloudflareNotifyMode(mode){
-    mode=String(mode||'admin').toLowerCase();
-    if(!['admin','server','both','off'].includes(mode))return toast('Mode notifikasi tidak valid',true);
-    const label=cloudflareNotifyModeLabel(mode);
-    const pin=await askPin(`Ubah mode notifikasi Cloudflare ke ${label}?\nMasukkan PIN admin:`);
-    if(!pin)return;
-    if(String(pin)!==String(state.user?.pin||''))return toast('PIN salah',true);
+
+  async function updateCloudflareSettingsPayload(newVals = {}, label = '') {
+    const pin = await askPin(`Konfirmasi ubah pengaturan notifikasi kasir (${label})?\nMasukkan PIN admin:`);
+    if(!pin) return;
+    if(String(pin) !== String(state.user?.pin || '')) return toast('PIN salah', true);
+
     setBusy(true);
-    try{
+    try {
+      const current = normalizeCloudflareNotifySettings(state.cloudflareNotifySettings);
+      const merged = { ...current, ...newVals };
+
+      let calculatedMode = 'custom';
+      if (!merged.bootRockyEnabled && !merged.adminEnabled && !merged.serverEnabled) {
+        calculatedMode = 'off';
+      } else if (merged.bootRockyEnabled && !merged.adminEnabled && !merged.serverEnabled) {
+        calculatedMode = 'boot';
+      } else if (!merged.bootRockyEnabled && merged.adminEnabled && !merged.serverEnabled) {
+        calculatedMode = 'admin';
+      } else if (!merged.bootRockyEnabled && !merged.adminEnabled && merged.serverEnabled) {
+        calculatedMode = 'server';
+      } else if (merged.bootRockyEnabled && merged.adminEnabled && merged.serverEnabled) {
+        calculatedMode = 'all';
+      }
+
       const payload = {
-        mode,
-        enabled: mode !== 'off',
-        adminEnabled: mode === 'admin' || mode === 'both',
-        serverEnabled: mode === 'server' || mode === 'both',
-        cloudflareEnabled: mode !== 'off',
+        mode: calculatedMode,
+        bootRockyEnabled: Boolean(merged.bootRockyEnabled),
+        adminEnabled: Boolean(merged.adminEnabled),
+        serverEnabled: Boolean(merged.serverEnabled),
+        cloudflareEnabled: Boolean(merged.bootRockyEnabled || merged.adminEnabled || merged.serverEnabled),
+        enabled: Boolean(merged.bootRockyEnabled || merged.adminEnabled || merged.serverEnabled),
         updatedAtMs: Date.now(),
-        updatedBy: state.user?.username,
+        updatedBy: state.user?.username || 'admin',
         updatedByName: state.user?.name || state.user?.username || 'Admin'
       };
 
-      // 1. Simpan langsung ke Supabase (Pasti Sukses 100% tanpa terhalang Internet Positif/XL)
       const { error: sbErr } = await supabase.from('closings').upsert({ id: '__cloudflare_notify_settings', data: payload }, { onConflict: 'id' });
       if(sbErr) throw sbErr;
 
       state.cloudflareNotifySettings = normalizeCloudflareNotifySettings(payload);
-      delete state.cloudflareNotifySettings.error;
 
-      // 2. Coba sync ke worker di background jika bisa
       if(ROCKY_NOTIFY_SETTINGS_URL && ROCKY_ADMIN_NOTIFY_SECRET){
-        fetch(ROCKY_NOTIFY_SETTINGS_URL,{
-          method:'POST',
-          headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
-          body:JSON.stringify({action:'set',mode,updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+        fetch(ROCKY_NOTIFY_SETTINGS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Notify-Secret': ROCKY_ADMIN_NOTIFY_SECRET },
+          body: JSON.stringify({
+            action: 'set',
+            ...payload,
+            secret: ROCKY_ADMIN_NOTIFY_SECRET
+          }),
           signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
         }).catch(()=>{});
       }
 
-      toast(`Mode Cloudflare: ${label}`);
+      toast(`Berhasil disimpan: ${label}`);
       render();
-    }catch(e){
-      toast(e.message||'Gagal simpan setting Cloudflare',true);
-    }finally{
+    } catch(e) {
+      toast(e.message || 'Gagal simpan setting notifikasi', true);
+    } finally {
       setBusy(false);
     }
   }
-  function cloudflareNotifyModeLabel(mode){
-    return mode==='server'?'Server Token':mode==='both'?'Admin + Server':mode==='off'?'Nonaktif':'Admin Token';
+
+  async function toggleCloudflareTarget(target) {
+    const s = normalizeCloudflareNotifySettings(state.cloudflareNotifySettings);
+    if (target === 'boot') {
+      const next = !s.bootRockyEnabled;
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: next }, `Boot Rocky Hijab ${next ? 'Aktif' : 'Nonaktif'}`);
+    }
+    if (target === 'admin') {
+      const next = !s.adminEnabled;
+      return updateCloudflareSettingsPayload({ adminEnabled: next }, `Admin Only ${next ? 'Aktif' : 'Nonaktif'}`);
+    }
+    if (target === 'server') {
+      const next = !s.serverEnabled;
+      return updateCloudflareSettingsPayload({ serverEnabled: next }, `Server Token ${next ? 'Aktif' : 'Nonaktif'}`);
+    }
   }
+
+  async function saveCloudflareNotifyMode(mode) {
+    mode = String(mode || 'boot').toLowerCase();
+    if (mode === 'boot') {
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: true, adminEnabled: false, serverEnabled: false }, 'Hanya Boot Rocky Hijab');
+    }
+    if (mode === 'admin') {
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: false, adminEnabled: true, serverEnabled: false }, 'Hanya Admin Only');
+    }
+    if (mode === 'server') {
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: false, adminEnabled: false, serverEnabled: true }, 'Hanya Server Token');
+    }
+    if (mode === 'all' || mode === 'both') {
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: true, adminEnabled: true, serverEnabled: true }, 'Semua Aktif');
+    }
+    if (mode === 'off') {
+      return updateCloudflareSettingsPayload({ bootRockyEnabled: false, adminEnabled: false, serverEnabled: false }, 'Nonaktifkan Semua');
+    }
+  }
+
+  function cloudflareNotifyModeLabel(mode){
+    if (mode === 'boot') return 'Hanya Boot Rocky Hijab';
+    if (mode === 'admin') return 'Hanya Admin Only';
+    if (mode === 'server') return 'Hanya Server Token';
+    if (mode === 'all' || mode === 'both') return 'Semua Target Aktif';
+    if (mode === 'off') return 'Semua Nonaktif';
+    return 'Kustom / Bebas';
+  }
+
   function renderCloudflareNotifyControl(){
-    const s=normalizeCloudflareNotifySettings(state.cloudflareNotifySettings),updated=s.updatedAtMs?formatConfigTime(s.updatedAtMs):'Belum pernah diupdate',err=state.cloudflareNotifySettings?.error||'',modes=[['admin','Admin Token','fa-user-shield'],['server','Server Token','fa-server'],['both','Keduanya','fa-layer-group'],['off','Nonaktif','fa-bell-slash']];
-    const buttons=modes.map(([mode,label,icon])=>{const active=s.mode===mode,cls=active?(mode==='off'?'red':'primary'):'';return`<button class="btn ${cls} full" onclick="saveCloudflareNotifyMode('${mode}')"><i class="fas ${icon}"></i> ${label}</button>`}).join('');
-    return`<div class="card pad"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-cloud"></i> Cloudflare Notif</div><div class="title" style="margin-top:4px">Mode ${cloudflareNotifyModeLabel(s.mode)}</div><div class="meta">Pilih jalur token untuk notifikasi admin/server. Mode Nonaktif membuat worker melewati pengiriman Cloudflare.</div></div><span class="chip ${s.cloudflareEnabled?'ok':'bad'}">${s.cloudflareEnabled?'Aktif':'Off'}</span></div><div class="sep"></div><div class="grid2 mb">${buttons}</div><button class="btn full" onclick="loadCloudflareNotifySettings(true).then(render)"><i class="fas fa-rotate"></i> Refresh Status</button><div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName?` - ${esc(s.updatedByName)}`:''}${s.storageBinding?` - KV ${esc(s.storageBinding)}`:''}</div>${err?`<div class="meta" style="margin-top:8px;color:var(--danger)">${esc(err)}</div>`:''}</div>`;
+    const s = normalizeCloudflareNotifySettings(state.cloudflareNotifySettings);
+    const updated = s.updatedAtMs ? formatConfigTime(s.updatedAtMs) : 'Belum pernah diupdate';
+    const err = state.cloudflareNotifySettings?.error || '';
+
+    const targets = [
+      {
+        id: 'boot',
+        title: 'Boot Rocky Hijab',
+        desc: 'Aplikasi baru di HP Bos (Google Voice TTS)',
+        icon: 'fa-robot',
+        active: s.bootRockyEnabled
+      },
+      {
+        id: 'admin',
+        title: 'Aplikasi Admin Only',
+        desc: 'Aplikasi Admin Only Bos (Jalur Admin Lama)',
+        icon: 'fa-user-shield',
+        active: s.adminEnabled
+      },
+      {
+        id: 'server',
+        title: 'Server Token',
+        desc: 'Jalur Token Server / Backend',
+        icon: 'fa-server',
+        active: s.serverEnabled
+      }
+    ];
+
+    const targetCards = targets.map(t => {
+      const btnCls = t.active ? 'primary' : '';
+      return `<div style="background:#f8fafc;border:1.5px solid ${t.active ? 'var(--primary)' : '#cbd5e1'};border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;color:#0f172a"><i class="fas ${t.icon}" style="color:${t.active ? 'var(--primary)' : '#64748b'};margin-right:8px"></i> ${t.title}</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:3px">${t.desc}</div>
+        </div>
+        <button class="btn ${btnCls}" onclick="toggleCloudflareTarget('${t.id}')" style="padding:8px 14px;font-size:12px;min-width:90px;font-weight:700">
+          ${t.active ? '<i class="fas fa-check"></i> Aktif' : '<i class="fas fa-power-off"></i> Off'}
+        </button>
+      </div>`;
+    }).join('');
+
+    return `<div class="card pad">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="grow">
+          <div class="tiny"><i class="fas fa-cloud"></i> PENGATURAN NOTIFIKASI KASIR</div>
+          <div class="title" style="margin-top:4px">${cloudflareNotifyModeLabel(s.mode)}</div>
+          <div class="meta">Pilih aplikasi mana saja yang aktif menerima notifikasi transaksi kasir. Bebas pilih salah satu atau kombinasi.</div>
+        </div>
+        <span class="chip ${s.cloudflareEnabled?'ok':'bad'}">${s.cloudflareEnabled?'Aktif':'Semua Off'}</span>
+      </div>
+      <div class="sep"></div>
+      <div style="margin-bottom:12px">
+        ${targetCards}
+      </div>
+      <div class="tiny" style="font-weight:700;margin-bottom:6px;color:#475569">PRESET CEPAT:</div>
+      <div class="grid2 mb" style="gap:6px">
+        <button class="btn ${s.bootRockyEnabled && !s.adminEnabled && !s.serverEnabled ? 'primary' : ''} full" onclick="saveCloudflareNotifyMode('boot')"><i class="fas fa-robot"></i> Hanya Boot Rocky</button>
+        <button class="btn ${s.adminEnabled && !s.bootRockyEnabled && !s.serverEnabled ? 'primary' : ''} full" onclick="saveCloudflareNotifyMode('admin')"><i class="fas fa-user-shield"></i> Hanya Admin Only</button>
+        <button class="btn ${s.serverEnabled && !s.bootRockyEnabled && !s.adminEnabled ? 'primary' : ''} full" onclick="saveCloudflareNotifyMode('server')"><i class="fas fa-server"></i> Hanya Server</button>
+        <button class="btn ${s.adminEnabled && s.bootRockyEnabled && s.serverEnabled ? 'primary' : ''} full" onclick="saveCloudflareNotifyMode('all')"><i class="fas fa-layer-group"></i> Semua Aktif</button>
+      </div>
+      <button class="btn red full mb" onclick="saveCloudflareNotifyMode('off')"><i class="fas fa-bell-slash"></i> Nonaktifkan Semua Notifikasi</button>
+      <button class="btn full" onclick="loadCloudflareNotifySettings(true).then(render)"><i class="fas fa-rotate"></i> Refresh Status</button>
+      <div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName?` - ${esc(s.updatedByName)}`:''}${s.storageBinding?` - KV ${esc(s.storageBinding)}`:''}</div>
+      ${err?`<div class="meta" style="margin-top:8px;color:var(--danger)">${esc(err)}</div>`:''}
+    </div>`;
   }
   window.loadCloudflareNotifySettings=loadCloudflareNotifySettings;
   window.saveCloudflareNotifyMode=saveCloudflareNotifyMode;
+  window.toggleCloudflareTarget=toggleCloudflareTarget;
 
     function normalizeTelegramNotifySettings(data) {
     return { enabled: data?.enabled ?? true, updatedAtMs: data?.updatedAtMs, updatedByName: data?.updatedByName };
