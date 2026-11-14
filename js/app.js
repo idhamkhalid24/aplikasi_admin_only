@@ -634,7 +634,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
           return { data: [] };
         }
       };
-      const [txSnap, attSnap, closingSnap, manualSnap, userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap, staffNoteSnap, rismaManualSnap, receiptSnap, _cash, _wa, reserveRes] = await Promise.all([
+      const [txSnap, attSnap, closingSnap, manualSnap, userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap, staffNoteSnap, rismaManualSnap, receiptSnap, _cash, _wa, _tele, reserveRes] = await Promise.all([
         getDocs(txQ), getDocs(attQ), getDocs(closingQ), getDocs(manualQ),
         getDocs(usersQ), getDocs(unlockQ), getDocs(drawerWithdrawalsQ).catch(()=>({docs:[]})),
         getDocFromServer(doc(db,'closings','__bonus_settings')).catch(()=>null),
@@ -669,6 +669,9 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         state.adminChangeReserve = reserveRes.data[0];
       } else if (reserveRes?.data) {
         state.adminChangeReserve = null;
+      }
+      if (dk === dateKey()) {
+        state.reserveForDrawerDate = state.adminChangeReserve;
       }
       if(bonusSnap?.exists()){
         const b=bonusSnap.data()||{};
@@ -707,6 +710,9 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       }
       if(pageBefore==="trx"){
         await refreshAll(true);
+        if (typeof setDrawerDate === 'function' && state.drawerDate) {
+          await setDrawerDate(state.drawerDate);
+        }
       }
       if(pageBefore==="rekapTrx"){
         if(typeof loadTrxForMonth === 'function' && state.trxViewMode === 'month'){
@@ -2324,7 +2330,12 @@ function startTransactionsRealtime(){
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'staff_change_reserve'}, payload=>{
          clearTimeout(txRealtimeDebounceTimer);
-         txRealtimeDebounceTimer = setTimeout(()=>{ refreshAll(true, true); }, 1500);
+         txRealtimeDebounceTimer = setTimeout(()=>{
+           if (typeof setDrawerDate === 'function' && state.drawerDate) {
+             setDrawerDate(state.drawerDate);
+           }
+           refreshAll(true, true);
+         }, 800);
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'qris_payments'}, payload=>{
          clearTimeout(txRealtimeDebounceTimer);
@@ -3348,8 +3359,14 @@ window.setDrawerDate = async function(val) {
         .order('created_at_ms', { ascending: false })
         .limit(1);
       state.reserveForDrawerDate = data && data[0] ? data[0] : null;
+      if (dk === dateKey()) {
+        state.adminChangeReserve = state.reserveForDrawerDate;
+      }
     } catch(e) {
       state.reserveForDrawerDate = null;
+      if (dk === dateKey()) {
+        state.adminChangeReserve = null;
+      }
     }
     
     // fetch cash_book untuk tanggal ini dari Supabase cashDb
@@ -3394,8 +3411,14 @@ window.setDrawerDate = async function(val) {
       }
       
       state.ydDataForDrawerDate = { dws: dws_yd, txs: txs_yd };
+      if (dk === dateKey()) {
+        state.adminYdDrawerData = { dws: dws_yd, txs: txs_yd };
+      }
     } catch(e) {
       state.ydDataForDrawerDate = { dws: [], txs: [] };
+      if (dk === dateKey()) {
+        state.adminYdDrawerData = { dws: [], txs: [] };
+      }
     }
 
   } catch(e) {
@@ -3536,8 +3559,8 @@ window.renderDrawerWithdrawalCard = function() {
 
   // ---- Kembalian Besok dari staf ----
   let kembalianHtml = '';
-  const reserve = isToday ? state.adminChangeReserve : state.reserveForDrawerDate;
-  const ydData = isToday ? state.adminYdDrawerData : state.ydDataForDrawerDate;
+  const reserve = isToday ? (state.adminChangeReserve || state.reserveForDrawerDate) : state.reserveForDrawerDate;
+  const ydData = isToday ? (state.adminYdDrawerData || state.ydDataForDrawerDate) : state.ydDataForDrawerDate;
   
   let innerHtml = '';
   
@@ -3712,15 +3735,19 @@ window.renderDrawerWithdrawalCard = function() {
         </div>`;
     }
     
-    kembalianHtml = `
-      <div class="card pad mb" style="border:1.5px solid #c3fae8;background:#f8fff9">
-        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="title" style="color:#0ca678"><i class="fas fa-coins"></i> Cash Hari ini</div>
-          <div style="font-size:10px;font-weight:700;color:#0ca678;background:#d3f9d8;border-radius:99px;padding:2px 8px">Hari Ini</div>
+    if (!reserve && !isToday) {
+      kembalianHtml = '';
+    } else {
+      kembalianHtml = `
+        <div class="card pad mb" style="border:1.5px solid #c3fae8;background:#f8fff9">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="title" style="color:#0ca678"><i class="fas fa-coins"></i> Cash ${isToday ? 'Hari ini' : (typeof displayDateKey === 'function' ? displayDateKey(dk) : dk)}</div>
+            <div style="font-size:10px;font-weight:700;color:#0ca678;background:#d3f9d8;border-radius:99px;padding:2px 8px">${isToday ? 'Hari Ini' : esc(dk)}</div>
+          </div>
+          ${innerHtml}
         </div>
-        ${innerHtml}
-      </div>
-    `;
+      `;
+    }
 
   return `
     <div class="card pad mb" style="border:1px solid #10b981;background:rgba(16,185,129,0.05)">
