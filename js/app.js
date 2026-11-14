@@ -52,8 +52,8 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   }
   function normalizeCloudflareNotifySettings(data={}){
     const raw=data?.settings||data||{},modeRaw=String(raw.mode||'admin').toLowerCase();
-    const mode=['admin','server','both','off'].includes(modeRaw)?modeRaw:'admin';
-    return{mode,adminEnabled:mode==='admin'||mode==='both',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
+    const mode=['admin','boot','server','both','off'].includes(modeRaw)?modeRaw:'admin';
+    return{mode,adminEnabled:mode==='admin'||mode==='both',bootRockyEnabled:mode==='boot'||mode==='both'||mode==='admin',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
   }
   async function loadCloudflareNotifySettings(showToast=false){
     try{
@@ -92,7 +92,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   }
   async function saveCloudflareNotifyMode(mode){
     mode=String(mode||'admin').toLowerCase();
-    if(!['admin','server','both','off'].includes(mode))return toast('Mode notifikasi tidak valid',true);
+    if(!['admin','boot','server','both','off'].includes(mode))return toast('Mode notifikasi tidak valid',true);
     const label=cloudflareNotifyModeLabel(mode);
     const pin=await askPin(`Ubah mode notifikasi Cloudflare ke ${label}?\nMasukkan PIN admin:`);
     if(!pin)return;
@@ -103,6 +103,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
         mode,
         enabled: mode !== 'off',
         adminEnabled: mode === 'admin' || mode === 'both',
+        bootRockyEnabled: mode === 'boot' || mode === 'both' || mode === 'admin',
         serverEnabled: mode === 'server' || mode === 'both',
         cloudflareEnabled: mode !== 'off',
         updatedAtMs: Date.now(),
@@ -122,7 +123,15 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
         fetch(ROCKY_NOTIFY_SETTINGS_URL,{
           method:'POST',
           headers:{'Content-Type':'application/json','X-Notify-Secret':ROCKY_ADMIN_NOTIFY_SECRET},
-          body:JSON.stringify({action:'set',mode,adminEnabled:mode==='admin'||mode==='both',serverEnabled:mode==='server'||mode==='both',bootRockyEnabled:mode!=='off',updatedByName:state.user?.name||state.user?.username||'Admin',secret:ROCKY_ADMIN_NOTIFY_SECRET}),
+          body:JSON.stringify({
+            action:'set',
+            mode,
+            adminEnabled: payload.adminEnabled,
+            bootRockyEnabled: payload.bootRockyEnabled,
+            serverEnabled: payload.serverEnabled,
+            updatedByName:state.user?.name||state.user?.username||'Admin',
+            secret:ROCKY_ADMIN_NOTIFY_SECRET
+          }),
           signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(2000) : undefined
         }).catch(()=>{});
       }
@@ -136,12 +145,12 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
     }
   }
   function cloudflareNotifyModeLabel(mode){
-    return mode==='server'?'Server Token':mode==='both'?'Admin + Server':mode==='off'?'Nonaktif':'Admin Token';
+    return mode==='boot'?'Bot Rocky Hijab':mode==='server'?'Server Token':mode==='both'?'Admin + Bot Rocky':mode==='off'?'Nonaktif':'Admin Token';
   }
   function renderCloudflareNotifyControl(){
-    const s=normalizeCloudflareNotifySettings(state.cloudflareNotifySettings),updated=s.updatedAtMs?formatConfigTime(s.updatedAtMs):'Belum pernah diupdate',err=state.cloudflareNotifySettings?.error||'',modes=[['admin','Admin Token','fa-user-shield'],['server','Server Token','fa-server'],['both','Keduanya','fa-layer-group'],['off','Nonaktif','fa-bell-slash']];
+    const s=normalizeCloudflareNotifySettings(state.cloudflareNotifySettings),updated=s.updatedAtMs?formatConfigTime(s.updatedAtMs):'Belum pernah diupdate',err=state.cloudflareNotifySettings?.error||'',modes=[['admin','Admin Token','fa-user-shield'],['boot','Bot Rocky','fa-robot'],['both','Keduanya','fa-layer-group'],['off','Nonaktif','fa-bell-slash']];
     const buttons=modes.map(([mode,label,icon])=>{const active=s.mode===mode,cls=active?(mode==='off'?'red':'primary'):'';return`<button class="btn ${cls} full" onclick="saveCloudflareNotifyMode('${mode}')"><i class="fas ${icon}"></i> ${label}</button>`}).join('');
-    return`<div class="card pad"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-cloud"></i> Cloudflare Notif</div><div class="title" style="margin-top:4px">Mode ${cloudflareNotifyModeLabel(s.mode)}</div><div class="meta">Pilih jalur token untuk notifikasi admin/server. Mode Nonaktif membuat worker melewati pengiriman Cloudflare.</div></div><span class="chip ${s.cloudflareEnabled?'ok':'bad'}">${s.cloudflareEnabled?'Aktif':'Off'}</span></div><div class="sep"></div><div class="grid2 mb">${buttons}</div><button class="btn full" onclick="loadCloudflareNotifySettings(true).then(render)"><i class="fas fa-rotate"></i> Refresh Status</button><div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName?` - ${esc(s.updatedByName)}`:''}${s.storageBinding?` - KV ${esc(s.storageBinding)}`:''}</div>${err?`<div class="meta" style="margin-top:8px;color:var(--danger)">${esc(err)}</div>`:''}</div>`;
+    return`<div class="card pad"><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="grow"><div class="tiny"><i class="fas fa-cloud"></i> Cloudflare Notif</div><div class="title" style="margin-top:4px">Mode ${cloudflareNotifyModeLabel(s.mode)}</div><div class="meta">Pilih jalur token untuk notifikasi admin/server/bot. Mode Nonaktif membuat worker melewati pengiriman Cloudflare.</div></div><span class="chip ${s.cloudflareEnabled?'ok':'bad'}">${s.cloudflareEnabled?'Aktif':'Off'}</span></div><div class="sep"></div><div class="grid2 mb">${buttons}</div><button class="btn full" onclick="loadCloudflareNotifySettings(true).then(render)"><i class="fas fa-rotate"></i> Refresh Status</button><div class="meta" style="margin-top:8px">Update: ${esc(updated)}${s.updatedByName?` - ${esc(s.updatedByName)}`:''}${s.storageBinding?` - KV ${esc(s.storageBinding)}`:''}</div>${err?`<div class="meta" style="margin-top:8px;color:var(--danger)">${esc(err)}</div>`:''}</div>`;
   }
   window.loadCloudflareNotifySettings=loadCloudflareNotifySettings;
   window.saveCloudflareNotifyMode=saveCloudflareNotifyMode;
