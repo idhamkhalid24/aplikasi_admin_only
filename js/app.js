@@ -1,7 +1,7 @@
 import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
   const CASHIER_STAFF_URL = 'https://idhamkhalid24.github.io/Aplikasi_KASIR_STAF_ROCKY/';
-  const ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL = 'https://rocky-notif-worker.alfajrihanif24.workers.dev';
+  const ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL = 'https://rocky-notif.pages.dev';
   const ROCKY_ADMIN_NOTIFY_SECRET = 'rockyNotifRahasia2026';
   const ROCKY_STAFF_NOTIFY_MANUAL_BONUS_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-manual-bonus';
   const ROCKY_STAFF_NOTIFY_BONUS_WITHDRAWAL_URL = ROCKY_ADMIN_NOTIFY_WORKER_BASE_URL + '/notify-staff-bonus-withdrawal';
