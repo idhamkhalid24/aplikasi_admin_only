@@ -1118,11 +1118,22 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
         type: "expense",
         category_name: "Gaji & Bonus"
       };
+      patch.cashDbTxId = txPayload.id;
       try {
         await cashDb.from("transactions").upsert(txPayload, { onConflict: "id" });
       } catch(errCash) {
         console.warn("Gagal simpan transaksi cash out ke cashDb:", errCash);
       }
+
+      // Sentuh __bonus_settings agar kasir staf langsung update realtime tanpa refresh
+      try {
+        await setDoc(doc(db, "closings", "__bonus_settings"), {
+          lastWithdrawalSyncMs: nowMs,
+          lastWithdrawalAction: "approved",
+          lastWithdrawalId: id,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch(errSync) {}
 
       // 3. Kirim notifikasi Telegram konfirmasi
       const tgConf = `✅ *PERMINTAAN TARIK BONUS TELAH DI-ACC ADMIN*
@@ -1192,6 +1203,16 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
 • Oleh: *${state.user.name || state.user.username}*`;
       sendTelegramMessage(tgReject).catch(() => {});
 
+      // Sentuh __bonus_settings agar kasir staf langsung update realtime tanpa refresh
+      try {
+        await setDoc(doc(db, "closings", "__bonus_settings"), {
+          lastWithdrawalSyncMs: nowMs,
+          lastWithdrawalAction: "rejected",
+          lastWithdrawalId: id,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch(errSync) {}
+
       finishLocalWrite();
       toast("Permintaan tarik bonus ditolak");
       render();
@@ -1202,7 +1223,76 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
     }
   };
 
-  window.deleteBonusWithdrawal=async id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||!isBonusWithdrawalRow(row))return toast("Riwayat ambil bonus tidak ditemukan",true);const pin=await askPin(`Hapus riwayat ambil bonus ${userName(row.user)}?\nNominal: ${rp(bonusWithdrawalAmount(row))}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,status:"deleted",deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"manualBonuses",id),patch,{merge:true});localMerge("manual",id,patch);finishLocalWrite();toast("Riwayat ambil bonus dihapus")}catch(e){toast(e.message||"Gagal hapus ambil bonus",true)}finally{setBusy(false)}}
+  window.deleteBonusWithdrawal = async (id) => {
+    const row = state.manual.find((x) => String(x.id) === String(id));
+    if (!row || !isBonusWithdrawalRow(row))
+      return toast("Riwayat ambil bonus tidak ditemukan", true);
+    const pin = await askPin(
+      `Hapus riwayat ambil bonus ${userName(row.user)}?\nNominal: ${rp(bonusWithdrawalAmount(row))}\n\nMasukkan PIN admin:`,
+    );
+    if (!pin) return;
+    if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+    setBusy(true);
+    try {
+      const nowMs = Date.now();
+      const patch = {
+        deleted: true,
+        status: "deleted",
+        deletedAt: serverTimestamp(),
+        deletedAtMs: nowMs,
+        deletedBy: state.user.username,
+        deletedByName: state.user.name,
+      };
+
+      // 1. Update manualBonuses di Supabase Server Pusat
+      await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
+      localMerge("manual", id, patch);
+
+      // 2. Hapus transaksi cash out di cashDb (Kas Pribadi / Cash Fisik Toko)
+      const txDate = row.dateKey || dateKey();
+      const amount = bonusWithdrawalAmount(row);
+      try {
+        if (row.cashDbTxId) {
+          await cashDb.from("transactions").delete().eq("id", row.cashDbTxId);
+        }
+        await cashDb.from("transactions").delete()
+          .eq("owner_id", CASH_FISIK_OWNER_ID)
+          .eq("date", txDate)
+          .ilike("description", "%[CASHOUT:bonus]%");
+      } catch (errCash) {
+        console.warn("Gagal hapus transaksi cash out dari cashDb:", errCash);
+      }
+
+      // 3. Sentuh __bonus_settings di Server Pusat agar semua kasir staf langsung reload realtime
+      try {
+        await setDoc(doc(db, "closings", "__bonus_settings"), {
+          lastWithdrawalSyncMs: nowMs,
+          lastWithdrawalAction: "deleted",
+          lastWithdrawalId: id,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (errSync) {
+        console.warn("Gagal update sync signal ke staff:", errSync);
+      }
+
+      // 4. Kirim notifikasi status ke HP staf via Cloudflare
+      try {
+        notifyStaffBonusWithdrawal(
+          { ...row, ...patch, id },
+          { remainingAfter: Math.max(0, Number(row.remainingBefore || 0) + amount) }
+        );
+      } catch (errStaf) {}
+
+      finishLocalWrite();
+      toast("Riwayat ambil bonus dihapus & saldo laci kasir dipulihkan");
+      await refreshAll(true, true);
+      render();
+    } catch (e) {
+      toast(e.message || "Gagal hapus ambil bonus", true);
+    } finally {
+      setBusy(false);
+    }
+  };
   function bonusWithdrawalHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&isBonusWithdrawalRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
   function renderBonusWithdrawalHistory(){
     const rows=bonusWithdrawalHistoryRows(),
