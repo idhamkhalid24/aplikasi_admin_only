@@ -53,7 +53,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
   function normalizeCloudflareNotifySettings(data={}){
     const raw=data?.settings||data||{},modeRaw=String(raw.mode||'admin').toLowerCase();
     const mode=['admin','boot','server','both','off'].includes(modeRaw)?modeRaw:'admin';
-    return{mode,adminEnabled:mode==='admin'||mode==='both',bootRockyEnabled:mode==='boot'||mode==='both',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
+    return{mode,adminEnabled:mode==='admin'||mode==='both',bootRockyEnabled:mode==='boot'||mode==='both'||mode==='admin',serverEnabled:mode==='server'||mode==='both',cloudflareEnabled:mode!=='off',staffEnabled:raw.staffEnabled!==false,updatedAtMs:Number(raw.updatedAtMs||0),updatedByName:String(raw.updatedByName||''),storageBinding:String(raw.storageBinding||'')};
   }
   async function loadCloudflareNotifySettings(showToast=false){
     try{
@@ -103,7 +103,7 @@ import { createClient as createSupabaseClient } from "https://cdn.jsdelivr.net/n
         mode,
         enabled: mode !== 'off',
         adminEnabled: mode === 'admin' || mode === 'both',
-        bootRockyEnabled: mode === 'boot' || mode === 'both',
+        bootRockyEnabled: mode === 'boot' || mode === 'both' || mode === 'admin',
         serverEnabled: mode === 'server' || mode === 'both',
         cloudflareEnabled: mode !== 'off',
         updatedAtMs: Date.now(),
