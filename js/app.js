@@ -2614,7 +2614,7 @@ renderHome=function(){
     ['Buka Fitur',unlockPending?`${unlockPending} menunggu`:(unlockTotal?`${unlockTotal} riwayat`:'Riwayat'),'fa-unlock-keyhole',"go('unlockRequests')"],
     // ['Pesanan',onlineUnread?`Online - ${onlineUnread} baru`:'Online','fa-bell',"go('onlineOrders')"],
     ['Riwayat','Transaksi','fa-receipt',"go('trx')"],
-    ['Bonus','Harian','fa-gift',"go('bonus')"],
+    ['Bonus','Rekap','fa-gift',"go('bonus')"],
     ['Ops','Closing','fa-list-check',"go('ops')"],
     ['Gajian','Staff','fa-wallet',"go('gajian')"],
     ['User','Admin','fa-users',"go('team')"],
