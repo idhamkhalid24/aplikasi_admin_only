@@ -1135,6 +1135,14 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
 👉 _Staf dipersilakan mengambil uang tunai dari laci kasir sekarang._`;
       sendTelegramMessage(tgConf).catch(() => {});
 
+      // 4. Kirim notifikasi push ke HP staf via Cloudflare
+      try {
+        notifyStaffBonusWithdrawal(
+          { ...row, ...patch, id },
+          { remainingAfter: Math.max(0, Number(row.remainingBefore || 0) - amount) }
+        );
+      } catch(errStaf) {}
+
       finishLocalWrite();
       toast(`✓ Tarik bonus ${staffTitle} berhasil di-ACC!`);
       await refreshAll(true, true);
