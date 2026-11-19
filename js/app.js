@@ -1120,15 +1120,11 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
         updatedAtMs: nowMs
       };
 
-      // 1. Update manualBonuses di Supabase Server Pusat
-      await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
-      localMerge("manual", id, patch);
-
-      // 2. Simpan transaksi Cash Out ke cashDb (Supabase Kas Pribadi / Cash Fisik Toko)
       const txDate = row.dateKey || dateKey();
       const txDesc = `[CASHOUT:bonus] Ambil Bonus Laci: ${staffTitle} (${rp(amount)})`;
+      const txId = Number(nowMs.toString().slice(-9));
       const txPayload = {
-        id: Number(nowMs.toString().slice(-9)),
+        id: txId,
         owner_id: CASH_FISIK_OWNER_ID,
         date: txDate,
         description: txDesc,
@@ -1136,7 +1132,13 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
         type: "expense",
         category_name: "Gaji & Bonus"
       };
-      patch.cashDbTxId = txPayload.id;
+      patch.cashDbTxId = txId;
+
+      // 1. Update manualBonuses di Supabase Server Pusat
+      await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
+      localMerge("manual", id, patch);
+
+      // 2. Simpan transaksi Cash Out ke cashDb (Supabase Kas Pribadi / Cash Fisik Toko)
       try {
         await cashDb.from("transactions").upsert(txPayload, { onConflict: "id" });
       } catch(errCash) {
@@ -1269,9 +1271,17 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       // 2. Hapus transaksi cash out di cashDb (Kas Pribadi / Cash Fisik Toko)
       const txDate = row.dateKey || dateKey();
       const amount = bonusWithdrawalAmount(row);
+      const staffTitle = userName(row.user) || row.name || row.user || "";
       try {
         if (row.cashDbTxId) {
-          await cashDb.from("transactions").delete().eq("id", row.cashDbTxId);
+          const resId = await cashDb.from("transactions").delete().eq("id", row.cashDbTxId);
+          if (resId?.error) console.warn("Delete by id error:", resId.error);
+        }
+        if (staffTitle) {
+          await cashDb.from("transactions").delete()
+            .eq("owner_id", CASH_FISIK_OWNER_ID)
+            .eq("date", txDate)
+            .ilike("description", `%[CASHOUT:bonus]%${staffTitle}%`);
         }
         await cashDb.from("transactions").delete()
           .eq("owner_id", CASH_FISIK_OWNER_ID)
