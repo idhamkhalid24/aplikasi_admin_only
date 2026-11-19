@@ -411,7 +411,7 @@ function normalizeWaNotifySettings(data) {
   const BONUS_WITHDRAWAL_TYPE="bonus_withdrawal";
   const cashDb=createSupabaseClient(CASH_FISIK_SUPABASE_URL,CASH_FISIK_SUPABASE_ANON_KEY),$=id=>document.getElementById(id);
   const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])),cleanUser=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9_.-]/g,""),now=()=>new Date(),dateKey=(d=now())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,monthKey=(d=now())=>dateKey(d).slice(0,7),rupiah=n=>new Intl.NumberFormat("id-ID").format(Math.round(Number(n||0))),rp=n=>`Rp ${rupiah(n)}`;
-  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],drawerWithdrawals:[],unlockRequests:[],trxViewMode:"month",trxSelectedDate:dateKey(),trxSelectedMonth:monthKey(),trxUserFilter:"all",trxPaymentFilter:"all",trxMonthTab:"rekap",trxDateCache:{},trxMonthCache:{},trxDateLoaded:{},trxMonthLoaded:{},bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],cashAuditRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""},cloudflareNotifySettings:{mode:"admin",adminEnabled:true,serverEnabled:false,cloudflareEnabled:true,updatedAtMs:0,updatedByName:""},receiptSettings:{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:""}};
+  const state={page:"home",user:null,users:[],tx:[],att:[],closing:[],manual:[],drawerWithdrawals:[],unlockRequests:[],trxViewMode:"month",trxSelectedDate:dateKey(),trxSelectedMonth:monthKey(),trxUserFilter:"all",trxPaymentFilter:"all",trxMonthTab:"rekap",trxDateCache:{},trxMonthCache:{},trxDateLoaded:{},trxMonthLoaded:{},bonusHistoryFilter:"month",bonusSelectedMonth:monthKey(),loadedBonusMonths:{},bonusSettings:{transactionBonusRate:DEFAULT_TRANSACTION_BONUS_RATE,transactionBonusPercent:1.5,closingBonusPerMinute:DEFAULT_CLOSING_BONUS_PER_MINUTE,closingDeadlineTime:DEFAULT_CLOSING_DEADLINE_TIME,closingDeadlineHour:DEFAULT_CLOSING_DEADLINE_HOUR,closingDeadlineMinute:DEFAULT_CLOSING_DEADLINE_MINUTE,closingDeadlineMinutes:(DEFAULT_CLOSING_DEADLINE_HOUR*60)+DEFAULT_CLOSING_DEADLINE_MINUTE},cashRows:[],cashAuditRows:[],lastRefresh:0,closingTarget:"global",attendanceDate:dateKey(),monthlyLoaded:false,monthlyLoadedAtMs:0,dayLoadedKey:"",loadedAttendanceDates:{},staffDailyHomeNote:{id:STAFF_DAILY_NOTE_DOC_ID,note:DEFAULT_STAFF_DAILY_NOTE,enabled:true,updatedAtMs:0,updatedBy:"",updatedByName:""},rismaManualClosing:{id:RISMA_MANUAL_CLOSING_DOC_ID,enabled:true,allowedUsers:[],allowedNames:{},updatedAtMs:0,updatedBy:"",updatedByName:""},cloudflareNotifySettings:{mode:"admin",adminEnabled:true,serverEnabled:false,cloudflareEnabled:true,updatedAtMs:0,updatedByName:""},receiptSettings:{id:RECEIPT_TEXT_DOC_ID,...DEFAULT_RECEIPT_TEXT_SETTINGS,updatedAtMs:0,updatedBy:"",updatedByName:""}};
   /* === FIREBASE READ SAVER PATCH === */
   function nextMonthStartKey(mk=monthKey()){const[y,m]=String(mk||monthKey()).split("-").map(Number),d=new Date(y||new Date().getFullYear(),m||new Date().getMonth()+1,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
   function localSortKey(r){return Number(r?.closedAtMs||r?.createdAtMs||r?.updatedAtMs||r?.deletedAtMs||0)||0}
@@ -939,8 +939,26 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
   function renderPayroll(){const loaded=state.monthlyLoaded,rows=monthlyStaffPayrollRows(),sum=rows.reduce((a,r)=>({hadir:a.hadir+r.hadir,pendapatan:a.pendapatan+r.pendapatan,bonus:a.bonus+r.totalBonus,diambil:a.diambil+Number(r.sudahDiambil||0),sisa:a.sisa+Number(r.sisaBonus||0),trx:a.trx+r.trxCount}),{hadir:0,pendapatan:0,bonus:0,diambil:0,sisa:0,trx:0}),status=loaded?`<span class="monthly-status loaded"><i class="fas fa-check"></i> Bulanan loaded</span>`:`<span class="monthly-status light"><i class="fas fa-database"></i> Load manual</span>`,loadBtn=loaded?`<button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button>`:`<button class="btn primary" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button>`,body=!loaded?`<div class="empty">Data gajian staff belum dibaca otomatis supaya hemat read. Klik <b>Load Bulanan</b> untuk memuat transaksi, absen, closing, bonus manual, dan ambil bonus bulan ini.</div>`:(rows.length?`<div class="list">${rows.map(r=>`<div class="payroll-user-card"><div class="payroll-user-head"><div class="grow"><div class="name">${esc(r.name)}</div><div class="meta">@${esc(r.username)} - ${esc(r.role)} - ${r.trxCount} trx bulan ini</div></div><span class="chip ok">Staff</span></div><div class="payroll-grid"><div class="payroll-mini"><div class="tiny">Total Hadir</div><div class="amt num">${r.hadir} hari</div></div><div class="payroll-mini"><div class="tiny">Pendapatan</div><div class="amt num">${rp(r.pendapatan)}</div></div><div class="payroll-mini"><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(r.sisaBonus)}</div></div><div class="payroll-mini"><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(r.sudahDiambil)}</div></div></div><div class="meta">Bonus trx ${rp(r.bonusTransaksi)} - closing ${rp(r.bonusClosing)} - manual ${rp(r.bonusManual)} - total ${rp(r.totalBonus)}</div></div>`).join("")}</div>`:`<div class="empty">Belum ada user staff aktif. Karyawan harian dan admin tidak dimasukkan.</div>`);return`<div class="wrap">${header("Gajian Staff","Khusus staff bulanan - karyawan harian tidak masuk")}<div class="card pad mb payroll-top-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan ${monthKey()}</div><div class="meta">Data khusus staff. Admin dan karyawan harian otomatis dikecualikan.</div></div>${status}</div><div class="sep"></div><div class="grid3"><div><div class="tiny">Total Bonus</div><div class="amt num">${rp(sum.bonus)}</div></div><div><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(sum.diambil)}</div></div><div><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(sum.sisa)}</div></div></div><div class="row" style="margin-top:10px;justify-content:space-between;align-items:center"><div class="meta">${loaded?`Loaded ${new Date(state.monthlyLoadedAtMs||Date.now()).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})} - ${rows.length} staff - ${sum.trx} trx`:"Belum load bulanan"}</div>${loadBtn}</div></div>${body}</div>`}
 
   function isTargetAutoBonusRow(r){return String(r?.source||"")==="daily_target"||String(r?.type||"")==="daily_target_bonus"||String(r?.id||"").startsWith("targetbonus_")}
-  function bonusHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&!isBonusWithdrawalRow(b)&&String(b.type||"manual").toLowerCase()==="manual"&&!isTargetAutoBonusRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
-  function targetAutoBonusRows(){return visibleManual().filter(b=>!isDeleted(b)&&isTargetAutoBonusRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
+  function bonusHistoryRows(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const targetMk = state.bonusSelectedMonth || monthKey();
+    const targetDk = dateKey();
+    return visibleManual().filter(b => {
+      if (isDeleted(b) || isBonusWithdrawalRow(b) || String(b.type||"manual").toLowerCase() !== "manual" || isTargetAutoBonusRow(b)) return false;
+      if (isMonth) return rowMonthKey(b) === targetMk;
+      return explicitRecordDateKey(b) === targetDk;
+    }).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a));
+  }
+  function targetAutoBonusRows(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const targetMk = state.bonusSelectedMonth || monthKey();
+    const targetDk = dateKey();
+    return visibleManual().filter(b => {
+      if (isDeleted(b) || !isTargetAutoBonusRow(b)) return false;
+      if (isMonth) return rowMonthKey(b) === targetMk;
+      return explicitRecordDateKey(b) === targetDk;
+    }).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a));
+  }
   window.openBonusWithdrawal=()=>{const body=`<div class="card pad mb" style="box-shadow:none"><div class="tiny">Ambil Bonus Sebagian</div><div class="meta" style="margin-top:6px">Catat uang bonus yang sudah diambil. Bonus terhitung tetap utuh, sisa bonus otomatis berkurang.</div></div><div class="form"><select id="bonusWithdrawalUser" class="input">${optionUsers(state.user?.username)}</select><input id="bonusWithdrawalAmount" class="input" inputmode="numeric" placeholder="Nominal diambil" oninput="this.value=rupiah(parseMoney(this.value))"><input id="bonusWithdrawalNote" class="input" placeholder="Catatan, contoh: ambil dulu sebagian"><button class="btn green full" onclick="saveBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Simpan Ambil Bonus</button></div>`;openDynamicSheet("bonusWithdrawalModal","Ambil Bonus","Bulan "+monthKey(),body)}
   window.saveBonusWithdrawal=async()=>{
     const username=cleanUser($("bonusWithdrawalUser")?.value),u=userBy(username),amount=Math.abs(parseMoney($("bonusWithdrawalAmount")?.value||"")),note=String($("bonusWithdrawalNote")?.value||"Ambil bonus sebagian").trim()||"Ambil bonus sebagian";
@@ -1002,7 +1020,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
               <i class="fas fa-bell"></i>
             </div>
             <div>
-              <div style="font-size:13.5px;font-weight:900;color:#92400e;">PERMINTAAN TARIK BONUS</div>
+              <div style="font-size:13.5px;font-weight:900;color:#92400e;">PERMINTAAN WITHDRAW BONUS</div>
               <div style="font-size:11.5px;color:#b45309;"><b>${pending.length} staf</b> menunggu persetujuan ambil uang laci</div>
             </div>
           </div>
@@ -1067,7 +1085,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
         <div class="row" style="justify-content:space-between;align-items:flex-start">
           <div>
             <div class="title" style="color:#92400e;display:flex;align-items:center;gap:6px;">
-              <i class="fas fa-bell" style="color:#d97706"></i> Permintaan Tarik Bonus (Menunggu ACC)
+              <i class="fas fa-bell" style="color:#d97706"></i> Permintaan Withdraw Bonus (Menunggu ACC)
             </div>
             <div class="meta" style="color:#b45309;">Staf mengajukan ambil uang laci dan belum mengambil uangnya sebelum di-ACC.</div>
           </div>
@@ -1085,7 +1103,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
 
     const amount = bonusWithdrawalAmount(row);
     const staffTitle = userName(row.user) || row.name || row.user;
-    const pin = await askPin(`SETUJUI TARIK BONUS DARI LACI?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\n\nSetelah di-ACC, staf diperbolehkan mengambil uang dari laci toko sekarang.\n\nMasukkan PIN Admin:`);
+    const pin = await askPin(`SETUJUI WITHDRAW BONUS DARI LACI?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\n\nSetelah di-ACC, staf diperbolehkan mengambil uang dari laci toko sekarang.\n\nMasukkan PIN Admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
 
@@ -1136,7 +1154,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       } catch(errSync) {}
 
       // 3. Kirim notifikasi Telegram konfirmasi
-      const tgConf = `✅ *PERMINTAAN TARIK BONUS TELAH DI-ACC ADMIN*
+      const tgConf = `✅ *PERMINTAAN WITHDRAW BONUS TELAH DI-ACC ADMIN*
 
 • Kasir / Staf: *${staffTitle}* (@${row.user})
 • Nominal: *Rp ${rp(amount)}*
@@ -1155,11 +1173,11 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       } catch(errStaf) {}
 
       finishLocalWrite();
-      toast(`✓ Tarik bonus ${staffTitle} berhasil di-ACC!`);
+      toast(`✓ Withdraw bonus ${staffTitle} berhasil di-ACC!`);
       await refreshAll(true, true);
       render();
     } catch (e) {
-      toast(e.message || "Gagal menyetujui tarik bonus", true);
+      toast(e.message || "Gagal menyetujui withdraw bonus", true);
     } finally {
       setBusy(false);
     }
@@ -1174,7 +1192,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
     const reason = prompt("Masukkan alasan penolakan:", "Uang laci sedang dibutuhkan untuk operasional/kembalian");
     if (reason === null) return;
 
-    const pin = await askPin(`TOLAK PERMINTAAN TARIK BONUS?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\nAlasan: ${reason}\n\nMasukkan PIN Admin:`);
+    const pin = await askPin(`TOLAK PERMINTAAN WITHDRAW BONUS?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\nAlasan: ${reason}\n\nMasukkan PIN Admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
 
@@ -1195,7 +1213,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
       localMerge("manual", id, patch);
 
-      const tgReject = `❌ *PERMINTAAN TARIK BONUS DITOLAK ADMIN*
+      const tgReject = `❌ *PERMINTAAN WITHDRAW BONUS DITOLAK ADMIN*
 
 • Kasir / Staf: *${staffTitle}* (@${row.user})
 • Nominal: *Rp ${rp(amount)}*
@@ -1214,10 +1232,10 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       } catch(errSync) {}
 
       finishLocalWrite();
-      toast("Permintaan tarik bonus ditolak");
+      toast("Permintaan withdraw bonus ditolak");
       render();
     } catch (e) {
-      toast(e.message || "Gagal tolak tarik bonus", true);
+      toast(e.message || "Gagal tolak withdraw bonus", true);
     } finally {
       setBusy(false);
     }
@@ -1293,11 +1311,112 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       setBusy(false);
     }
   };
-  function bonusWithdrawalHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&isBonusWithdrawalRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
+  function bonusWithdrawalHistoryRows(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const targetMk = state.bonusSelectedMonth || monthKey();
+    const targetDk = dateKey();
+    return visibleManual().filter(b => {
+      if (isDeleted(b) || !isBonusWithdrawalRow(b)) return false;
+      if (isMonth) return rowMonthKey(b) === targetMk;
+      return explicitRecordDateKey(b) === targetDk;
+    }).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a));
+  }
+
+  let bonusMonthLoading = false;
+  async function loadBonusMonthData(mk = monthKey(), force = false) {
+    if (!state.user) return;
+    const targetMk = String(mk || monthKey()).slice(0, 7);
+    if (!force && state.loadedBonusMonths?.[targetMk]) return;
+    if (bonusMonthLoading) return;
+    bonusMonthLoading = true;
+    const monthStart = `${targetMk}-01`, nextStart = nextMonthStartKey(targetMk);
+    try {
+      const manualQ = query(collection(db, "manualBonuses"), where("monthKey", "==", targetMk), limit(500));
+      const manualDateQ = query(collection(db, "manualBonuses"), where("dateKey", ">=", monthStart), where("dateKey", "<", nextStart), limit(500));
+      const manualTargetIdQ = query(collection(db, "manualBonuses"), where("id", ">=", "targetbonus_" + monthStart), where("id", "<", "targetbonus_" + nextStart), limit(500));
+      const manualTrialIdQ = query(collection(db, "manualBonuses"), where("id", ">=", "trial_targetbonus_" + monthStart), where("id", "<", "trial_targetbonus_" + nextStart), limit(500));
+
+      const [manualSnap, manualDateSnap, manualTargetSnap, manualTrialSnap] = await Promise.all([
+        getDocs(manualQ).catch(() => ({ docs: [] })),
+        getDocs(manualDateQ).catch(() => ({ docs: [] })),
+        getDocs(manualTargetIdQ).catch(() => ({ docs: [] })),
+        getDocs(manualTrialIdQ).catch(() => ({ docs: [] }))
+      ]);
+
+      const docs = [...manualSnap.docs, ...manualDateSnap.docs, ...manualTargetSnap.docs, ...manualTrialSnap.docs];
+      const incoming = docs.map(d => ({ id: d.id, ...d.data() })).filter(r => recordMonthKey(r) === targetMk);
+
+      const map = new Map();
+      (state.manual || []).forEach(r => map.set(String(r.id), r));
+      incoming.forEach(r => map.set(String(r.id), { ...(map.get(String(r.id)) || {}), ...r }));
+
+      state.manual = [...map.values()].sort((a, b) => Number(b.createdAtMs || 0) - Number(a.createdAtMs || 0));
+      state.loadedBonusMonths = { ...(state.loadedBonusMonths || {}), [targetMk]: true };
+      if (state.page === "bonus") render();
+    } catch (e) {
+      console.error("Gagal load data bonus bulanan:", e);
+    } finally {
+      bonusMonthLoading = false;
+    }
+  }
+  window.loadBonusMonthData = loadBonusMonthData;
+
+  window.setBonusHistoryFilter = function(filter) {
+    state.bonusHistoryFilter = filter === "today" ? "today" : "month";
+    if (state.bonusHistoryFilter === "month") {
+      loadBonusMonthData(state.bonusSelectedMonth || monthKey());
+    }
+    render();
+  };
+
+  window.changeBonusSelectedMonth = function(val) {
+    if (!val) return;
+    state.bonusSelectedMonth = String(val).slice(0, 7);
+    state.bonusHistoryFilter = "month";
+    loadBonusMonthData(state.bonusSelectedMonth, true);
+    render();
+  };
+
+  function renderBonusHistoryFilterBar() {
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const mk = state.bonusSelectedMonth || monthKey();
+    return `
+      <div class="card pad mb" style="margin-top:14px;background:var(--card);border:1.5px solid var(--line);">
+        <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="title" style="font-size:14px;font-weight:900;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-clock-rotate-left" style="color:var(--primary);"></i> Filter Riwayat Bonus
+            </div>
+            <div class="meta" style="font-size:11.5px;color:var(--muted);margin-top:2px;">
+              Pilih tampilan riwayat harian atau data sebulan penuh
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="btn ${!isMonth ? 'primary' : ''}" style="padding:6px 14px;font-size:12px;font-weight:800;border-radius:10px;" onclick="setBonusHistoryFilter('today')">
+              <i class="fas fa-calendar-day"></i> Hari Ini
+            </button>
+            <button type="button" class="btn ${isMonth ? 'primary' : ''}" style="padding:6px 14px;font-size:12px;font-weight:800;border-radius:10px;" onclick="setBonusHistoryFilter('month')">
+              <i class="fas fa-calendar-alt"></i> Bulan Ini
+            </button>
+            ${isMonth ? `
+              <input type="month" value="${esc(mk)}" onchange="changeBonusSelectedMonth(this.value)" class="input" style="height:36px;padding:2px 10px;font-size:12px;font-weight:800;width:auto;border-radius:10px;cursor:pointer;">
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderBonusWithdrawalHistory(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const mk = state.bonusSelectedMonth || monthKey();
+    const periodLabel = isMonth ? `Bulan ${mk}` : "Hari Ini";
     const rows=bonusWithdrawalHistoryRows(),
     total=rows.filter(r=>r.status==="approved"||r.status==="success"||(!r.status&&r.source===BONUS_WITHDRAWAL_TYPE)).reduce((s,r)=>s+bonusWithdrawalAmount(r),0),
-    list=rows.map(r=>{
+    emptyMsg = bonusMonthLoading && isMonth
+      ? `<div class="empty"><i class="fas fa-circle-notch fa-spin"></i> Memuat riwayat ambil bonus ${mk}...</div>`
+      : `<div class="empty">Belum ada ambil bonus ${isMonth ? `di bulan ${mk}` : 'hari ini'}</div>`;
+    const list=rows.map(r=>{
       const raw=bonusWithdrawalAmount(r),id=esc(r.id||"");
       const st=r.status||"approved";
       const isApproved=st==="approved"||st==="success";
@@ -1324,12 +1443,22 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
         </div>
       </div>`;
     }).join("");
-    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Ambil Bonus</div><div class="meta">Uang bonus yang sudah diambil sebagian. Tidak mengubah bonus manual.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada ambil bonus hari ini</div>`}</div></div>`;
+    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Ambil Bonus <span style="font-size:12px;color:var(--primary);font-weight:800;">(${periodLabel})</span></div><div class="meta">${isMonth ? `Uang bonus yang sudah diambil sebagian di bulan ${mk}. Tidak mengubah bonus manual.` : 'Uang bonus yang sudah diambil sebagian. Tidak mengubah bonus manual.'}</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||emptyMsg}</div></div>`;
   }
   function bonusHistoryKind(row){const action=String(row?.action||row?.bonusAction||"").toLowerCase(),amount=Number(row?.amount||0);return action==="subtract"||amount<0?"subtract":"add"}
   function bonusHistoryLabel(row){return bonusHistoryKind(row)==="subtract"?"Kurangi":"Tambah"}
   function bonusHistoryTime(row){const ms=recordTimeMs(row);try{return `${dateId(extractDateKey(row))} - ${new Date(ms).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Jakarta"}).replace(".",":")}`}catch(e){return extractDateKey(row)||"Hari ini"}}
-  function renderBonusHistory(){const rows=bonusHistoryRows(),addTotal=rows.filter(r=>bonusHistoryKind(r)==="add").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0),subTotal=rows.filter(r=>bonusHistoryKind(r)==="subtract").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0);const list=rows.map(r=>{const kind=bonusHistoryKind(r),raw=Math.abs(Number(r.amount||0)),badge=kind==="subtract"?"bad":"ok",sign=kind==="subtract"?"-":"+",icon=kind==="subtract"?"fa-minus":"fa-plus",id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:${kind==="subtract"?"var(--danger-soft)":"var(--success-soft)"};color:${kind==="subtract"?"var(--danger)":"var(--success)"}"><i class="fas ${icon}"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Tanpa catatan")}</div></div><div class="right" style="text-align:right"><span class="chip ${badge}">${bonusHistoryLabel(r)}</span><div class="amt num" style="margin-top:5px;color:${kind==="subtract"?"var(--danger)":"var(--success)"}">${sign} ${rp(raw)}</div><div class="miniBtns"><button class="btn amber" onclick="openEditManualBonus('${id}')" title="Edit bonus"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteManualBonus('${id}')" title="Hapus bonus"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Bonus Manual</div><div class="meta">Tambah & kurangi bonus hari ini. Bisa edit atau hapus.</div></div><span class="chip ok">${rows.length} riwayat</span></div><div class="sep"></div><div class="grid2 mb"><div class="bonus-mini"><div class="tiny">Total Tambah</div><div class="amt num" style="color:var(--success)">${rp(addTotal)}</div></div><div class="bonus-mini"><div class="tiny">Total Kurangi</div><div class="amt num" style="color:var(--danger)">${rp(subTotal)}</div></div></div><div class="list">${list||`<div class="empty">Belum ada riwayat bonus manual hari ini</div>`}</div></div>`}
+  function renderBonusHistory(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const mk = state.bonusSelectedMonth || monthKey();
+    const periodLabel = isMonth ? `Bulan ${mk}` : "Hari Ini";
+    const rows=bonusHistoryRows(),addTotal=rows.filter(r=>bonusHistoryKind(r)==="add").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0),subTotal=rows.filter(r=>bonusHistoryKind(r)==="subtract").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0);
+    const emptyMsg = bonusMonthLoading && isMonth
+      ? `<div class="empty"><i class="fas fa-circle-notch fa-spin"></i> Memuat riwayat bonus manual ${mk}...</div>`
+      : `<div class="empty">Belum ada riwayat bonus manual ${isMonth ? `di bulan ${mk}` : 'hari ini'}</div>`;
+    const list=rows.map(r=>{const kind=bonusHistoryKind(r),raw=Math.abs(Number(r.amount||0)),badge=kind==="subtract"?"bad":"ok",sign=kind==="subtract"?"-":"+",icon=kind==="subtract"?"fa-minus":"fa-plus",id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:${kind==="subtract"?"var(--danger-soft)":"var(--success-soft)"};color:${kind==="subtract"?"var(--danger)":"var(--success)"}"><i class="fas ${icon}"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Tanpa catatan")}</div></div><div class="right" style="text-align:right"><span class="chip ${badge}">${bonusHistoryLabel(r)}</span><div class="amt num" style="margin-top:5px;color:${kind==="subtract"?"var(--danger)":"var(--success)"}">${sign} ${rp(raw)}</div><div class="miniBtns"><button class="btn amber" onclick="openEditManualBonus('${id}')" title="Edit bonus"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteManualBonus('${id}')" title="Hapus bonus"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");
+    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Bonus Manual <span style="font-size:12px;color:var(--primary);font-weight:800;">(${periodLabel})</span></div><div class="meta">${isMonth ? `Tambah & kurangi bonus bulan ${mk}. Bisa edit atau hapus.` : 'Tambah & kurangi bonus hari ini. Bisa edit atau hapus.'}</div></div><span class="chip ok">${rows.length} riwayat</span></div><div class="sep"></div><div class="grid2 mb"><div class="bonus-mini"><div class="tiny">Total Tambah</div><div class="amt num" style="color:var(--success)">${rp(addTotal)}</div></div><div class="bonus-mini"><div class="tiny">Total Kurangi</div><div class="amt num" style="color:var(--danger)">${rp(subTotal)}</div></div></div><div class="list">${list||emptyMsg}</div></div>`;
+  }
   function renderUniversalWithdrawalBonusCard() {
     const isWdEnabled = state.bonusSettings?.withdrawalBonusEnabled !== false;
     return `
@@ -1338,7 +1467,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
           <div class="grow">
             <div class="title" style="display:flex;align-items:center;gap:6px;color:${isWdEnabled ? 'var(--text)' : '#991b1b'};">
               <i class="fas fa-hand-holding-dollar" style="color:${isWdEnabled ? 'var(--success)' : '#dc2626'}"></i>
-              Tombol Withdrawal Bonus Kasir
+              Tombol Withdraw Bonus Kasir
             </div>
             <div class="meta" style="margin-top:3px;color:${isWdEnabled ? 'var(--muted)' : '#7f1d1d'};">
               Kontrol universal untuk memunculkan / menyembunyikan tombol penarikan bonus di aplikasi kasir staf.
@@ -1363,8 +1492,8 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
 
   window.toggleUniversalWithdrawalBonus = async (enabled) => {
     const isCurrent = (state.bonusSettings?.withdrawalBonusEnabled !== false) === !!enabled;
-    if (isCurrent) return toast(`Tombol withdrawal bonus kasir sudah dalam status ${enabled ? 'AKTIF' : 'NONAKTIF'}`);
-    const pin = await askPin(`${enabled ? 'Aktifkan' : 'Nonaktifkan'} tombol withdrawal bonus di aplikasi staf secara universal?\n\nMasukkan PIN admin:`);
+    if (isCurrent) return toast(`Tombol withdraw bonus kasir sudah dalam status ${enabled ? 'AKTIF' : 'NONAKTIF'}`);
+    const pin = await askPin(`${enabled ? 'Aktifkan' : 'Nonaktifkan'} tombol withdraw bonus di aplikasi staf secara universal?\n\nMasukkan PIN admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
     setBusy(true);
@@ -1381,16 +1510,35 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
       state.bonusSettings = normalizeBonusSettings({ ...(state.bonusSettings || {}), ...payload });
       finishLocalWrite();
       render();
-      toast(`Tombol withdrawal bonus kasir sekarang ${enabled ? 'AKTIF' : 'NONAKTIF'}`);
+      toast(`Tombol withdraw bonus kasir sekarang ${enabled ? 'AKTIF' : 'NONAKTIF'}`);
     } catch (e) {
-      toast(e.message || "Gagal mengubah status withdrawal bonus", true);
+      toast(e.message || "Gagal mengubah status withdraw bonus", true);
     } finally {
       setBusy(false);
     }
   };
 
-  function renderBonus(){const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx</div><div class="amt num">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num">${rp(getClosingMinute(u))}/mnt</div></div></div></div><button class="btn amber" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");return`<div class="wrap">${header("Bonus","Tambah manual, ambil bonus, & control bonus user")}${renderPendingBonusWithdrawalSection()}${renderUniversalWithdrawalBonusCard()}<div class="grid3 mb"><button class="btn primary full" onclick="openManualBonus('add')"><i class="fas fa-plus"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')"><i class="fas fa-minus"></i> Kurangi Bonus</button><button class="btn green full" onclick="openBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Ambil Bonus</button></div><div class="card pad mb"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Setting Global Bonus</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Control Bonus User</div><div class="meta">Rapih: persen transaksi + bonus closing per user</div></div><span class="chip ok">${users.length} user</span></div><div class="sep"></div><div class="bonus-control-grid">${rows||`<div class="empty">Belum ada user</div>`}</div></div>${renderBonusHistory()}${renderBonusWithdrawalHistory()}</div>`}
-  function renderTargetAutoBonusHistory(){const rows=targetAutoBonusRows(),total=rows.reduce((s,r)=>s+Number(r.amount||0),0),list=rows.map(r=>{const raw=Math.abs(Number(r.amount||0)),id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success)"><i class="fas fa-bullseye"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Bonus target omzet harian tercapai")}</div></div><div class="right" style="text-align:right"><span class="chip ok">Otomatis</span><div class="amt num" style="margin-top:5px;color:var(--success)">+ ${rp(raw)}</div><div class="miniBtns"><button class="btn red" onclick="deleteManualBonus('${id}')" title="Reset bonus target otomatis"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Bonus Target Otomatis</div><div class="meta">Bonus yang dibuat otomatis saat target omzet tercapai. Hapus untuk reset bonus staff terkait.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada bonus target otomatis hari ini</div>`}</div></div>`}
+  function renderBonus(){
+    const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx</div><div class="amt num">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num">${rp(getClosingMinute(u))}/mnt</div></div></div></div><button class="btn amber" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");
+    if ((state.bonusHistoryFilter || "month") === "month") {
+      const mk = state.bonusSelectedMonth || monthKey();
+      if (!state.loadedBonusMonths?.[mk]) {
+        loadBonusMonthData(mk);
+      }
+    }
+    return`<div class="wrap">${header("Bonus","Tambah manual, ambil bonus, & control bonus user")}${renderPendingBonusWithdrawalSection()}${renderUniversalWithdrawalBonusCard()}<div class="grid3 mb"><button class="btn primary full" onclick="openManualBonus('add')"><i class="fas fa-plus"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')"><i class="fas fa-minus"></i> Kurangi Bonus</button><button class="btn green full" onclick="openBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Ambil Bonus</button></div><div class="card pad mb"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Setting Global Bonus</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Control Bonus User</div><div class="meta">Rapih: persen transaksi + bonus closing per user</div></div><span class="chip ok">${users.length} user</span></div><div class="sep"></div><div class="bonus-control-grid">${rows||`<div class="empty">Belum ada user</div>`}</div></div>${renderBonusHistoryFilterBar()}${renderBonusHistory()}${renderBonusWithdrawalHistory()}</div>`
+  }
+  function renderTargetAutoBonusHistory(){
+    const isMonth = (state.bonusHistoryFilter || "month") === "month";
+    const mk = state.bonusSelectedMonth || monthKey();
+    const periodLabel = isMonth ? `Bulan ${mk}` : "Hari Ini";
+    const rows=targetAutoBonusRows(),total=rows.reduce((s,r)=>s+Number(r.amount||0),0);
+    const emptyMsg = bonusMonthLoading && isMonth
+      ? `<div class="empty"><i class="fas fa-circle-notch fa-spin"></i> Memuat bonus target otomatis ${mk}...</div>`
+      : `<div class="empty">Belum ada bonus target otomatis ${isMonth ? `di bulan ${mk}` : 'hari ini'}</div>`;
+    const list=rows.map(r=>{const raw=Math.abs(Number(r.amount||0)),id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success)"><i class="fas fa-bullseye"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Bonus target omzet harian tercapai")}</div></div><div class="right" style="text-align:right"><span class="chip ok">Otomatis</span><div class="amt num" style="margin-top:5px;color:var(--success)">+ ${rp(raw)}</div><div class="miniBtns"><button class="btn red" onclick="deleteManualBonus('${id}')" title="Reset bonus target otomatis"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");
+    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Bonus Target Otomatis <span style="font-size:12px;color:var(--primary);font-weight:800;">(${periodLabel})</span></div><div class="meta">${isMonth ? `Bonus yang dibuat otomatis saat target omzet tercapai di bulan ${mk}. Hapus untuk reset bonus staff terkait.` : 'Bonus yang dibuat otomatis saat target omzet tercapai. Hapus untuk reset bonus staff terkait.'}</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||emptyMsg}</div></div>`;
+  }
   const renderBonusWithoutTargetAuto=renderBonus;renderBonus=function(){const html=renderBonusWithoutTargetAuto();return String(html).endsWith("</div>")?html.slice(0,-6)+renderTargetAutoBonusHistory()+"</div>":html+renderTargetAutoBonusHistory()};
   window.openManualBonus=(mode="add")=>{window.__editingManualBonusId="";$("bonusUser").innerHTML=optionUsers(state.user?.username);if($("bonusMode"))$("bonusMode").value=mode==="subtract"?"subtract":"add";$("bonusAmount").value="";$("bonusNote").value="";const title=document.querySelector('#bonusModal .title'),meta=document.querySelector('#bonusModal .meta'),btn=document.querySelector('#bonusModal button[onclick="saveManualBonus()"]');if(title)title.textContent="Bonus Manual";if(meta)meta.textContent="Tambah / kurangi bonus secara kustom";if(btn)btn.innerHTML='<i class="fas fa-floppy-disk"></i> Simpan Bonus';modal("bonusModal")};
   window.openEditManualBonus=id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||isDeleted(row))return toast("Riwayat bonus tidak ditemukan",true);window.__editingManualBonusId=String(row.id);const username=cleanUser(row.user||row.username||"");$("bonusUser").innerHTML=optionUsers(username);$("bonusUser").value=username;if($("bonusMode"))$("bonusMode").value=bonusHistoryKind(row);$("bonusAmount").value=rupiah(Math.abs(Number(row.amount||0)));$("bonusNote").value=String(row.note||"");const title=document.querySelector('#bonusModal .title'),meta=document.querySelector('#bonusModal .meta'),btn=document.querySelector('#bonusModal button[onclick="saveManualBonus()"]');if(title)title.textContent="Edit Bonus Manual";if(meta)meta.textContent=`Edit riwayat bonus ${userName(username)}`;if(btn)btn.innerHTML='<i class="fas fa-pen"></i> Update Bonus';modal("bonusModal")};
@@ -5053,7 +5201,7 @@ window.exportBackupXls = async function() {
         'ID': b.id || '',
         'Tanggal': b.dateKey || '',
         'Staff': b.user || b.targetUsername || '',
-        'Jenis': isBonusWithdrawalRow(b) ? 'Tarik Bonus Laci' : (b.action === 'subtract' ? 'Kurangi Bonus' : 'Tambah Bonus'),
+        'Jenis': isBonusWithdrawalRow(b) ? 'Withdraw Bonus Laci' : (b.action === 'subtract' ? 'Kurangi Bonus' : 'Tambah Bonus'),
         'Nominal (Rp)': Number(b.amount || 0),
         'Status': b.status || (b.deleted ? 'Dihapus' : 'Selesai'),
         'Keterangan': b.note || ''
