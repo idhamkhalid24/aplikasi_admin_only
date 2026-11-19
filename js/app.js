@@ -528,7 +528,7 @@ function normalizeWaNotifySettings(data) {
   function latestAdminCashDrawerAudit(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10);return (state.cashAuditRows||[]).filter(r=>String(r.dateKey||"").slice(0,10)===d).sort((a,b)=>(Date.parse(b.createdAt||"")||Number(b.id)||0)-(Date.parse(a.createdAt||"")||Number(a.id)||0))[0]||null}
   function adminCashDrawerAdjustmentForDate(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),latest=latestAdminCashDrawerAudit(d);let rows=(state.cashRows||[]).filter(r=>String(r.date||"").slice(0,10)===d&&isAdminCashDrawerAdjustmentTx(r));if(latest){const byAudit=rows.filter(r=>String(adminCashDrawerAdjustmentTxAuditId(r))===String(latest.id));if(byAudit.length)rows=byAudit;else if(!rows.length&&latest.status!=="pas"&&adminRoundRp(latest.adjustmentAmount)!==0)return adminRoundRp(latest.adjustmentAmount)}return adminRoundRp(rows.reduce((sum,r)=>sum+(String(r.type||"").toLowerCase()==="income"?Number(r.amount||0):-Number(r.amount||0)),0))}
   function financeDeductions(){
-    let ops=0,qrisManual=0,tabunganManual=0,lainnya=0;
+    let ops=0,qrisManual=0,tabunganManual=0,lainnya=0,bonusInCashRows=0;
     for(const r of state.cashRows){
       const desc=String(r.description||""),amount=Math.abs(Number(r.amount||0)),type=String(r.type||"").toLowerCase();
       if(isAdminCashDrawerAdjustmentTx(r))continue;
@@ -543,9 +543,20 @@ function normalizeWaNotifySettings(data) {
            // If somehow tabungan was auto-synced (doesn't exist right now, but just in case)
            tabunganManual+=amount;
         }
-        else lainnya+=amount
+        else if(t==="bonus"){
+           bonusInCashRows+=amount;
+           lainnya+=amount;
+        }
+        else lainnya+=amount;
       }
     }
+    
+    // Hitung penarikan bonus laci yang sudah di-ACC hari ini dari state.manual
+    const manualBonusWdToday = (state.manual || [])
+      .filter(b => !isDeleted(b) && isBonusWithdrawalRow(b) && extractDateKey(b) === dateKey() && (b.status === "approved" || b.status === "success" || (!b.status && b.source === BONUS_WITHDRAWAL_TYPE)))
+      .reduce((sum, b) => sum + bonusWithdrawalAmount(b), 0);
+    const bonusMissing = Math.max(0, manualBonusWdToday - bonusInCashRows);
+    lainnya += bonusMissing;
     
     // Hitung QRIS & Tabungan otomatis langsung dari transaksi hari ini secara LIVE
     let qrisAuto = 0, tabunganAuto = 0;
@@ -897,7 +908,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     const monthBadge=state.monthlyLoaded?`<span class="monthly-status loaded"><i class="fas fa-check"></i> Bulanan loaded</span>`:`<span class="monthly-status light"><i class="fas fa-bolt"></i> Hemat read</span>`;
     const monthCard=state.monthlyLoaded?`<div class="card stat"><div class="tiny">Bulan Ini</div><div class="val num">${rp(totalMonth)}</div><div class="meta">${monthRows.length} trx - manual load</div></div>`:`<div class="card stat read-saver-card"><div class="tiny">Bulan Ini</div><div class="val num" style="font-size:16px">Manual</div><div class="read-saver-note">Tidak auto baca ribuan trx.</div></div>`;
     const monthlyBonusCard=state.monthlyLoaded?`<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Ringkasan Bonus Bulanan</div><div class="meta">Data bulan ini dimuat manual - sudah termasuk transaksi, closing, manual, dan ambil bonus</div></div>${monthBadge}</div><div class="sep"></div><div class="grid2"><div><div class="tiny">Bonus Transaksi</div><div class="amt num">${rp(bonusTrxMonth)}</div></div><div><div class="tiny">Bonus Closing</div><div class="amt num">${rp(closingMonth)}</div></div><div><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(withdrawalMonth)}</div></div><div><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(sisaBonusMonth)}</div></div></div><div class="compact-load-row"><div class="meta">Total ${rp(totalBonusMonth)} - manual ${rp(manualMonth)}</div><button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button></div></div>`:`<div class="card pad mb read-saver-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan Bulanan</div><div class="meta">Mode ultra hemat: data bulan ini tidak otomatis dibaca</div></div>${monthBadge}</div><div class="read-saver-note">Klik tombol ini hanya saat butuh laporan bulan ini. Perkiraan read: sesuai jumlah transaksi + absen bulan berjalan.</div><div class="compact-load-row"><span class="chip warn"><i class="fas fa-database"></i> Manual</span><button class="btn amber" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button></div></div>`;
-    return`<div class="wrap">${header("Panel Admin",`${esc(state.user.name)} - ${dateKey()} - refresh hemat hari ini`)}<div class="hero mb"><div class="tiny">Cash Fisik Hari Ini</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Pendapatan ${rp(totalToday)} - ${tToday.length} transaksi hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Pendapatan Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} trx</div></div></div>${dailyBonusCard()}${adminCashierShortcutCard()}<div class="grid3 mb"><div class="card stat"><div class="tiny">Oprasional</div><div class="val num">${rp(ded.ops)}</div></div><div class="card stat"><div class="tiny">QRIS</div><div class="val num">${rp(ded.qris)}</div></div><div class="card stat"><div class="tiny">Tabungan</div><div class="val num">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`}
+    return`<div class="wrap">${header("Panel Admin",`${esc(state.user.name)} - ${dateKey()} - refresh hemat hari ini`)}${renderAdminPendingBonusAlert()}<div class="hero mb"><div class="tiny">Cash Fisik Hari Ini</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Pendapatan ${rp(totalToday)} - ${tToday.length} transaksi hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Pendapatan Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} trx</div></div></div>${dailyBonusCard()}${adminCashierShortcutCard()}<div class="grid3 mb"><div class="card stat"><div class="tiny">Oprasional</div><div class="val num">${rp(ded.ops)}</div></div><div class="card stat"><div class="tiny">QRIS</div><div class="val num">${rp(ded.qris)}</div></div><div class="card stat"><div class="tiny">Tabungan</div><div class="val num">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`}
 function isTxAfterLatestWithdrawal(t){
   const dk=String(t.dateKey||"").slice(0,10);
   if(!dk)return false;
@@ -954,14 +965,274 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
     }catch(e){toast(e.message||"Gagal simpan ambil bonus",true)}
     finally{setBusy(false)}
   }
+  const TELEGRAM_BOT_TOKEN = "9104796400:AAH6PGgKON4bUFXeeqhrHp3FNNhpqDYPOQ0";
+  const TELEGRAM_CHAT_ID = "6286337955";
+
+  async function sendTelegramMessage(text) {
+    try {
+      if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return null;
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: text,
+          parse_mode: 'Markdown'
+        })
+      });
+      return await res.json();
+    } catch(e) {
+      console.warn("Gagal kirim notif Telegram:", e);
+      return null;
+    }
+  }
+
+  function pendingBonusWithdrawalRows() {
+    return (state.manual || []).filter(b => !isDeleted(b) && isBonusWithdrawalRow(b) && b.status === "pending").sort((a,b) => recordTimeMs(b) - recordTimeMs(a));
+  }
+
+  function renderAdminPendingBonusAlert() {
+    const pending = pendingBonusWithdrawalRows();
+    if (!pending.length) return "";
+    return `
+      <div class="card pad mb" style="background:linear-gradient(135deg, #fef3c7, #fffbeb);border:1.5px solid #f59e0b;cursor:pointer;margin-bottom:12px;" onclick="go('bonus')">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:42px;height:42px;border-radius:12px;background:#fde68a;display:flex;align-items:center;justify-content:center;color:#b45309;font-size:20px;flex-shrink:0;">
+              <i class="fas fa-bell"></i>
+            </div>
+            <div>
+              <div style="font-size:13.5px;font-weight:900;color:#92400e;">PERMINTAAN TARIK BONUS</div>
+              <div style="font-size:11.5px;color:#b45309;"><b>${pending.length} staf</b> menunggu persetujuan ambil uang laci</div>
+            </div>
+          </div>
+          <span class="chip warn" style="font-weight:900;font-size:11px;padding:4px 10px;">Review Sekarang &rsaquo;</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPendingBonusWithdrawalSection() {
+    const pending = pendingBonusWithdrawalRows();
+    if (!pending.length) return "";
+    
+    const tToday = todayTx();
+    const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    const ded = financeDeductions();
+    const currentCashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
+
+    const list = pending.map(r => {
+      const raw = bonusWithdrawalAmount(r);
+      const id = esc(r.id || "");
+      const username = cleanUser(r.user || r.username || "");
+      const name = userName(r.user) || r.name || r.user || "Staff";
+      const note = String(r.note || "Ambil bonus dari uang laci").trim();
+      const sisaLaciSetelah = currentCashFisik - raw;
+      const laciAman = sisaLaciSetelah >= 500000;
+
+      return `
+        <div class="item" style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin-bottom:8px;">
+          <div class="ico" style="background:#fde68a;color:#b45309;font-size:18px;">
+            <i class="fas fa-hand-holding-dollar"></i>
+          </div>
+          <div class="grow" style="min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="font-size:14px;font-weight:900;color:#0f172a;">${esc(name)}</span>
+              <span style="font-size:11px;color:var(--muted);">@${esc(username)}</span>
+              <span class="chip warn" style="font-size:9.5px;padding:2px 6px;">Menunggu ACC</span>
+            </div>
+            <div style="font-size:11.5px;color:#78350f;margin-top:3px;">Catatan: <i>${esc(note)}</i></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
+              <span>Laci Sekarang: <b>${rp(currentCashFisik)}</b></span>
+              <span>Sisa Laci: <b style="color:${laciAman ? '#15803d' : '#dc2626'}">${rp(sisaLaciSetelah)}</b> ${laciAman ? '(Aman ≥ 500rb)' : '(Di bawah 500rb)'}</span>
+            </div>
+          </div>
+          <div class="right" style="text-align:right;flex-shrink:0;">
+            <div class="amt num" style="color:#b45309;font-size:17px;font-weight:950;">Rp ${rp(raw)}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end;">
+              <button class="btn green" style="padding:6px 12px;font-size:12px;font-weight:850;border-radius:10px;" onclick="adminApproveBonusWithdrawal('${id}')" title="Setujui Permintaan">
+                <i class="fas fa-check"></i> ACC
+              </button>
+              <button class="btn red" style="padding:6px 10px;font-size:12px;font-weight:850;border-radius:10px;" onclick="adminRejectBonusWithdrawal('${id}')" title="Tolak Permintaan">
+                <i class="fas fa-xmark"></i> Tolak
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="card pad mb" style="border:2px solid #f59e0b;background:#fffdf5;box-shadow:0 4px 16px rgba(245,158,11,0.15);margin-bottom:12px;">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="title" style="color:#92400e;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-bell" style="color:#d97706"></i> Permintaan Tarik Bonus (Menunggu ACC)
+            </div>
+            <div class="meta" style="color:#b45309;">Staf mengajukan ambil uang laci dan belum mengambil uangnya sebelum di-ACC.</div>
+          </div>
+          <span class="chip warn" style="font-weight:900;">${pending.length} Permintaan</span>
+        </div>
+        <div class="sep"></div>
+        <div class="list">${list}</div>
+      </div>
+    `;
+  }
+
+  window.adminApproveBonusWithdrawal = async (id) => {
+    const row = (state.manual || []).find(x => String(x.id) === String(id));
+    if (!row || !isBonusWithdrawalRow(row)) return toast("Data tidak ditemukan", true);
+
+    const amount = bonusWithdrawalAmount(row);
+    const staffTitle = userName(row.user) || row.name || row.user;
+    const pin = await askPin(`SETUJUI TARIK BONUS DARI LACI?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\n\nSetelah di-ACC, staf diperbolehkan mengambil uang dari laci toko sekarang.\n\nMasukkan PIN Admin:`);
+    if (!pin) return;
+    if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+
+    setBusy(true);
+    try {
+      const nowMs = Date.now();
+      const patch = {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        approvedAtMs: nowMs,
+        approvedBy: state.user.username,
+        approvedByName: state.user.name || state.user.username,
+        updatedAt: serverTimestamp(),
+        updatedAtMs: nowMs
+      };
+
+      // 1. Update manualBonuses di Supabase Server Pusat
+      await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
+      localMerge("manual", id, patch);
+
+      // 2. Simpan transaksi Cash Out ke cashDb (Supabase Kas Pribadi / Cash Fisik Toko)
+      const txDate = row.dateKey || dateKey();
+      const txDesc = `[CASHOUT:bonus] Ambil Bonus Laci: ${staffTitle} (${rp(amount)})`;
+      const txPayload = {
+        id: Number(nowMs.toString().slice(-9)),
+        owner_id: CASH_FISIK_OWNER_ID,
+        date: txDate,
+        description: txDesc,
+        amount: amount,
+        type: "expense",
+        category_name: "Gaji & Bonus"
+      };
+      try {
+        await cashDb.from("transactions").upsert(txPayload, { onConflict: "id" });
+      } catch(errCash) {
+        console.warn("Gagal simpan transaksi cash out ke cashDb:", errCash);
+      }
+
+      // 3. Kirim notifikasi Telegram konfirmasi
+      const tgConf = `✅ *PERMINTAAN TARIK BONUS TELAH DI-ACC ADMIN*
+
+• Kasir / Staf: *${staffTitle}* (@${row.user})
+• Nominal: *Rp ${rp(amount)}*
+• Di-ACC oleh: *${state.user.name || state.user.username}*
+• Waktu: *${new Date(nowMs).toLocaleTimeString("id-ID")} WIB*
+
+👉 _Staf dipersilakan mengambil uang tunai dari laci kasir sekarang._`;
+      sendTelegramMessage(tgConf).catch(() => {});
+
+      finishLocalWrite();
+      toast(`✓ Tarik bonus ${staffTitle} berhasil di-ACC!`);
+      await refreshAll(true, true);
+      render();
+    } catch (e) {
+      toast(e.message || "Gagal menyetujui tarik bonus", true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  window.adminRejectBonusWithdrawal = async (id) => {
+    const row = (state.manual || []).find(x => String(x.id) === String(id));
+    if (!row || !isBonusWithdrawalRow(row)) return toast("Data tidak ditemukan", true);
+
+    const amount = bonusWithdrawalAmount(row);
+    const staffTitle = userName(row.user) || row.name || row.user;
+    const reason = prompt("Masukkan alasan penolakan:", "Uang laci sedang dibutuhkan untuk operasional/kembalian");
+    if (reason === null) return;
+
+    const pin = await askPin(`TOLAK PERMINTAAN TARIK BONUS?\n\nStaf: ${staffTitle}\nNominal: ${rp(amount)}\nAlasan: ${reason}\n\nMasukkan PIN Admin:`);
+    if (!pin) return;
+    if (String(pin) !== String(state.user.pin)) return toast("PIN salah", true);
+
+    setBusy(true);
+    try {
+      const nowMs = Date.now();
+      const patch = {
+        status: "rejected",
+        rejectReason: reason || "Ditolak admin",
+        rejectedAt: serverTimestamp(),
+        rejectedAtMs: nowMs,
+        rejectedBy: state.user.username,
+        rejectedByName: state.user.name || state.user.username,
+        updatedAt: serverTimestamp(),
+        updatedAtMs: nowMs
+      };
+
+      await setDoc(doc(db, "manualBonuses", id), patch, { merge: true });
+      localMerge("manual", id, patch);
+
+      const tgReject = `❌ *PERMINTAAN TARIK BONUS DITOLAK ADMIN*
+
+• Kasir / Staf: *${staffTitle}* (@${row.user})
+• Nominal: *Rp ${rp(amount)}*
+• Alasan: _${reason || "Ditolak admin"}_
+• Oleh: *${state.user.name || state.user.username}*`;
+      sendTelegramMessage(tgReject).catch(() => {});
+
+      finishLocalWrite();
+      toast("Permintaan tarik bonus ditolak");
+      render();
+    } catch (e) {
+      toast(e.message || "Gagal tolak tarik bonus", true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   window.deleteBonusWithdrawal=async id=>{const row=state.manual.find(x=>String(x.id)===String(id));if(!row||!isBonusWithdrawalRow(row))return toast("Riwayat ambil bonus tidak ditemukan",true);const pin=await askPin(`Hapus riwayat ambil bonus ${userName(row.user)}?\nNominal: ${rp(bonusWithdrawalAmount(row))}\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN salah",true);setBusy(true);try{const patch={deleted:true,status:"deleted",deletedAt:serverTimestamp(),deletedAtMs:Date.now(),deletedBy:state.user.username,deletedByName:state.user.name};await setDoc(doc(db,"manualBonuses",id),patch,{merge:true});localMerge("manual",id,patch);finishLocalWrite();toast("Riwayat ambil bonus dihapus")}catch(e){toast(e.message||"Gagal hapus ambil bonus",true)}finally{setBusy(false)}}
   function bonusWithdrawalHistoryRows(){return visibleManual().filter(b=>!isDeleted(b)&&isBonusWithdrawalRow(b)).sort((a,b)=>recordTimeMs(b)-recordTimeMs(a))}
-  function renderBonusWithdrawalHistory(){const rows=bonusWithdrawalHistoryRows(),total=rows.reduce((s,r)=>s+bonusWithdrawalAmount(r),0),list=rows.map(r=>{const raw=bonusWithdrawalAmount(r),id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success)"><i class="fas fa-money-bill-wave"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Ambil bonus sebagian")}</div></div><div class="right" style="text-align:right"><span class="chip ok">Sudah diambil</span><div class="amt num" style="margin-top:5px;color:var(--success)">- ${rp(raw)}</div><div class="miniBtns"><button class="btn red" onclick="deleteBonusWithdrawal('${id}')" title="Hapus ambil bonus"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Ambil Bonus</div><div class="meta">Uang bonus yang sudah diambil sebagian. Tidak mengubah bonus manual.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada ambil bonus hari ini</div>`}</div></div>`}
+  function renderBonusWithdrawalHistory(){
+    const rows=bonusWithdrawalHistoryRows(),
+    total=rows.filter(r=>r.status==="approved"||r.status==="success"||(!r.status&&r.source===BONUS_WITHDRAWAL_TYPE)).reduce((s,r)=>s+bonusWithdrawalAmount(r),0),
+    list=rows.map(r=>{
+      const raw=bonusWithdrawalAmount(r),id=esc(r.id||"");
+      const st=r.status||"approved";
+      const isApproved=st==="approved"||st==="success";
+      const isPending=st==="pending";
+      const isRejected=st==="rejected";
+      const chipClass=isApproved?"ok":(isPending?"warn":"bad");
+      const chipLabel=isApproved?"Sudah diambil":(isPending?"Menunggu ACC":"Ditolak");
+      return `<div class="item">
+        <div class="ico" style="background:${isApproved?'var(--success-soft)':(isPending?'var(--warning-soft)':'var(--danger-soft)')};color:${isApproved?'var(--success)':(isPending?'var(--warning)':'var(--danger)')}">
+          <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="grow">
+          <div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div>
+          <div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div>
+          <div class="meta">${esc(r.note||"Ambil bonus sebagian")}</div>
+        </div>
+        <div class="right" style="text-align:right">
+          <span class="chip ${chipClass}">${chipLabel}</span>
+          <div class="amt num" style="margin-top:5px;color:${isApproved?'var(--success)':(isPending?'var(--warning)':'var(--muted)')}">- ${rp(raw)}</div>
+          <div class="miniBtns">
+            ${isPending ? `<button class="btn green" onclick="adminApproveBonusWithdrawal('${id}')" title="Setujui (ACC)"><i class="fas fa-check"></i> ACC</button><button class="btn red" onclick="adminRejectBonusWithdrawal('${id}')" title="Tolak"><i class="fas fa-xmark"></i></button>` : ''}
+            <button class="btn red" onclick="deleteBonusWithdrawal('${id}')" title="Hapus ambil bonus"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Ambil Bonus</div><div class="meta">Uang bonus yang sudah diambil sebagian. Tidak mengubah bonus manual.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada ambil bonus hari ini</div>`}</div></div>`;
+  }
   function bonusHistoryKind(row){const action=String(row?.action||row?.bonusAction||"").toLowerCase(),amount=Number(row?.amount||0);return action==="subtract"||amount<0?"subtract":"add"}
   function bonusHistoryLabel(row){return bonusHistoryKind(row)==="subtract"?"Kurangi":"Tambah"}
   function bonusHistoryTime(row){const ms=recordTimeMs(row);try{return `${dateId(extractDateKey(row))} - ${new Date(ms).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Jakarta"}).replace(".",":")}`}catch(e){return extractDateKey(row)||"Hari ini"}}
   function renderBonusHistory(){const rows=bonusHistoryRows(),addTotal=rows.filter(r=>bonusHistoryKind(r)==="add").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0),subTotal=rows.filter(r=>bonusHistoryKind(r)==="subtract").reduce((s,r)=>s+Math.abs(Number(r.amount||0)),0);const list=rows.map(r=>{const kind=bonusHistoryKind(r),raw=Math.abs(Number(r.amount||0)),badge=kind==="subtract"?"bad":"ok",sign=kind==="subtract"?"-":"+",icon=kind==="subtract"?"fa-minus":"fa-plus",id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:${kind==="subtract"?"var(--danger-soft)":"var(--success-soft)"};color:${kind==="subtract"?"var(--danger)":"var(--success)"}"><i class="fas ${icon}"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Tanpa catatan")}</div></div><div class="right" style="text-align:right"><span class="chip ${badge}">${bonusHistoryLabel(r)}</span><div class="amt num" style="margin-top:5px;color:${kind==="subtract"?"var(--danger)":"var(--success)"}">${sign} ${rp(raw)}</div><div class="miniBtns"><button class="btn amber" onclick="openEditManualBonus('${id}')" title="Edit bonus"><i class="fas fa-pen"></i></button><button class="btn red" onclick="deleteManualBonus('${id}')" title="Hapus bonus"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Riwayat Bonus Manual</div><div class="meta">Tambah & kurangi bonus hari ini. Bisa edit atau hapus.</div></div><span class="chip ok">${rows.length} riwayat</span></div><div class="sep"></div><div class="grid2 mb"><div class="bonus-mini"><div class="tiny">Total Tambah</div><div class="amt num" style="color:var(--success)">${rp(addTotal)}</div></div><div class="bonus-mini"><div class="tiny">Total Kurangi</div><div class="amt num" style="color:var(--danger)">${rp(subTotal)}</div></div></div><div class="list">${list||`<div class="empty">Belum ada riwayat bonus manual hari ini</div>`}</div></div>`}
-  function renderBonus(){const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx</div><div class="amt num">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num">${rp(getClosingMinute(u))}/mnt</div></div></div></div><button class="btn amber" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");return`<div class="wrap">${header("Bonus","Tambah manual, ambil bonus, & control bonus user")}<div class="grid3 mb"><button class="btn primary full" onclick="openManualBonus('add')"><i class="fas fa-plus"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')"><i class="fas fa-minus"></i> Kurangi Bonus</button><button class="btn green full" onclick="openBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Ambil Bonus</button></div><div class="card pad mb"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Setting Global Bonus</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Control Bonus User</div><div class="meta">Rapih: persen transaksi + bonus closing per user</div></div><span class="chip ok">${users.length} user</span></div><div class="sep"></div><div class="bonus-control-grid">${rows||`<div class="empty">Belum ada user</div>`}</div></div>${renderBonusHistory()}${renderBonusWithdrawalHistory()}</div>`}
+  function renderBonus(){const users=activeUsers(),rows=users.map(u=>`<div class="bonus-user-card"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}</div><div class="bonus-stats"><div class="bonus-mini"><div class="tiny">Trx</div><div class="amt num">${Number((getUserRate(u)*100).toFixed(3))}%</div></div><div class="bonus-mini"><div class="tiny">Closing</div><div class="amt num">${rp(getClosingMinute(u))}/mnt</div></div></div></div><button class="btn amber" onclick="openBonusControl('${esc(u.username)}')"><i class="fas fa-sliders"></i></button></div>`).join("");return`<div class="wrap">${header("Bonus","Tambah manual, ambil bonus, & control bonus user")}${renderPendingBonusWithdrawalSection()}<div class="grid3 mb"><button class="btn primary full" onclick="openManualBonus('add')"><i class="fas fa-plus"></i> Tambah Bonus</button><button class="btn red full" onclick="openManualBonus('subtract')"><i class="fas fa-minus"></i> Kurangi Bonus</button><button class="btn green full" onclick="openBonusWithdrawal()"><i class="fas fa-money-bill-wave"></i> Ambil Bonus</button></div><div class="card pad mb"><button class="btn amber full" onclick="saveGlobalBonusSettings()"><i class="fas fa-gear"></i> Setting Global Bonus</button></div><div class="card pad"><div class="row" style="justify-content:space-between"><div><div class="title">Control Bonus User</div><div class="meta">Rapih: persen transaksi + bonus closing per user</div></div><span class="chip ok">${users.length} user</span></div><div class="sep"></div><div class="bonus-control-grid">${rows||`<div class="empty">Belum ada user</div>`}</div></div>${renderBonusHistory()}${renderBonusWithdrawalHistory()}</div>`}
   function renderTargetAutoBonusHistory(){const rows=targetAutoBonusRows(),total=rows.reduce((s,r)=>s+Number(r.amount||0),0),list=rows.map(r=>{const raw=Math.abs(Number(r.amount||0)),id=esc(r.id||"");return `<div class="item"><div class="ico" style="background:var(--success-soft);color:var(--success)"><i class="fas fa-bullseye"></i></div><div class="grow"><div class="name">${esc(userName(r.user)||r.name||r.user||"User")}</div><div class="meta">@${esc(cleanUser(r.user||r.username||""))} - ${bonusHistoryTime(r)}</div><div class="meta">${esc(r.note||"Bonus target omzet harian tercapai")}</div></div><div class="right" style="text-align:right"><span class="chip ok">Otomatis</span><div class="amt num" style="margin-top:5px;color:var(--success)">+ ${rp(raw)}</div><div class="miniBtns"><button class="btn red" onclick="deleteManualBonus('${id}')" title="Reset bonus target otomatis"><i class="fas fa-trash"></i></button></div></div></div>`}).join("");return `<div class="card pad" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Bonus Target Otomatis</div><div class="meta">Bonus yang dibuat otomatis saat target omzet tercapai. Hapus untuk reset bonus staff terkait.</div></div><span class="chip ok">${rp(total)}</span></div><div class="sep"></div><div class="list">${list||`<div class="empty">Belum ada bonus target otomatis hari ini</div>`}</div></div>`}
   const renderBonusWithoutTargetAuto=renderBonus;renderBonus=function(){const html=renderBonusWithoutTargetAuto();return String(html).endsWith("</div>")?html.slice(0,-6)+renderTargetAutoBonusHistory()+"</div>":html+renderTargetAutoBonusHistory()};
   window.openManualBonus=(mode="add")=>{window.__editingManualBonusId="";$("bonusUser").innerHTML=optionUsers(state.user?.username);if($("bonusMode"))$("bonusMode").value=mode==="subtract"?"subtract":"add";$("bonusAmount").value="";$("bonusNote").value="";const title=document.querySelector('#bonusModal .title'),meta=document.querySelector('#bonusModal .meta'),btn=document.querySelector('#bonusModal button[onclick="saveManualBonus()"]');if(title)title.textContent="Bonus Manual";if(meta)meta.textContent="Tambah / kurangi bonus secara kustom";if(btn)btn.innerHTML='<i class="fas fa-floppy-disk"></i> Simpan Bonus';modal("bonusModal")};
@@ -4421,6 +4692,21 @@ const ALL_BACKUP_FETCH_TABLES = [
   'projects'
 ];
 
+const DOC_WRAPPED_TABLES = new Set([
+  'transactions',
+  'closings',
+  'attendance',
+  'manualBonuses',
+  'drawer_withdrawals',
+  'online_orders',
+  'staff_leave_requests',
+  'users',
+  'dailyTargets',
+  'ops_access',
+  'admin_users',
+  'firestore_docs'
+]);
+
 function downloadFileBlob(content, fileName, mimeType = 'application/octet-stream') {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -4455,9 +4741,9 @@ async function ensureSheetJsLoaded() {
 function normalizeBackupRow(row) {
   if (!row) return {};
   if (row.data && typeof row.data === 'object') {
-    return { id: row.id, ...row.data, _server_created_at: row.created_at };
+    return { id: row.id, ...row.data, _server_created_at: row.created_at, _is_doc_table: true };
   }
-  return { ...row };
+  return { ...row, _is_doc_table: false };
 }
 
 async function fetchAllRowsFromTable(tableName) {
@@ -4605,12 +4891,14 @@ window.exportBackupXls = async function() {
       const wsAtt = XLSX.utils.json_to_sheet(formattedAtt.length ? formattedAtt : [{ 'Info': 'Tidak ada data absensi' }]);
       XLSX.utils.book_append_sheet(wb, wsAtt, 'Absensi Staff');
 
-      // Sheet 4: Bonus Manual
+      // Sheet 4: Bonus Manual & Ambil Bonus
       const formattedB = bonusRows.map(b => ({
         'ID': b.id || '',
         'Tanggal': b.dateKey || '',
         'Staff': b.user || b.targetUsername || '',
+        'Jenis': isBonusWithdrawalRow(b) ? 'Tarik Bonus Laci' : (b.action === 'subtract' ? 'Kurangi Bonus' : 'Tambah Bonus'),
         'Nominal (Rp)': Number(b.amount || 0),
+        'Status': b.status || (b.deleted ? 'Dihapus' : 'Selesai'),
         'Keterangan': b.note || ''
       }));
       const wsB = XLSX.utils.json_to_sheet(formattedB.length ? formattedB : [{ 'Info': 'Tidak ada data bonus' }]);
@@ -4941,16 +5229,22 @@ window.executeRestoreBackupWithPin = async function() {
       if (!rows.length) continue;
 
       toast('Memulihkan tabel ' + t + ' (' + rows.length + ' data)...');
+      const isDocWrapped = DOC_WRAPPED_TABLES.has(t);
 
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const chunk = rows.slice(i, i + BATCH_SIZE);
         const batchPayload = chunk.map(r => {
-          const { id, _server_created_at, ...data } = r;
-          const cleanId = String(id || makeId(t + '_'));
-          return {
-            id: cleanId,
-            data: data
-          };
+          if (isDocWrapped || r._is_doc_table === true) {
+            const { id, _server_created_at, _is_doc_table, ...data } = r;
+            const cleanId = String(id || makeId(t + '_'));
+            return {
+              id: cleanId,
+              data: data
+            };
+          } else {
+            const { _server_created_at, _is_doc_table, ...flatRow } = r;
+            return flatRow;
+          }
         });
 
         const { error } = await supabase.from(t).upsert(batchPayload, { onConflict: 'id' });
