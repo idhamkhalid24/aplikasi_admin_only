@@ -26,7 +26,7 @@ window.onunhandledrejection = function(event) {
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <script>
-    var v = "20261126_15"; window.__APP_VERSION__ = v;
+    var v = "20261126_18"; window.__APP_VERSION__ = v;
     document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
   </script>
 </head>
@@ -133,7 +133,11 @@ window.onunhandledrejection = function(event) {
         </label>
         <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(5,150,105,.32);border-radius:16px;background:rgba(5,150,105,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
           <input id="uPpobAccess" type="checkbox" style="margin-top:3px;accent-color:#059669">
-          <span><b>Akses Jual PPOB (Pulsa, PLN, dll)</b><br><span class="meta">Izinkan user ini melayani penjualan produk digital PPOB (Pulsa, Paket Data, Token Listrik, E-Wallet) via Digiflazz.</span></span>
+          <span><b>Akses Jual PPOB (Digiflazz)</b><br><span class="meta">Izinkan user ini melayani penjualan produk digital PPOB (Pulsa, Paket Data, Token Listrik, E-Wallet) via Digiflazz.</span></span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(79,70,229,.32);border-radius:16px;background:rgba(79,70,229,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
+          <input id="uZidstoreAccess" type="checkbox" style="margin-top:3px;accent-color:#4f46e5">
+          <span><b>Akses Jual ZidStore (PPOB &amp; Akrab)</b><br><span class="meta">Izinkan user ini menjual produk PPOB ZidStore &amp; paket XL/AXIS Akrab.</span></span>
         </label>
         <div id="uDeviceLockContainer"></div>
         <button class="btn primary full" onclick="saveUser()"><i class="fas fa-user-check"></i> Simpan Data User</button>
@@ -280,6 +284,109 @@ window.onunhandledrejection = function(event) {
       <div class="form">
         <div id="ppobAccessList" style="display:flex;flex-direction:column;gap:8px;">
           <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="zidstoreAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses ZidStore (PPOB &amp; Akrab)</div><div class="meta">Pilih staf yang diizinkan menjual produk PPOB ZidStore &amp; XL/AXIS Akrab</div></div>
+        <button class="btn icon" onclick="closeModal('zidstoreAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div id="zidstoreAccessList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="zidstorePriceModal" class="modal">
+    <div class="sheet" style="max-height:92vh;display:flex;flex-direction:column;">
+      <div class="sheetHead">
+        <div>
+          <div class="title" style="display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-store" style="color:#4f46e5;"></i> Kelola Harga &amp; Produk ZidStore
+          </div>
+          <div class="meta">Atur margin, pembulatan, custom harga, dan sinkronisasi PPOB + XL/AXIS Akrab ZidStore</div>
+        </div>
+        <button class="btn icon" onclick="closeModal('zidstorePriceModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form" style="overflow-y:auto;flex:1;padding-bottom:16px;">
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;background:#eef2ff;border:1.5px solid #a5b4fc;border-radius:14px;padding:12px 14px;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;">
+              <i class="fas fa-wallet" style="font-size:17px;"></i>
+            </div>
+            <div>
+              <div style="font-size:10.5px;font-weight:800;color:#312e81;letter-spacing:0.3px;">SALDO AKUN ZIDSTORE</div>
+              <div id="zidstoreLiveBalance" style="font-size:19px;font-weight:900;color:#3730a3;margin-top:1px;">Rp 0</div>
+              <div id="zidstoreBalanceTime" style="font-size:10px;color:#4f46e5;">Update: Baru saja</div>
+            </div>
+          </div>
+          <button id="btnCheckZidBalance" type="button" class="btn" style="background:#4f46e5;color:#fff;border-radius:10px;font-weight:800;font-size:11.5px;padding:8px 12px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="fetchZidStoreBalance()">
+            <i class="fas fa-rotate"></i> Cek Saldo
+          </button>
+        </div>
+
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:14px;padding:11px 14px;gap:10px;">
+          <div>
+            <div style="font-size:12.5px;font-weight:900;color:#3b0764;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-arrows-rotate" style="color:#6d28d9;"></i> Sinkronkan Katalog ZidStore
+            </div>
+            <div style="font-size:10.5px;color:#5b21b6;margin-top:2px;">Tarik semua produk PPOB &amp; stok terbaru paket XL/AXIS Akrab dari ZidStore</div>
+          </div>
+          <button id="btnSyncZidStore" type="button" class="btn" style="background:#6d28d9;color:#fff;border-radius:10px;font-weight:800;font-size:11.5px;padding:8px 12px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="syncZidStoreProducts()">
+            <i class="fas fa-arrows-rotate"></i> Tarik Produk
+          </button>
+        </div>
+
+        <div class="card pad mb" style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;">
+          <div style="font-size:12px;font-weight:800;color:var(--text-main,#0f172a);margin-bottom:10px;">
+            <i class="fas fa-sliders" style="color:#4f46e5;"></i> PENGATURAN HARGA ZIDSTORE
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Margin Untung Standar (Rp)</label>
+              <input id="zidstoreSettingMarkup" type="number" class="input" placeholder="1500" value="1500" style="font-weight:800;" oninput="recalcZidStorePricePreview()">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Pembulatan Otomatis</label>
+              <select id="zidstoreSettingRounding" class="input" style="font-weight:800;" onchange="recalcZidStorePricePreview()">
+                <option value="1000">Ke Rp 1.000 (Rekomendasi)</option>
+                <option value="500">Ke Rp 500</option>
+                <option value="0">Tanpa Pembulatan</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;">
+            <i class="fas fa-circle-info" style="color:#4f46e5;"></i> Pengaturan harga ZidStore terpisah dari Digiflazz. Kamu bisa ubah harga jual per produk di bawah.
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input id="zidstoreAdminSearch" type="text" class="input" placeholder="Cari nama produk / kode / brand ZidStore..." oninput="renderAdminZidStorePriceList()" style="font-size:12.5px;font-weight:700;border-radius:10px;">
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+          <button type="button" class="btn primary" id="btnZidTabAkrab" onclick="switchAdminZidStoreTab('akrab')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:#4f46e5;color:#fff;border:none;">XL/AXIS Akrab</button>
+          <button type="button" class="btn" id="btnZidTabPulsa" onclick="switchAdminZidStoreTab('pulsa')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Pulsa</button>
+          <button type="button" class="btn" id="btnZidTabData" onclick="switchAdminZidStoreTab('data')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Kuota Data</button>
+          <button type="button" class="btn" id="btnZidTabEmoney" onclick="switchAdminZidStoreTab('emoney')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">E-Money</button>
+          <button type="button" class="btn" id="btnZidTabDigital" onclick="switchAdminZidStoreTab('digital')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Game &amp; Digital</button>
+          <button type="button" class="btn" id="btnZidTabLainnya" onclick="switchAdminZidStoreTab('lainnya')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Lainnya</button>
+        </div>
+
+        <div id="zidstorePriceList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:12px;text-align:center;padding:16px;">Memuat katalog ZidStore...</div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button type="button" class="btn primary full" style="background:#4f46e5;font-weight:800;border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="saveZidStorePriceSettings()">
+            <i class="fas fa-floppy-disk"></i> Simpan Harga ZidStore
+          </button>
         </div>
       </div>
     </div>
@@ -524,7 +631,7 @@ window.onunhandledrejection = function(event) {
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    var v = "20261126_15"; window.__APP_VERSION__ = v;
+    var v = "20261126_18"; window.__APP_VERSION__ = v;
     document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
     document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
   </script>

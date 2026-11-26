@@ -647,7 +647,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
           return { data: [] };
         }
       };
-      const [txSnap, attSnap, closingSnap, manualSnap, userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap, staffNoteSnap, rismaManualSnap, receiptSnap, _cash, _wa, _tele, reserveRes, ppobSetSnap, ppobBalSnap] = await Promise.all([
+      const [txSnap, attSnap, closingSnap, manualSnap, userSnap, unlockSnap, drawerWithdrawalSnap, bonusSnap, staffNoteSnap, rismaManualSnap, receiptSnap, _cash, _wa, _tele, reserveRes, ppobSetSnap, ppobBalSnap, zidSetSnap, zidBalSnap] = await Promise.all([
         getDocs(txQ), getDocs(attQ), getDocs(closingQ), getDocs(manualQ),
         getDocs(usersQ), getDocs(unlockQ), getDocs(drawerWithdrawalsQ).catch(()=>({docs:[]})),
         getDocFromServer(doc(db,'closings','__bonus_settings')).catch(()=>null),
@@ -659,7 +659,9 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         loadTelegramNotifySettings().catch(()=>null),
         fetchReserveToday(),
         getDocFromServer(doc(db,'closings','__ppob_settings')).catch(()=>null),
-        getDocFromServer(doc(db,'closings','__ppob_balance')).catch(()=>null)
+        getDocFromServer(doc(db,'closings','__ppob_balance')).catch(()=>null),
+        getDocFromServer(doc(db,'closings','__zidstore_settings')).catch(()=>null),
+        getDocFromServer(doc(db,'closings','__zidstore_balance')).catch(()=>null)
       ]);
 
 
@@ -702,6 +704,12 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       }
       if(ppobBalSnap?.exists()&&typeof ppobBalSnap.data()?.deposit==="number"){
         state.digiflazzBalance={deposit:Number(ppobBalSnap.data().deposit),updatedAtMs:Number(ppobBalSnap.data().updatedAtMs||Date.now())};
+      }
+      if(zidSetSnap?.exists()){
+        state.zidstoreSettings={...(state.zidstoreSettings||{}),...(zidSetSnap.data()||{})};
+      }
+      if(zidBalSnap?.exists()&&typeof zidBalSnap.data()?.deposit==="number"){
+        state.zidstoreBalance={deposit:Number(zidBalSnap.data().deposit),username:zidBalSnap.data().username||"",updatedAtMs:Number(zidBalSnap.data().updatedAtMs||Date.now())};
       }
       loadCloudflareNotifySettings(false).catch(()=>{});
 
@@ -843,8 +851,8 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function txTimeLabel(t){return new Date(txTimeMs(t)).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Jakarta"}).replace(".",":")}
   function dateId(dk=dateKey()){const a=String(dk||dateKey()).slice(0,10).split("-");return a.length===3?`${a[2]}/${a[1]}/${a[0]}`:String(dk||"")}
   function mapValueByUser(map,username){const target=cleanUser(username);if(!map||!target)return 0;if(Object.prototype.hasOwnProperty.call(map,target))return Number(map[target]||0);const k=Object.keys(map||{}).find(x=>cleanUser(x)===target);return k?Number(map[k]||0):0}
-  function txBonusRate(t){if(t?.isPpob===true||t?.type==="ppob"||t?.category==="ppob"||t?.bonusExempt===true)return 0;const direct=Number(t?.bonusRate??t?.transactionBonusRate);if(Number.isFinite(direct)&&direct>=0)return direct;const pct=Number(t?.bonusPercent??t?.transactionBonusPercent);if(Number.isFinite(pct)&&pct>=0)return pct/100;return getUserRate(t?.user)}
-  function txBonusAmount(t){if(t?.isPpob===true||t?.type==="ppob"||t?.category==="ppob"||t?.bonusExempt===true)return 0;return moneyValue(Number(t?.amount||0)*txBonusRate(t))}
+  function txBonusRate(t){if(t?.isPpob===true||t?.type==="ppob"||t?.category==="ppob"||t?.isZidstore===true||t?.type==="zidstore"||t?.provider==="zidstore"||t?.bonusExempt===true)return 0;const direct=Number(t?.bonusRate??t?.transactionBonusRate);if(Number.isFinite(direct)&&direct>=0)return direct;const pct=Number(t?.bonusPercent??t?.transactionBonusPercent);if(Number.isFinite(pct)&&pct>=0)return pct/100;return getUserRate(t?.user)}
+  function txBonusAmount(t){if(t?.isPpob===true||t?.type==="ppob"||t?.category==="ppob"||t?.isZidstore===true||t?.type==="zidstore"||t?.provider==="zidstore"||t?.bonusExempt===true)return 0;return moneyValue(Number(t?.amount||0)*txBonusRate(t))}
   function txIsDaily(t){const role=String(t?.userRole||t?.role||userBy(t?.user)?.role||"").toLowerCase();const group=String(t?.bonusGroup||"").toLowerCase();return role==="harian"||group==="harian"||isDaily(userBy(t?.user))}
   function manualTodayRows(){return visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&explicitRecordDateKey(b)===dateKey())}
   function manualBonusTodayForUser(username){const u=cleanUser(username);return manualTodayRows().filter(b=>cleanUser(b.user)===u).reduce((s,b)=>s+Number(b.amount||0),0)}
@@ -864,8 +872,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function adminLitePaymentLabel(v){const m=normalizeAdminLitePaymentMethod(v);return m?ADMIN_LITE_PAYMENT_METHODS[m]:String(v||"").trim()}
   function txPaymentMethod(t={}){return normalizeAdminLitePaymentMethod(t.paymentMethod||t.payment_method||t.paymentLabel||t.payment_label||t.paymentType||t.payment_type||t.metodePembayaran||t.metode_pembayaran)||"cash"}
   function txPaymentLabel(t={}){const ch=String(t?.paymentChannel||"").toLowerCase(),pm=String(t?.paymentMethod||t?.payment_method||"").toLowerCase(),lbl=String(t?.paymentLabel||t?.payment_label||"").trim();if(ch==="edc"||pm==="transfer"||lbl.toLowerCase().includes("edc")||lbl.toLowerCase().includes("transfer bank"))return "EDC / Transfer";if(ch==="qris_barcode"||t?.qrisOrderId||lbl.toLowerCase()==="qris barcode")return "QRIS Barcode";return ADMIN_LITE_PAYMENT_METHODS[txPaymentMethod(t)]||"Cash"}
-  function isAdminPpobTx(t={}){return Boolean(t&&(t.isPpob===true||t.type==="ppob"||t.category==="ppob"||t.source==="ppob_transaction"))}
-  function txPaymentBadge(t={}){if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
+  function isAdminZidStoreTx(t={}){return Boolean(t&&(t.provider==="zidstore"||t.isZidstore===true||t.type==="zidstore"||t.source==="zidstore_transaction"))}
+  function isAdminZidStoreAkrabTx(t={}){return Boolean(isAdminZidStoreTx(t)&&(t.zidstoreKind==="akrab"||String(t.ppobCategory||t.category||"").toLowerCase()==="akrab"))}
+  function isAdminPpobTx(t={}){return Boolean(!isAdminZidStoreTx(t)&&t&&(t.isPpob===true||t.type==="ppob"||t.category==="ppob"||t.source==="ppob_transaction"))}
+  function txPaymentBadge(t={}){if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
@@ -923,12 +933,27 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     const monthCard=state.monthlyLoaded?`<div class="card stat"><div class="tiny">Bulan Ini</div><div class="val num">${rp(totalMonth)}</div><div class="meta">${monthRows.length} trx - manual load</div></div>`:`<div class="card stat read-saver-card"><div class="tiny">Bulan Ini</div><div class="val num" style="font-size:16px">Manual</div><div class="read-saver-note">Tidak auto baca ribuan trx.</div></div>`;
     const monthlyBonusCard=state.monthlyLoaded?`<div class="card pad mb"><div class="row" style="justify-content:space-between"><div><div class="title">Ringkasan Bonus Bulanan</div><div class="meta">Data bulan ini dimuat manual - sudah termasuk transaksi, closing, manual, dan ambil bonus</div></div>${monthBadge}</div><div class="sep"></div><div class="grid2"><div><div class="tiny">Bonus Transaksi</div><div class="amt num">${rp(bonusTrxMonth)}</div></div><div><div class="tiny">Bonus Closing</div><div class="amt num">${rp(closingMonth)}</div></div><div><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(withdrawalMonth)}</div></div><div><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(sisaBonusMonth)}</div></div></div><div class="compact-load-row"><div class="meta">Total ${rp(totalBonusMonth)} - manual ${rp(manualMonth)}</div><button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button></div></div>`:`<div class="card pad mb read-saver-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan Bulanan</div><div class="meta">Mode ultra hemat: data bulan ini tidak otomatis dibaca</div></div>${monthBadge}</div><div class="read-saver-note">Klik tombol ini hanya saat butuh laporan bulan ini. Perkiraan read: sesuai jumlah transaksi + absen bulan berjalan.</div><div class="compact-load-row"><span class="chip warn"><i class="fas fa-database"></i> Manual</span><button class="btn amber" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button></div></div>`;
   return`<div class="wrap">${header("Panel Admin",`${esc(state.user.name)} - ${dateKey()} - refresh hemat hari ini`)}${renderAdminPendingBonusAlert()}<div class="hero mb"><div class="tiny">Cash Fisik Hari Ini</div><div class="val num">${rp(cashFisik)}</div><div class="meta">Pendapatan ${rp(totalToday)} - ${tToday.length} transaksi hari ini</div></div><div class="grid2 mb">${monthCard}<div class="card stat"><div class="tiny">Pendapatan Hari Ini</div><div class="val num">${rp(totalToday)}</div><div class="meta">${tToday.length} trx</div></div></div>${adminDigiflazzBalanceCard()}${dailyBonusCard()}${adminCashierShortcutCard()}<div class="grid3 mb"><div class="card stat"><div class="tiny">Oprasional</div><div class="val num">${rp(ded.ops)}</div></div><div class="card stat"><div class="tiny">QRIS</div><div class="val num">${rp(ded.qris)}</div></div><div class="card stat"><div class="tiny">Tabungan</div><div class="val num">${rp(ded.tabungan)}</div></div></div>${monthlyBonusCard}</div>`}
+  function adminZidStoreBalanceCard(){
+    const cached = state.zidstoreBalance;
+    const deposit = cached?.deposit !== undefined ? Number(cached.deposit) : 0;
+    const timeStr = cached?.updatedAtMs ? new Date(cached.updatedAtMs).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "Belum cek";
+    const uname = String(cached?.username || "azy245").trim();
+    const isOpen = Boolean(state.adminHomeCardOpen?.zid);
+    if (!isOpen) {
+      return `<div class="card pad mb" onclick="toggleAdminHomeCard('zid')" style="background:#eef2ff;border:1.5px solid #a5b4fc;border-radius:16px;margin:8px 0;padding:10px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;"><div style="width:34px;height:34px;border-radius:10px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-store" style="font-size:15px;"></i></div><div style="min-width:0;flex:1;"><div style="font-size:9.5px;color:#312e81;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">SALDO ZIDSTORE (PPOB &amp; AKRAB)</div><div class="val num" style="font-size:15px;font-weight:900;color:#3730a3;line-height:1.15;margin-top:1px;">${rp(deposit)}</div></div></div><span class="chip" style="background:#fff;border:1px solid #a5b4fc;color:#4f46e5;font-size:10px;font-weight:800;padding:4px 9px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">Buka <i class="fas fa-chevron-down"></i></span></div>`;
+    }
+    return `<div class="card pad mb" style="background:#eef2ff;border:1.5px solid #a5b4fc;border-radius:18px;margin:8px 0;padding:12px 13px;"><div onclick="toggleAdminHomeCard('zid')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;"><div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;"><div style="width:40px;height:40px;border-radius:12px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(79,70,229,0.28);"><i class="fas fa-store" style="font-size:17px;"></i></div><div style="min-width:0;flex:1;"><div style="font-size:10px;color:#312e81;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">SALDO ZIDSTORE (PPOB &amp; AKRAB)</div><div class="val num" id="homeZidBalance" style="font-size:20px;font-weight:900;color:#3730a3;line-height:1.15;margin-top:2px;">${rp(deposit)}</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px;font-size:10px;"><span id="homeZidTime" style="color:#4f46e5;font-weight:600;">Update: ${timeStr}</span><span style="color:#a5b4fc;">&bull;</span><span style="font-weight:800;color:#312e81;font-family:monospace;">@${esc(uname)}</span></div></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;"><span class="chip" style="background:#fff;border:1px solid #a5b4fc;color:#4f46e5;font-size:9.5px;font-weight:800;padding:3px 7px;display:inline-flex;align-items:center;gap:4px;">Tutup <i class="fas fa-chevron-up"></i></span><button id="btnCheckHomeZid" type="button" class="btn" style="background:#4f46e5;color:#fff;border-radius:11px;font-weight:800;font-size:11px;padding:7px 10px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;" onclick="event.stopPropagation(); fetchZidStoreBalance()"><i class="fas fa-rotate"></i> Cek Saldo</button></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed #a5b4fc;"><button type="button" class="btn" style="background:#fff;border:1px solid #a5b4fc;color:#4f46e5;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;" onclick="event.stopPropagation(); openZidStoreAccessModal()"><i class="fas fa-key"></i> Akses ZidStore</button><button type="button" class="btn" style="background:#fff;border:1px solid #a5b4fc;color:#312e81;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;" onclick="event.stopPropagation(); openZidStorePriceModal()"><i class="fas fa-tags"></i> Harga &amp; Produk</button></div></div>`;
+  }
   function adminDigiflazzBalanceCard(){
     const cached = state.digiflazzBalance;
     const deposit = cached?.deposit !== undefined ? Number(cached.deposit) : 195299;
     const timeStr = cached?.updatedAtMs ? new Date(cached.updatedAtMs).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "Baru saja";
     const activeIp = String(state.ppobSettings?.ppobPublicIp || "157.85.208.5").trim();
-    return `<div class="card pad mb" style="background:#ecfdf5;border:1.5px solid #86efac;border-radius:18px;margin:12px 0;padding:12px 13px;"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;"><div style="width:40px;height:40px;border-radius:12px;background:#059669;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(5,150,105,0.28);"><i class="fas fa-wallet" style="font-size:18px;"></i></div><div style="min-width:0;flex:1;"><div style="font-size:10px;color:#065f46;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">SALDO DIGIFLAZZ (PPOB)</div><div class="val num" id="homeDigiBalance" style="font-size:20px;font-weight:900;color:#047857;line-height:1.15;margin-top:2px;">${rp(deposit)}</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px;font-size:10px;"><span id="homeDigiTime" style="color:#059669;font-weight:600;">Update: ${timeStr}</span><span style="color:#86efac;">&bull;</span><span style="font-weight:800;color:#1d4ed8;font-family:monospace;"><i class="fas fa-network-wired"></i> <span id="homeDigiIp">${esc(activeIp)}</span></span></div></div></div><button id="btnCheckHomeDigi" type="button" class="btn" style="background:#059669;color:#fff;border-radius:11px;font-weight:800;font-size:11px;padding:8px 11px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;" onclick="fetchDigiflazzBalance()"><i class="fas fa-rotate"></i> Cek Saldo</button></div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed #86efac;"><button type="button" class="btn" style="background:#fff;border:1px solid #86efac;color:#059669;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="openPpobAccessModal()"><i class="fas fa-bolt"></i> Akses</button><button type="button" class="btn" style="background:#fff;border:1px solid #86efac;color:#065f46;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="openPpobPriceModal()"><i class="fas fa-tags"></i> Harga</button><button type="button" class="btn" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="openPpobIpModal()"><i class="fas fa-network-wired"></i> Setting IP</button></div></div>`;
+    const isOpen = Boolean(state.adminHomeCardOpen?.digi);
+    if (!isOpen) {
+      return `<div class="card pad mb" onclick="toggleAdminHomeCard('digi')" style="background:#ecfdf5;border:1.5px solid #86efac;border-radius:16px;margin:8px 0;padding:10px 13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;"><div style="width:34px;height:34px;border-radius:10px;background:#059669;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-wallet" style="font-size:15px;"></i></div><div style="min-width:0;flex:1;"><div style="font-size:9.5px;color:#065f46;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">SALDO DIGIFLAZZ (PPOB)</div><div class="val num" style="font-size:15px;font-weight:900;color:#047857;line-height:1.15;margin-top:1px;">${rp(deposit)}</div></div></div><span class="chip" style="background:#fff;border:1px solid #86efac;color:#059669;font-size:10px;font-weight:800;padding:4px 9px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">Buka <i class="fas fa-chevron-down"></i></span></div>`;
+    }
+    return `<div class="card pad mb" style="background:#ecfdf5;border:1.5px solid #86efac;border-radius:18px;margin:8px 0;padding:12px 13px;"><div onclick="toggleAdminHomeCard('digi')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;"><div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;"><div style="width:40px;height:40px;border-radius:12px;background:#059669;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(5,150,105,0.28);"><i class="fas fa-wallet" style="font-size:18px;"></i></div><div style="min-width:0;flex:1;"><div style="font-size:10px;color:#065f46;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">SALDO DIGIFLAZZ (PPOB)</div><div class="val num" id="homeDigiBalance" style="font-size:20px;font-weight:900;color:#047857;line-height:1.15;margin-top:2px;">${rp(deposit)}</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px;font-size:10px;"><span id="homeDigiTime" style="color:#059669;font-weight:600;">Update: ${timeStr}</span><span style="color:#86efac;">&bull;</span><span style="font-weight:800;color:#1d4ed8;font-family:monospace;"><i class="fas fa-network-wired"></i> <span id="homeDigiIp">${esc(activeIp)}</span></span></div></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;"><span class="chip" style="background:#fff;border:1px solid #86efac;color:#059669;font-size:9.5px;font-weight:800;padding:3px 7px;display:inline-flex;align-items:center;gap:4px;">Tutup <i class="fas fa-chevron-up"></i></span><button id="btnCheckHomeDigi" type="button" class="btn" style="background:#059669;color:#fff;border-radius:11px;font-weight:800;font-size:11px;padding:7px 10px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;" onclick="event.stopPropagation(); fetchDigiflazzBalance()"><i class="fas fa-rotate"></i> Cek Saldo</button></div></div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed #86efac;"><button type="button" class="btn" style="background:#fff;border:1px solid #86efac;color:#059669;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="event.stopPropagation(); openPpobAccessModal()"><i class="fas fa-bolt"></i> Akses</button><button type="button" class="btn" style="background:#fff;border:1px solid #86efac;color:#065f46;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="event.stopPropagation(); openPpobPriceModal()"><i class="fas fa-tags"></i> Harga</button><button type="button" class="btn" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;border-radius:10px;font-weight:800;font-size:11px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;" onclick="event.stopPropagation(); openPpobIpModal()"><i class="fas fa-network-wired"></i> Setting IP</button></div></div>`;
   }
 function isTxAfterLatestWithdrawal(t){
   const dk=String(t.dateKey||"").slice(0,10);
@@ -1595,7 +1620,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function shortDeviceId(id){const s=String(id||"").trim();return s?s.slice(-6).toUpperCase():"-"}
   function userDeviceStatusText(u){return userDeviceExempt(u)?"Bebas login dimana saja":(userDeviceLocked(u)?`Terkunci - ${shortDeviceId(u.deviceId)}`:"Belum terkunci")}
   window.resetUserDevice=async(username)=>{const safeUsername=cleanUser(username);if(!safeUsername)return toast("Pilih user dulu!",true);const user=userBy(safeUsername);if(!user)return toast("User tidak ditemukan!",true);if(userDeviceExempt(user))return toast("Karyawan harian bebas login di perangkat mana saja");if(!userDeviceLocked(user))return toast("Device user ini belum terkunci");const pin=await askPin(`Reset device untuk ${user.name||safeUsername} (@${safeUsername})?\n\nSetelah direset, session staff di HP lama akan otomatis keluar, lalu staff bisa login ulang di perangkat barunya.\n\nMasukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))return toast("PIN admin salah!",true);setBusy(true);try{const payload={deviceId:"",deviceLocked:false,deviceUser:"",deviceApp:"",deviceLabel:"",deviceUserAgent:"",devicePlatform:"",deviceLockedAt:null,deviceLockedAtMs:0,deviceLastLoginAt:null,deviceLastLoginAtMs:0,deviceResetAt:serverTimestamp(),deviceResetAtMs:Date.now(),deviceResetBy:state.user.username,deviceResetByName:state.user.name||state.user.username};await setDoc(doc(db,"users",safeUsername),payload,{merge:true});localMerge("users",safeUsername,payload);finishLocalWrite();closeModal("userModal");render();toast("✓ Device user direset")}catch(e){console.error(e);toast("Gagal reset device user",true)}finally{setBusy(false)}};
-  function renderTeam(){const list=state.users.slice().sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));return`<div class="wrap">${header("User","Manajemen user simple")}<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"><button class="btn primary full" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Tambah User</button><button class="btn full" style="background:#ea580c;color:#fff;border-radius:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openFastCashierAccessModal()"><i class="fas fa-bolt"></i> Kelola Akses Kasir Cepat (Toko Ramai)</button><button class="btn full" style="background:#0284c7;color:#fff;border-radius:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openQrisAccessModal()"><i class="fas fa-qrcode"></i> Kelola Akses QRIS Kasir</button></div><div class="list">${list.map(u=>`<div class="item"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}${isDummyUser(u)?" - TRIAL":""}${u.lastPublicIp?` &bull; <span style="color:#059669;font-family:monospace;font-weight:800;">IP: ${esc(u.lastPublicIp)}</span>`:""}</div></div>${u.fastCashierAccess?`<span class="chip" style="background:rgba(234,88,12,0.15);color:#ea580c;font-weight:800;border:1px solid rgba(234,88,12,0.3);">⚡ CEPAT</span>`:""}${u.qrisAccess?`<span class="chip" style="background:rgba(2,132,199,0.15);color:#0284c7;font-weight:800;border:1px solid rgba(2,132,199,0.3);">QRIS</span>`:""}${u.ppobAccess?`<span class="chip" style="background:rgba(5,150,105,0.15);color:#059669;font-weight:800;border:1px solid rgba(5,150,105,0.3);">⚡ PPOB</span>`:""}<span class="chip ${isActive(u)?"ok":"bad"}">${isActive(u)?"Aktif":"Off"}</span>${isDummyUser(u)?`<span class="chip warn">Dummy</span>`:""}<button class="btn" onclick="editUser('${esc(u.username)}')"><i class="fas fa-pen"></i></button></div>`).join("")||`<div class="empty">Belum ada user</div>`}</div></div>`}window.openUserModal=()=>{$("userTitle").textContent="Tambah User";$("uUsername").disabled=false;$("uUsername").value="";$("uName").value="";$("uPin").value="";$("uRole").value="staff";$("uActive").value="true";if($("uDummy"))$("uDummy").checked=false;if($("uQrisAccess"))$("uQrisAccess").checked=false;if($("uFastCashierAccess"))$("uFastCashierAccess").checked=false;if($("uPpobAccess"))$("uPpobAccess").checked=false;if($("uDeviceLockContainer"))$("uDeviceLockContainer").innerHTML="";modal("userModal")};window.editUser=username=>{const u=userBy(username);if(!u)return;$("userTitle").textContent="Edit User";$("uUsername").value=u.username;$("uUsername").disabled=true;$("uName").value=u.name||"";$("uPin").value=u.pin||"";$("uRole").value=u.role||"staff";$("uActive").value=String(isActive(u));if($("uDummy"))$("uDummy").checked=isDummyUser(u);if($("uQrisAccess"))$("uQrisAccess").checked=u.qrisAccess===true;if($("uFastCashierAccess"))$("uFastCashierAccess").checked=u.fastCashierAccess===true;if($("uPpobAccess"))$("uPpobAccess").checked=u.ppobAccess===true;if($("uDeviceLockContainer")){if(String(u.role||"staff").toLowerCase()==="admin"){$("uDeviceLockContainer").innerHTML=""}else{const exempt=userDeviceExempt(u);const locked=userDeviceLocked(u);const statusColor=exempt?"var(--primary)":(locked?"var(--success)":"var(--warning)");const statusIcon=exempt?"fa-person-walking-arrow-right":(locked?"fa-lock":"fa-unlock");$("uDeviceLockContainer").innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(245,158,11,.10);margin-top:12px"><div style="min-width:0;flex:1"><div style="font-size:12px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kunci Perangkat</div><div style="font-size:10px;color:${statusColor};margin-top:3px"><i class="fas ${statusIcon}"></i> ${esc(userDeviceStatusText(u))}</div></div><button type="button" onclick="resetUserDevice('${esc(username)}')" class="btn ${locked?'red':''}" style="padding:8px 10px;font-size:10.5px;border-radius:11px;white-space:nowrap" ${locked?"":"disabled"}><i class="fas ${exempt?'fa-check':'fa-rotate-left'}"></i> ${exempt?'Bebas':'Reset'}</button></div>`}}modal("userModal")};window.saveUser=async()=>{const username=cleanUser($("uUsername").value),name=String($("uName").value||username).trim(),pin=String($("uPin").value||"").trim(),role=$("uRole").value,active=$("uActive").value==="true",dummyMode=$("uDummy")?.checked===true,qrisAccess=$("uQrisAccess")?.checked===true,fastCashierAccess=$("uFastCashierAccess")?.checked===true,ppobAccess=$("uPpobAccess")?.checked===true;if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const existing=userBy(username)||{};const userPayload={username,name,pin,role,active,qrisAccess,fastCashierAccess,ppobAccess,isDummy:dummyMode,trialMode:dummyMode,accountType:dummyMode?"dummy":"normal",excludeFromReports:dummyMode,trialTargetAmount:dummyMode?Number(existing.trialTargetAmount||10000):0,trialBonusAmount:dummyMode?Number(existing.trialBonusAmount||1000):0,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username};await setDoc(doc(db,"users",username),userPayload,{merge:true});localUpsert("users",{id:username,...existing,...userPayload});closeModal("userModal");finishLocalWrite();toast(dummyMode?"User dummy tersimpan":"User tersimpan")}catch(e){toast(e.message||"Gagal simpan user",true)}finally{setBusy(false)}};window.openFastCashierAccessModal=()=>{renderFastCashierAccessList();modal("fastCashierAccessModal")};function renderFastCashierAccessList(){const listEl=$("fastCashierAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML=`<div class="empty">Belum ada user staff</div>`;return;}listEl.innerHTML=list.map(u=>{const has=u.fastCashierAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?`<span class="chip" style="background:#ea580c;color:#fff;font-size:9.5px;padding:2px 6px;">⚡ CEPAT ON</span>`:`<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>`}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="background:${has?'':'#ea580c'};padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="toggleFastCashierAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-bolt'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.toggleFastCashierAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.fastCashierAccess===true);setBusy(true);try{const patch={fastCashierAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses Kasir Cepat ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderFastCashierAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses Kasir Cepat: "+(e.message||e),true)}finally{setBusy(false)}};window.openQrisAccessModal=()=>{renderQrisAccessList();modal("qrisAccessModal")};function renderQrisAccessList(){const listEl=$("qrisAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML=`<div class="empty">Belum ada user staff</div>`;return;}listEl.innerHTML=list.map(u=>{const has=u.qrisAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?`<span class="chip" style="background:#0284c7;color:#fff;font-size:9.5px;padding:2px 6px;">QRIS ON</span>`:`<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>`}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="toggleQrisAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-check'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.toggleQrisAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.qrisAccess===true);setBusy(true);try{const patch={qrisAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses QRIS ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderQrisAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses QRIS: "+(e.message||e),true)}finally{setBusy(false)}};window.openPpobAccessModal=()=>{renderPpobAccessList();modal("ppobAccessModal")};function renderPpobAccessList(){const listEl=$("ppobAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML='<div class="empty">Belum ada user staff</div>';return;}listEl.innerHTML=list.map(u=>{const has=u.ppobAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?'<span class="chip" style="background:#059669;color:#fff;font-size:9.5px;padding:2px 6px;">⚡ PPOB ON</span>':'<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>'}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="background:${has?'':'#059669'};padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="togglePpobAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-bolt'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.togglePpobAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.ppobAccess===true);setBusy(true);try{const patch={ppobAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses PPOB ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderPpobAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses PPOB: "+(e.message||e),true)}finally{setBusy(false)}};
+  function renderTeam(){const list=state.users.slice().sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username)));return`<div class="wrap">${header("User","Manajemen user simple")}<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"><button class="btn primary full" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Tambah User</button><button class="btn full" style="background:#ea580c;color:#fff;border-radius:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openFastCashierAccessModal()"><i class="fas fa-bolt"></i> Kelola Akses Kasir Cepat (Toko Ramai)</button><button class="btn full" style="background:#0284c7;color:#fff;border-radius:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openQrisAccessModal()"><i class="fas fa-qrcode"></i> Kelola Akses QRIS Kasir</button></div><div class="list">${list.map(u=>`<div class="item"><div class="ico"><i class="fas fa-user"></i></div><div class="grow"><div class="name">${esc(u.name||u.username)}</div><div class="meta">@${esc(u.username)} - ${esc(u.role||"staff")}${isDummyUser(u)?" - TRIAL":""}${u.lastPublicIp?` &bull; <span style="color:#059669;font-family:monospace;font-weight:800;">IP: ${esc(u.lastPublicIp)}</span>`:""}</div></div>${u.fastCashierAccess?`<span class="chip" style="background:rgba(234,88,12,0.15);color:#ea580c;font-weight:800;border:1px solid rgba(234,88,12,0.3);">⚡ CEPAT</span>`:""}${u.qrisAccess?`<span class="chip" style="background:rgba(2,132,199,0.15);color:#0284c7;font-weight:800;border:1px solid rgba(2,132,199,0.3);">QRIS</span>`:""}${u.ppobAccess?`<span class="chip" style="background:rgba(5,150,105,0.15);color:#059669;font-weight:800;border:1px solid rgba(5,150,105,0.3);">⚡ PPOB</span>`:""}${u.zidstoreAccess?`<span class="chip" style="background:rgba(79,70,229,0.15);color:#4f46e5;font-weight:800;border:1px solid rgba(79,70,229,0.3);">ZIDSTORE</span>`:""}<span class="chip ${isActive(u)?"ok":"bad"}">${isActive(u)?"Aktif":"Off"}</span>${isDummyUser(u)?`<span class="chip warn">Dummy</span>`:""}<button class="btn" onclick="editUser('${esc(u.username)}')"><i class="fas fa-pen"></i></button></div>`).join("")||`<div class="empty">Belum ada user</div>`}</div></div>`}window.openUserModal=()=>{$("userTitle").textContent="Tambah User";$("uUsername").disabled=false;$("uUsername").value="";$("uName").value="";$("uPin").value="";$("uRole").value="staff";$("uActive").value="true";if($("uDummy"))$("uDummy").checked=false;if($("uQrisAccess"))$("uQrisAccess").checked=false;if($("uFastCashierAccess"))$("uFastCashierAccess").checked=false;if($("uPpobAccess"))$("uPpobAccess").checked=false;if($("uZidstoreAccess"))$("uZidstoreAccess").checked=false;if($("uDeviceLockContainer"))$("uDeviceLockContainer").innerHTML="";modal("userModal")};window.editUser=username=>{const u=userBy(username);if(!u)return;$("userTitle").textContent="Edit User";$("uUsername").value=u.username;$("uUsername").disabled=true;$("uName").value=u.name||"";$("uPin").value=u.pin||"";$("uRole").value=u.role||"staff";$("uActive").value=String(isActive(u));if($("uDummy"))$("uDummy").checked=isDummyUser(u);if($("uQrisAccess"))$("uQrisAccess").checked=u.qrisAccess===true;if($("uFastCashierAccess"))$("uFastCashierAccess").checked=u.fastCashierAccess===true;if($("uPpobAccess"))$("uPpobAccess").checked=u.ppobAccess===true;if($("uZidstoreAccess"))$("uZidstoreAccess").checked=u.zidstoreAccess===true;if($("uDeviceLockContainer")){if(String(u.role||"staff").toLowerCase()==="admin"){$("uDeviceLockContainer").innerHTML=""}else{const exempt=userDeviceExempt(u);const locked=userDeviceLocked(u);const statusColor=exempt?"var(--primary)":(locked?"var(--success)":"var(--warning)");const statusIcon=exempt?"fa-person-walking-arrow-right":(locked?"fa-lock":"fa-unlock");$("uDeviceLockContainer").innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(245,158,11,.10);margin-top:12px"><div style="min-width:0;flex:1"><div style="font-size:12px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kunci Perangkat</div><div style="font-size:10px;color:${statusColor};margin-top:3px"><i class="fas ${statusIcon}"></i> ${esc(userDeviceStatusText(u))}</div></div><button type="button" onclick="resetUserDevice('${esc(username)}')" class="btn ${locked?'red':''}" style="padding:8px 10px;font-size:10.5px;border-radius:11px;white-space:nowrap" ${locked?"":"disabled"}><i class="fas ${exempt?'fa-check':'fa-rotate-left'}"></i> ${exempt?'Bebas':'Reset'}</button></div>`}}modal("userModal")};window.saveUser=async()=>{const username=cleanUser($("uUsername").value),name=String($("uName").value||username).trim(),pin=String($("uPin").value||"").trim(),role=$("uRole").value,active=$("uActive").value==="true",dummyMode=$("uDummy")?.checked===true,qrisAccess=$("uQrisAccess")?.checked===true,fastCashierAccess=$("uFastCashierAccess")?.checked===true,ppobAccess=$("uPpobAccess")?.checked===true,zidstoreAccess=$("uZidstoreAccess")?.checked===true;if(!username||!pin)return toast("Username & PIN wajib",true);setBusy(true);try{const existing=userBy(username)||{};const userPayload={username,name,pin,role,active,qrisAccess,fastCashierAccess,ppobAccess,zidstoreAccess,isDummy:dummyMode,trialMode:dummyMode,accountType:dummyMode?"dummy":"normal",excludeFromReports:dummyMode,trialTargetAmount:dummyMode?Number(existing.trialTargetAmount||10000):0,trialBonusAmount:dummyMode?Number(existing.trialBonusAmount||1000):0,updatedAt:serverTimestamp(),updatedAtMs:Date.now(),updatedBy:state.user.username};await setDoc(doc(db,"users",username),userPayload,{merge:true});localUpsert("users",{id:username,...existing,...userPayload});closeModal("userModal");finishLocalWrite();toast(dummyMode?"User dummy tersimpan":"User tersimpan")}catch(e){toast(e.message||"Gagal simpan user",true)}finally{setBusy(false)}};window.openFastCashierAccessModal=()=>{renderFastCashierAccessList();modal("fastCashierAccessModal")};function renderFastCashierAccessList(){const listEl=$("fastCashierAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML=`<div class="empty">Belum ada user staff</div>`;return;}listEl.innerHTML=list.map(u=>{const has=u.fastCashierAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?`<span class="chip" style="background:#ea580c;color:#fff;font-size:9.5px;padding:2px 6px;">⚡ CEPAT ON</span>`:`<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>`}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="background:${has?'':'#ea580c'};padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="toggleFastCashierAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-bolt'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.toggleFastCashierAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.fastCashierAccess===true);setBusy(true);try{const patch={fastCashierAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses Kasir Cepat ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderFastCashierAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses Kasir Cepat: "+(e.message||e),true)}finally{setBusy(false)}};window.openQrisAccessModal=()=>{renderQrisAccessList();modal("qrisAccessModal")};function renderQrisAccessList(){const listEl=$("qrisAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML=`<div class="empty">Belum ada user staff</div>`;return;}listEl.innerHTML=list.map(u=>{const has=u.qrisAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?`<span class="chip" style="background:#0284c7;color:#fff;font-size:9.5px;padding:2px 6px;">QRIS ON</span>`:`<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>`}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="toggleQrisAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-check'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.toggleQrisAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.qrisAccess===true);setBusy(true);try{const patch={qrisAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses QRIS ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderQrisAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses QRIS: "+(e.message||e),true)}finally{setBusy(false)}};window.openPpobAccessModal=()=>{renderPpobAccessList();modal("ppobAccessModal")};function renderPpobAccessList(){const listEl=$("ppobAccessList");if(!listEl)return;const list=state.users.filter(u=>String(u.role||"").toLowerCase()!=="admin");if(!list.length){listEl.innerHTML='<div class="empty">Belum ada user staff</div>';return;}listEl.innerHTML=list.map(u=>{const has=u.ppobAccess===true;return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name||u.username)} ${has?'<span class="chip" style="background:#059669;color:#fff;font-size:9.5px;padding:2px 6px;">⚡ PPOB ON</span>':'<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>'}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role||"staff")}</div></div><button type="button" class="btn ${has?'red':'primary'}" style="background:${has?'':'#059669'};padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="togglePpobAccess('${esc(u.username)}')"><i class="fas ${has?'fa-ban':'fa-bolt'}"></i> ${has?'Cabut Akses':'Beri Akses'}</button></div>`}).join("")}window.togglePpobAccess=async username=>{const u=userBy(username);if(!u)return toast("User tidak ditemukan",true);const willEnable=!(u.ppobAccess===true);setBusy(true);try{const patch={ppobAccess:willEnable,updatedAt:serverTimestamp(),updatedAtMs:Date.now()};await setDoc(doc(db,"users",username),patch,{merge:true});localMerge("users",username,patch);finishLocalWrite();toast(`✓ Akses PPOB ${u.name||username} ${willEnable?'diaktifkan':'dinonaktifkan'}`);renderPpobAccessList();render()}catch(e){console.error(e);toast("Gagal ubah akses PPOB: "+(e.message||e),true)}finally{setBusy(false)}};
 
   // ===== ADMIN PPOB PRICE & IP MANAGEMENT =====
   let adminPpobPriceState = {
@@ -2428,6 +2453,373 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       setBusy(false);
     }
   };
+
+  // ===== ADMIN ZIDSTORE (PPOB & XL/AXIS AKRAB) MANAGEMENT =====
+  let adminZidStoreState = {
+    tab: 'akrab',
+    markup: 1500,
+    roundUpTo: 1000,
+    customPrices: {},
+    products: [],
+    akrabPackages: []
+  };
+
+  async function callAdminZidStoreBackend(path, method = 'GET', bodyObj = null) {
+    const hosts = [...getAdminPpobProxyHosts(), 'https://rocky-notif.pages.dev'];
+    const headers = { 'X-Notify-Secret': ROCKY_ADMIN_NOTIFY_SECRET };
+    if (bodyObj !== null) headers['Content-Type'] = 'application/json';
+    let lastRes = null;
+    for (const base of hosts) {
+      try {
+        const res = await fetch(`${base}${path}`, {
+          method,
+          headers,
+          body: bodyObj !== null ? JSON.stringify(bodyObj) : undefined,
+          signal: AbortSignal.timeout(path.includes('sync') ? 25000 : 7000)
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && (json.ok || json.error_code || json.error)) return json;
+          lastRes = json;
+        }
+      } catch (e) {}
+    }
+    return lastRes;
+  }
+
+  window.fetchZidStoreBalance = async () => {
+    const elBal = $("zidstoreLiveBalance");
+    const elTime = $("zidstoreBalanceTime");
+    const elHomeBal = $("homeZidBalance");
+    const elHomeTime = $("homeZidTime");
+    const elBtn = $("btnCheckZidBalance");
+    const elHomeBtn = $("btnCheckHomeZid");
+
+    if (elBtn) { elBtn.disabled = true; elBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Mengecek...'; }
+    if (elHomeBtn) { elHomeBtn.disabled = true; elHomeBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Mengecek...'; }
+
+    try {
+      let balance = null;
+      let updatedAtMs = Date.now();
+      let username = "";
+      const res = await callAdminZidStoreBackend('/zidstore-balance', 'POST', {});
+      if (res && res.ok && res.data && typeof res.data.balance === 'number') {
+        balance = Number(res.data.balance);
+        username = String(res.data.username || "");
+      } else {
+        const snap = await getDocFromServer(doc(db, "closings", "__zidstore_balance")).catch(() => null);
+        if (snap && snap.exists() && typeof snap.data()?.deposit === 'number') {
+          balance = Number(snap.data().deposit);
+          username = String(snap.data().username || "");
+          updatedAtMs = Number(snap.data().updatedAtMs || Date.now());
+        }
+      }
+
+      if (balance !== null) {
+        state.zidstoreBalance = { deposit: balance, username, updatedAtMs };
+        const rpStr = rp(balance);
+        const timeStr = `Update: ${new Date(updatedAtMs).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+        if (elBal) elBal.textContent = rpStr;
+        if (elTime) elTime.textContent = timeStr;
+        if (elHomeBal) elHomeBal.textContent = rpStr;
+        if (elHomeTime) elHomeTime.textContent = timeStr;
+        toast(`✓ Saldo ZidStore: ${rpStr}`);
+        return balance;
+      }
+      toast(res?.error || "Tidak dapat memuat saldo ZidStore (pastikan proxy/worker aktif)", true);
+    } catch (e) {
+      toast("Gagal cek saldo ZidStore: " + (e.message || e), true);
+    } finally {
+      if (elBtn) { elBtn.disabled = false; elBtn.innerHTML = '<i class="fas fa-rotate"></i> Cek Saldo'; }
+      if (elHomeBtn) { elHomeBtn.disabled = false; elHomeBtn.innerHTML = '<i class="fas fa-rotate"></i> Cek Saldo'; }
+    }
+  };
+
+  window.openZidStoreAccessModal = () => {
+    renderZidStoreAccessList();
+    modal("zidstoreAccessModal");
+  };
+
+  function renderZidStoreAccessList() {
+    const listEl = $("zidstoreAccessList");
+    if (!listEl) return;
+    const list = state.users.filter(u => String(u.role || "").toLowerCase() !== "admin");
+    if (!list.length) {
+      listEl.innerHTML = '<div class="empty">Belum ada user staff</div>';
+      return;
+    }
+    listEl.innerHTML = list.map(u => {
+      const has = u.zidstoreAccess === true;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;padding:12px 14px;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:13.5px;font-weight:800;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:6px;">${esc(u.name || u.username)} ${has ? '<span class="chip" style="background:#4f46e5;color:#fff;font-size:9.5px;padding:2px 6px;">ZIDSTORE ON</span>' : '<span class="chip bad" style="font-size:9.5px;padding:2px 6px;">OFF</span>'}</div><div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">@${esc(u.username)} &bull; ${esc(u.role || "staff")}</div></div><button type="button" class="btn ${has ? 'red' : 'primary'}" style="background:${has ? '' : '#4f46e5'};padding:7px 12px;font-size:11.5px;font-weight:800;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="toggleZidStoreAccess('${esc(u.username)}')"><i class="fas ${has ? 'fa-ban' : 'fa-store'}"></i> ${has ? 'Cabut Akses' : 'Beri Akses'}</button></div>`;
+    }).join("");
+  }
+
+  window.toggleZidStoreAccess = async username => {
+    const u = userBy(username);
+    if (!u) return toast("User tidak ditemukan", true);
+    const willEnable = !(u.zidstoreAccess === true);
+    setBusy(true);
+    try {
+      const patch = { zidstoreAccess: willEnable, updatedAt: serverTimestamp(), updatedAtMs: Date.now() };
+      await setDoc(doc(db, "users", username), patch, { merge: true });
+      localMerge("users", username, patch);
+      finishLocalWrite();
+      toast(`✓ Akses ZidStore ${u.name || username} ${willEnable ? 'diaktifkan' : 'dinonaktifkan'}`);
+      renderZidStoreAccessList();
+      render();
+    } catch (e) {
+      toast("Gagal ubah akses ZidStore: " + (e.message || e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  function getAdminZidStoreCategoryTab(p) {
+    const cat = String(p?.category || "").toLowerCase().trim();
+    if (cat === "akrab" || p?.package_code) return "akrab";
+    if (cat === "pulsa") return "pulsa";
+    if (cat === "data" || cat.includes("kuota")) return "data";
+    if (cat === "e-money" || cat === "emoney" || cat.includes("wallet")) return "emoney";
+    if (cat === "digital" || cat.includes("game")) return "digital";
+    return "lainnya";
+  }
+
+  function calculateAdminZidStorePreviewPrice(modalPrice, code) {
+    const custom = adminZidStoreState.customPrices && Number(adminZidStoreState.customPrices[code] || 0);
+    if (custom && custom > 0) return custom;
+    const markup = Number($("zidstoreSettingMarkup")?.value !== undefined ? $("zidstoreSettingMarkup").value : adminZidStoreState.markup);
+    const roundTo = Number($("zidstoreSettingRounding")?.value !== undefined ? $("zidstoreSettingRounding").value : adminZidStoreState.roundUpTo);
+    let price = Number(modalPrice || 0) + markup;
+    if (roundTo > 0) price = Math.ceil(price / roundTo) * roundTo;
+    return price;
+  }
+
+  window.switchAdminZidStoreTab = (tab) => {
+    adminZidStoreState.tab = tab;
+    const ids = { akrab: 'Akrab', pulsa: 'Pulsa', data: 'Data', emoney: 'Emoney', digital: 'Digital', lainnya: 'Lainnya' };
+    Object.keys(ids).forEach(k => {
+      const btn = $(`btnZidTab${ids[k]}`);
+      if (!btn) return;
+      if (k === tab) {
+        btn.className = "btn primary";
+        btn.style.background = "#4f46e5";
+        btn.style.color = "#fff";
+        btn.style.border = "none";
+      } else {
+        btn.className = "btn";
+        btn.style.background = "var(--card,#fff)";
+        btn.style.color = "inherit";
+        btn.style.border = "1px solid var(--line)";
+      }
+    });
+    renderAdminZidStorePriceList();
+  };
+
+  window.recalcZidStorePricePreview = () => {
+    adminZidStoreState.markup = Number($("zidstoreSettingMarkup")?.value || 1500);
+    adminZidStoreState.roundUpTo = Number($("zidstoreSettingRounding")?.value || 0);
+    renderAdminZidStorePriceList();
+  };
+
+  window.handleAdminZidStoreCustomPriceInput = (code, val) => {
+    const n = Math.abs(Number(String(val || "").replace(/[^0-9]/g, "")));
+    if (!adminZidStoreState.customPrices) adminZidStoreState.customPrices = {};
+    if (n > 0) adminZidStoreState.customPrices[code] = n;
+    else delete adminZidStoreState.customPrices[code];
+    const badge = $(`zidProfitBadge_${code}`);
+    const modalEl = $(`zidModalPrice_${code}`);
+    if (badge && modalEl) {
+      const modal = Number(modalEl.getAttribute("data-modal") || 0);
+      const profit = n > 0 ? (n - modal) : (calculateAdminZidStorePreviewPrice(modal, code) - modal);
+      badge.textContent = `Untung: ${rp(profit)}`;
+      badge.style.color = profit > 0 ? "#4f46e5" : "#dc2626";
+    }
+  };
+
+  window.renderAdminZidStorePriceList = () => {
+    const listEl = $("zidstorePriceList");
+    if (!listEl) return;
+    const tab = adminZidStoreState.tab || 'akrab';
+    const q = String($("zidstoreAdminSearch")?.value || "").trim().toLowerCase();
+
+    let items = tab === 'akrab'
+      ? (adminZidStoreState.akrabPackages || [])
+      : (adminZidStoreState.products || []).filter(p => getAdminZidStoreCategoryTab(p) === tab);
+
+    if (q) {
+      items = items.filter(p =>
+        String(p.name || "").toLowerCase().includes(q) ||
+        String(p.code || p.package_code || p.sku || "").toLowerCase().includes(q) ||
+        String(p.brand || "").toLowerCase().includes(q) ||
+        String(p.sub_category || "").toLowerCase().includes(q)
+      );
+    }
+
+    items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    const totalMatch = items.length;
+    const sliced = items.slice(0, 120);
+
+    if (!sliced.length) {
+      listEl.innerHTML = `<div class="empty">${q ? 'Tidak ada produk ZidStore yang cocok dengan pencarian' : 'Belum ada data di kategori ini. Klik "Tarik Produk" di atas.'}</div>`;
+      return;
+    }
+
+    const headInfo = totalMatch > 120
+      ? `<div style="font-size:11px;color:#4f46e5;font-weight:700;padding:4px 2px;">Menampilkan 120 dari ${totalMatch} produk. Gunakan kotak pencarian di atas untuk hasil lebih spesifik.</div>`
+      : '';
+
+    listEl.innerHTML = headInfo + sliced.map(p => {
+      const code = String(p.package_code || p.code || p.sku || "");
+      const modal = Number(p.price || 0);
+      const custom = adminZidStoreState.customPrices && adminZidStoreState.customPrices[code];
+      const previewPrice = calculateAdminZidStorePreviewPrice(modal, code);
+      const profit = previewPrice - modal;
+      const stockInfo = p.package_code ? ` &bull; Stok: <b style="color:${Number(p.stock || 0) > 0 ? '#059669' : '#dc2626'}">${Number(p.stock || 0)}</b>` : '';
+
+      return `
+        <div style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:13px;font-weight:800;color:var(--text-main,#0f172a);">${esc(p.name)}</div>
+            <div id="zidModalPrice_${esc(code)}" data-modal="${modal}" style="font-size:11px;color:var(--muted);margin-top:2px;">
+              ${esc(p.brand || p.sub_category || 'ZidStore')} &bull; ${esc(code)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>${stockInfo}
+            </div>
+            <div id="zidProfitBadge_${esc(code)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#4f46e5' : '#dc2626'};margin-top:2px;">
+              Untung: ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
+            </div>
+          </div>
+          <div style="width:125px;text-align:right;">
+            <label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:2px;">Harga Jual (Rp)</label>
+            <input type="number" class="input" style="font-size:13px;font-weight:800;text-align:right;padding:6px 8px;border-radius:10px;" value="${previewPrice}" onchange="handleAdminZidStoreCustomPriceInput('${esc(code)}', this.value)">
+          </div>
+        </div>
+      `;
+    }).join("");
+  };
+
+  window.openZidStorePriceModal = async () => {
+    modal("zidstorePriceModal");
+    setBusy(true);
+    try {
+      const [prodSnap, akrabSnap, setSnap, balSnap] = await Promise.all([
+        getDocFromServer(doc(db, "closings", "__zidstore_products")).catch(() => null),
+        getDocFromServer(doc(db, "closings", "__zidstore_akrab")).catch(() => null),
+        getDocFromServer(doc(db, "closings", "__zidstore_settings")).catch(() => null),
+        getDocFromServer(doc(db, "closings", "__zidstore_balance")).catch(() => null)
+      ]);
+
+      if (balSnap && balSnap.exists() && typeof balSnap.data()?.deposit === 'number') {
+        const bal = Number(balSnap.data().deposit);
+        const balMs = Number(balSnap.data().updatedAtMs || Date.now());
+        state.zidstoreBalance = { deposit: bal, username: balSnap.data().username || "", updatedAtMs: balMs };
+        if ($("zidstoreLiveBalance")) $("zidstoreLiveBalance").textContent = rp(bal);
+        if ($("zidstoreBalanceTime")) $("zidstoreBalanceTime").textContent = `Update: ${new Date(balMs).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`;
+      }
+      if (prodSnap && prodSnap.exists() && Array.isArray(prodSnap.data()?.products)) {
+        adminZidStoreState.products = prodSnap.data().products;
+      }
+      if (akrabSnap && akrabSnap.exists() && Array.isArray(akrabSnap.data()?.packages)) {
+        adminZidStoreState.akrabPackages = akrabSnap.data().packages;
+      }
+      if (setSnap && setSnap.exists()) {
+        const s = setSnap.data() || {};
+        state.zidstoreSettings = { ...(state.zidstoreSettings || {}), ...s };
+        if (s.markup !== undefined) adminZidStoreState.markup = Number(s.markup);
+        if (s.roundUpTo !== undefined) adminZidStoreState.roundUpTo = Number(s.roundUpTo);
+        if (s.customPrices) adminZidStoreState.customPrices = { ...s.customPrices };
+      }
+
+      if ($("zidstoreSettingMarkup")) $("zidstoreSettingMarkup").value = adminZidStoreState.markup;
+      if ($("zidstoreSettingRounding")) $("zidstoreSettingRounding").value = String(adminZidStoreState.roundUpTo !== undefined ? adminZidStoreState.roundUpTo : 1000);
+
+      switchAdminZidStoreTab(adminZidStoreState.tab || 'akrab');
+      setTimeout(() => fetchZidStoreBalance(), 120);
+    } catch (e) {
+      toast("Gagal memuat katalog ZidStore: " + (e.message || e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  window.syncZidStoreProducts = async () => {
+    const btn = $("btnSyncZidStore");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menarik...'; }
+    setBusy(true);
+    try {
+      const res = await callAdminZidStoreBackend('/zidstore-sync', 'POST', {});
+      if (res && res.ok) {
+        toast(`✓ ZidStore tersinkron: ${res.total} produk PPOB & ${res.akrab_total || 0} paket Akrab!`);
+        await openZidStorePriceModal();
+      } else {
+        toast(res?.error || "Gagal menarik produk ZidStore (pastikan proxy/worker aktif)", true);
+      }
+    } catch (e) {
+      toast("Gagal sinkron ZidStore: " + (e.message || e), true);
+    } finally {
+      setBusy(false);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-arrows-rotate"></i> Tarik Produk'; }
+    }
+  };
+
+  window.saveZidStorePriceSettings = async () => {
+    const markup = Number($("zidstoreSettingMarkup")?.value || 1500);
+    const roundUpTo = Number($("zidstoreSettingRounding")?.value || 0);
+    const customPrices = adminZidStoreState.customPrices || {};
+    const pin = await askPin(`Simpan Pengaturan Harga ZidStore?\n\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
+    if (!pin) return;
+    if (String(pin) !== String(state.user.pin)) return toast("PIN salah!", true);
+    setBusy(true);
+    try {
+      const payload = {
+        markup,
+        roundUpTo,
+        customPrices,
+        updatedAt: serverTimestamp(),
+        updatedAtMs: Date.now(),
+        updatedBy: state.user.username,
+        updatedByName: state.user.name || state.user.username
+      };
+      await setDoc(doc(db, "closings", "__zidstore_settings"), payload, { merge: true });
+      finishLocalWrite();
+      closeModal("zidstorePriceModal");
+      toast("✓ Pengaturan harga ZidStore berhasil disimpan!");
+    } catch (e) {
+      toast("Gagal simpan harga ZidStore: " + (e.message || e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  window.checkAdminZidStoreOrderStatus = async (txId) => {
+    const t = findTxById(txId);
+    if (!t) return toast("Transaksi tidak ditemukan", true);
+    const identifier = String(t.zidstoreOrderId || t.ref_id || t.id || "").trim();
+    const kind = isAdminZidStoreAkrabTx(t) ? 'akrab' : 'ppob';
+    setBusy(true);
+    try {
+      const res = await callAdminZidStoreBackend('/zidstore-order-status', 'POST', { kind, identifier });
+      if (!res || !res.ok || !res.data) {
+        return toast(res?.error || "Gagal cek status order ZidStore", true);
+      }
+      const d = res.data;
+      const stLower = String(d.status || "").toLowerCase();
+      const mapped = stLower === 'success' ? 'Sukses' : (stLower === 'failed' ? 'Gagal' : 'Pending');
+      const patch = {
+        status: mapped,
+        sn: String(d.sn || t.sn || ""),
+        message: String(d.message || t.message || ""),
+        updatedAtMs: Date.now()
+      };
+      await setDoc(doc(db, "transactions", String(t.id)), patch, { merge: true, localDoc: t });
+      localMerge("tx", String(t.id), patch);
+      finishLocalWrite();
+      toast(`Status ZidStore: ${mapped}${patch.sn ? ' • SN: ' + patch.sn : ''}`);
+      openAdminLiteTxDetail(String(t.id));
+    } catch (e) {
+      toast("Gagal cek status: " + (e.message || e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
   function renderClosingStatusList(){const global=getTodayGlobalClosing(),globalSelected=state.closingTarget==="global",users=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin");const globalRow=`<div class="closing-option-row ${globalSelected?"selected":""}" onclick="setClosingTarget('global')"><div class="grow"><div class="closing-title">Semua / Global</div><div class="closing-meta">${global?"SUDAH CLOSING":"PILIH UNTUK CLOSING SEMUA USER VALID"}</div></div><div class="closing-right"><span class="chip ${global?"ok":"warn"}">${global?"Sudah Closing":"Global"}</span><span class="closing-radio ${globalSelected?"on":""}"></span></div></div>`;const userRows=users.map(u=>{const selected=cleanUser(state.closingTarget)===cleanUser(u.username),status=closingStatusLabelForUser(u),chip=closingStatusChipClass(u);return`<div class="closing-option-row ${selected?"selected":""}" onclick="setClosingTarget('${esc(u.username)}')"><div class="grow"><div class="closing-title">${esc(u.name||u.username)} (@${esc(u.username)})</div><div class="closing-meta">${esc(status)}</div></div><div class="closing-right"><span class="chip ${chip}">${esc(status.replace("HARIAN - ",""))}</span><span class="closing-radio ${selected?"on":""}"></span></div></div>`}).join("");return`<div class="closing-status-list">${globalRow}${userRows||`<div class="empty">Belum ada user closing</div>`}</div>`}
   function renderOps(){
     const target=closingTargetUser(),targetUsername=target?cleanUser(target.username):null,userClosing=targetUsername?getTodayUserClosing(targetUsername):null,globalClosing=getTodayGlobalClosing(),lockedByGlobal=!!(targetUsername&&!userClosing&&globalClosing&&!isClosingCanceledForUser(globalClosing,targetUsername)),activeClosing=targetUsername?(userClosing||(lockedByGlobal?globalClosing:null)):globalClosing,deadlineSnapshot=getClosingDeadlineSnapshot(),delay=activeClosing?Number(activeClosing.delayMinutes||0):closingDelayMinutes(now(),deadlineSnapshot),built=activeClosing?buildClosingBonusByUserForEdit(activeClosing,delay,targetUsername):buildClosingBonusByUser(delay,targetUsername),attList=state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===state.attendanceDate),deadlineText=activeClosing?`Deadline snapshot data ini: ${formatClosingDeadline(activeClosing)}`:`Deadline closing baru: ${deadlineSnapshot.deadline}`;
@@ -2744,15 +3136,20 @@ function openAdminLiteTxDetail(id){
   const t = findTxById(id);
   if(!t) return toast("Transaksi tidak ditemukan", true);
   const name = String(t.name||userName(t.user)||"-"),
+        isZid = isAdminZidStoreTx(t),
+        isAkrab = isAdminZidStoreAkrabTx(t),
         isPpob = isAdminPpobTx(t),
+        isDigital = isPpob || isZid,
         items = receiptProductItems(t.note),
-        pay = isPpob ? "PPOB" : txPaymentLabel(t),
+        pay = isAkrab ? "ZidStore Akrab" : (isZid ? "ZidStore PPOB" : (isPpob ? "PPOB" : txPaymentLabel(t))),
         dateStr = formatIndoDateLong(extractDateKey(t));
-  const detailContent = isPpob
-    ? '<div class="tiny">Detail PPOB</div>' +
-      '<div style="font-size:13.5px;font-weight:800;color:var(--text-main);margin-top:4px">' + esc(String(t.product_name || t.note || "Produk PPOB").replace(/^\[PPOB\]\s*/i, "")) + '</div>' +
+  const detailContent = isDigital
+    ? '<div class="tiny">Detail ' + (isZid ? 'ZidStore' : 'PPOB') + '</div>' +
+      '<div style="font-size:13.5px;font-weight:800;color:var(--text-main);margin-top:4px">' + esc(String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "")) + '</div>' +
       '<div class="meta" style="margin-top:4px">No Tujuan: <b>' + esc(t.customer_no || "-") + '</b></div>' +
-      '<div class="meta" style="margin-top:2px">SN / Token: <b style="color:#059669;word-break:break-all">' + esc(t.sn || "-") + '</b></div>'
+      '<div class="meta" style="margin-top:2px">Status: <b>' + esc(t.status || "Pending") + '</b></div>' +
+      '<div class="meta" style="margin-top:2px">SN / Token: <b style="color:#059669;word-break:break-all">' + esc(t.sn || "-") + '</b></div>' +
+      (isZid && String(t.status || "").toLowerCase() !== "sukses" ? '<div style="margin-top:10px"><button type="button" class="btn primary full" style="background:#4f46e5" onclick="checkAdminZidStoreOrderStatus(\'' + esc(t.id) + '\')"><i class="fas fa-rotate"></i> Cek Status / SN ZidStore</button></div>' : '')
     : '<div class="tiny">Daftar Barang</div>' + adminLiteProductDetailHtml(t.note||"Transaksi");
   const body = '<div class="card pad mb" style="box-shadow:none">' +
     '<div class="tiny">Total Bayar</div>' +
@@ -2761,7 +3158,7 @@ function openAdminLiteTxDetail(id){
   '</div>' +
   '<div class="card pad" style="box-shadow:none">' + detailContent + '</div>';
   const footer = '<button class="btn full" onclick="closeDynamicSheet(\'adminLiteTxDetailModal\')"><i class="fas fa-arrow-left"></i> Kembali</button>';
-  openDynamicSheet("adminLiteTxDetailModal", "Detail Transaksi", name + " - " + txTimeLabel(t) + (isPpob ? " - PPOB" : " - " + items.length + " item"), body, footer);
+  openDynamicSheet("adminLiteTxDetailModal", "Detail Transaksi", name + " - " + txTimeLabel(t) + (isDigital ? " - " + pay : " - " + items.length + " item"), body, footer);
 }
 window.openAdminLiteTxDetail = openAdminLiteTxDetail;
 
@@ -2785,15 +3182,17 @@ function getAdminTxTotalQty(note){
 renderTxList = function(list, withActions=true){
   if(!list.length) return '<div class="empty">Belum ada transaksi</div>';
   return '<div class="list">' + list.map(t=>{
+    const isZid = isAdminZidStoreTx(t);
     const isPpob = isAdminPpobTx(t);
+    const isDigital = isPpob || isZid;
     const datePrefix = state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '';
-    const ppobProdName = isPpob ? String(t.product_name || t.note || "Produk PPOB").replace(/^\[PPOB\]\s*/i, "").trim() : "";
-    const ppobTargetNo = isPpob && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
-    const metaHtml = isPpob
+    const ppobProdName = isDigital ? String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "").trim() : "";
+    const ppobTargetNo = isDigital && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
+    const metaHtml = isDigital
       ? '<div class="meta" style="font-size:11px;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span>' + datePrefix + txTimeLabel(t) + '</span>' + txPaymentBadge(t) + '</div>' +
         '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>'
       : '<div class="meta" style="font-size:11px;margin-top:2px">' + datePrefix + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div>';
-    const detailBtnHtml = isPpob
+    const detailBtnHtml = isDigital
       ? ''
       : '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button>';
     const actionsHtml = withActions
@@ -2807,7 +3206,7 @@ renderTxList = function(list, withActions=true){
 window.printReceiptFromTx = function(id){
   const t = findTxById(id);
   if(!t) return toast("Transaksi tidak ditemukan", true);
-  const text = isAdminPpobTx(t) ? receiptTextForPpob(t) : receiptTextForTx(t);
+  const text = (isAdminPpobTx(t) || isAdminZidStoreTx(t)) ? receiptTextForPpob(t) : receiptTextForTx(t);
   openReceiptPreview(text, "Struk - " + dateId(extractDateKey(t)));
 };
 
@@ -3287,14 +3686,19 @@ function renderTrxMonthView(){
 renderTrx = function(){
   const list = todayTx(),
         total = list.reduce((s,t) => s + Number(t.amount||0), 0);
-  const ppobList = list.filter(t => t.isPpob === true || t.type === 'ppob' || t.category === 'ppob');
+  const ppobList = list.filter(t => isAdminPpobTx(t));
   const ppobOmset = ppobList.reduce((s,t) => s + Number(t.amount||t.price_sell||0), 0);
   const ppobModal = ppobList.reduce((s,t) => s + Number(t.price_modal||0), 0);
   const ppobProfit = ppobList.reduce((s,t) => s + Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))), 0);
-  const ppobCard = ppobList.length ? `<div class="card pad mb" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-bolt"></i></div><div><div style="font-weight:800;font-size:13px;color:#166534;">PRODUK DIGITAL (PPOB) HARI INI</div><div class="meta" style="font-size:11px;">${ppobList.length} transaksi • Non-bonus staf</div></div></div><span class="chip ok" style="font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Omzet PPOB</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(ppobOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Modal Digiflazz</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(ppobModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#16a34a;font-weight:900;">${rp(ppobProfit)}</div></div></div></div>` : "";
+  const ppobCard = ppobList.length ? `<div class="card pad mb" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-bolt"></i></div><div><div style="font-weight:800;font-size:13px;color:#166534;">DIGIFLAZZ PPOB HARI INI</div><div class="meta" style="font-size:11px;">${ppobList.length} transaksi • Non-bonus staf</div></div></div><span class="chip ok" style="font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Omzet PPOB</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(ppobOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Modal Digiflazz</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(ppobModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#16a34a;font-weight:900;">${rp(ppobProfit)}</div></div></div></div>` : "";
+  const zidList = list.filter(t => isAdminZidStoreTx(t));
+  const zidOmset = zidList.reduce((s,t) => s + Number(t.amount||t.price_sell||0), 0);
+  const zidModal = zidList.reduce((s,t) => s + Number(t.price_modal||0), 0);
+  const zidProfit = zidList.reduce((s,t) => s + Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))), 0);
+  const zidCard = zidList.length ? `<div class="card pad mb" style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store"></i></div><div><div style="font-weight:800;font-size:13px;color:#312e81;">ZIDSTORE (PPOB &amp; AKRAB) HARI INI</div><div class="meta" style="font-size:11px;">${zidList.length} transaksi • Non-bonus staf</div></div></div><span class="chip" style="background:#4f46e5;color:#fff;font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Omzet ZidStore</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(zidOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Modal ZidStore</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(zidModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#4f46e5;font-weight:900;">${rp(zidProfit)}</div></div></div></div>` : "";
   const printAll = list.length ? `<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>` : "";
   const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
-  return `<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${ppobCard}${printAll}${renderTxList(list,true)}</div>`;
+  return `<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${ppobCard}${zidCard}${printAll}${renderTxList(list,true)}</div>`;
 };
 
 function renderTrxReportPage(){
@@ -4355,14 +4759,40 @@ window.deleteAdminTargetSchedule=async function(rawDate,rawId=''){
 };
 renderAdminDailyTargetCard=function(){
   const s=adminDailyTargetSummary(),pct=Math.max(0,Math.min(100,s.progressPercent||0)),pctText=(Math.round((s.progressPercent||0)*10)/10).toLocaleString('id-ID'),reached=!!s.reached,unread=reached&&state.targetNotification?.read===false;
-  return`<div class="card pad admin-target-card" style="margin:14px 0 18px;padding:14px 14px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} - Bonus ${rp(s.bonusAmount)} - Berlaku sejak ${displayDateKey(s.targetSettingDate)} - ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px"><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span>${unread?`<button class="btn green" style="padding:4px 8px;min-height:0;border-radius:6px;font-size:10px" onclick="markAdminDailyTargetRead()"><i class="fas fa-check"></i> Baca</button>`:''}</div></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div></div>`;
+  const isOpen = Boolean(state.adminHomeCardOpen?.target);
+  if (!isOpen) {
+    return `<div class="card pad admin-target-card" onclick="toggleAdminHomeCard('target')" style="margin:8px 0;padding:10px 13px;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.12)':'rgba(79,124,255,.10)'},var(--surface));border-radius:16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="min-width:0;flex:1;"><div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;">${reached?'Target Omzet Harian Tercapai':'Target Omzet Harian'}</div><div class="amt num" style="font-size:15px;font-weight:900;margin-top:1px;">${rp(s.totalAmount)} <span style="font-size:11px;font-weight:800;color:${reached?'#059669':'#d97706'};">(${pctText}%)</span></div></div><span class="chip" style="background:#fff;border:1px solid rgba(79,124,255,.28);color:#2563eb;font-size:10px;font-weight:800;padding:4px 9px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;">Buka <i class="fas fa-chevron-down"></i></span></div>`;
+  }
+  return`<div class="card pad admin-target-card" onclick="toggleAdminHomeCard('target')" style="margin:8px 0;padding:14px 14px;cursor:pointer;border-color:${reached?'rgba(16,185,129,.32)':'rgba(79,124,255,.28)'};background:linear-gradient(135deg,${reached?'rgba(16,185,129,.14)':'rgba(79,124,255,.12)'},var(--surface));border-radius:20px"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px"><div class="grow"><div class="tiny">${reached?'Target omzet harian tercapai':'Target omzet harian'}</div><div class="amt num" style="margin-top:6px">${rp(s.totalAmount)}</div><div class="meta" style="margin-top:6px;line-height:1.35">Target ${rp(s.targetAmount)} - Bonus ${rp(s.bonusAmount)} - Berlaku sejak ${displayDateKey(s.targetSettingDate)} - ${reached?'status tercapai':'sisa '+rp(s.remainingAmount)}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="chip" style="background:#fff;border:1px solid rgba(79,124,255,.28);color:#2563eb;font-size:9.5px;font-weight:800;padding:3px 7px;display:inline-flex;align-items:center;gap:4px;">Tutup <i class="fas fa-chevron-up"></i></span><span class="chip ${reached?'ok':'warn'}">${unread?'Baru':(reached?'Tercapai':pctText+'%')}</span>${unread?`<button class="btn green" style="padding:4px 8px;min-height:0;border-radius:6px;font-size:10px" onclick="event.stopPropagation(); markAdminDailyTargetRead()"><i class="fas fa-check"></i> Baca</button>`:''}</div></div><div style="height:9px;border-radius:999px;background:rgba(148,163,184,.24);overflow:hidden;margin-top:14px"><span style="display:block;height:100%;width:${pct}%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--success))"></span></div></div>`;
 };
+try {
+  const savedCards = JSON.parse(localStorage.getItem('rocky_admin_home_each_card_v1') || '{}');
+  state.adminHomeCardOpen = {
+    target: savedCards?.target === true,
+    digi: savedCards?.digi === true,
+    zid: savedCards?.zid === true
+  };
+} catch (e) {
+  state.adminHomeCardOpen = { target: false, digi: false, zid: false };
+}
+window.toggleAdminHomeCard = (key) => {
+  if (!state.adminHomeCardOpen || typeof state.adminHomeCardOpen !== 'object') {
+    state.adminHomeCardOpen = { target: false, digi: false, zid: false };
+  }
+  state.adminHomeCardOpen[key] = !state.adminHomeCardOpen[key];
+  try {
+    localStorage.setItem('rocky_admin_home_each_card_v1', JSON.stringify(state.adminHomeCardOpen));
+  } catch (e) {}
+  render();
+};
+
 const __baseRenderHomeDailyTargetPatch=renderHome;
 renderHome=function(){
   let html=__baseRenderHomeDailyTargetPatch();
   const card=renderAdminDailyTargetCard();
   const digiCard=(typeof adminDigiflazzBalanceCard==='function')?adminDigiflazzBalanceCard():'';
-  const combinedCards=`${card}${digiCard}`;
+  const zidCard=(typeof adminZidStoreBalanceCard==='function')?adminZidStoreBalanceCard():'';
+  const combinedCards=`<div style="margin:10px 0 14px;">${card}${digiCard}${zidCard}</div>`;
   if(html.includes('<div class="ks-deduction-grid">'))html=html.replace('<div class="ks-deduction-grid">',`${combinedCards}<div class="ks-deduction-grid">`);
   else if(html.includes('<div class="ks-menu-grid">'))html=html.replace('<div class="ks-menu-grid">',`${combinedCards}<div class="ks-menu-grid">`);
   return html;
