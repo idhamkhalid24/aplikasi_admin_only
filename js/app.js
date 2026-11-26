@@ -1784,7 +1784,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       if (markupInput) markupInput.value = adminPpobPriceState.markup || 1500;
       if (roundInput) roundInput.value = String(adminPpobPriceState.roundUpTo !== undefined ? adminPpobPriceState.roundUpTo : 1000);
 
-      renderAdminPpobPriceList();
+      switchAdminPriceTab(adminPpobPriceState.tab || 'pulsa');
       setTimeout(() => fetchDigiflazzBalance(), 100);
     } catch (e) {
       console.error(e);
@@ -2282,9 +2282,19 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     }
   };
 
+  function getAdminPpobCategoryTab(p) {
+    const cat = String(p?.category || "").toLowerCase().trim();
+    const brand = String(p?.brand || "").toUpperCase().trim();
+    if (cat === "pln" || cat.includes("pln") || cat.includes("listrik") || brand === "PLN") return "pln";
+    if (cat === "e-money" || cat === "emoney" || cat.includes("money") || cat.includes("wallet")) return "emoney";
+    if (cat === "data" || cat.includes("data") || cat.includes("kuota") || cat.includes("internet") || (cat.includes("paket") && !cat.includes("pulsa"))) return "data";
+    if (cat === "pulsa" || cat.includes("pulsa")) return "pulsa";
+    return "other";
+  }
+
   window.switchAdminPriceTab = (tab) => {
     adminPpobPriceState.tab = tab;
-    ['pulsa', 'pln', 'emoney'].forEach(t => {
+    ['pulsa', 'data', 'pln', 'emoney'].forEach(t => {
       const btn = $(`btnPriceTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (btn) {
         if (t === tab) {
@@ -2348,16 +2358,11 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     let items = adminPpobPriceState.products || [];
     const tab = adminPpobPriceState.tab;
 
-    items = items.filter(p => {
-      const cat = String(p.category || "").toLowerCase();
-      if (tab === "pulsa") return cat === "pulsa" || cat === "data";
-      if (tab === "pln") return cat === "pln" || String(p.brand).toUpperCase() === "PLN";
-      if (tab === "emoney") return cat === "e-money" || cat === "emoney";
-      return true;
-    }).sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    items = items.filter(p => getAdminPpobCategoryTab(p) === tab)
+      .sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
 
     if (!items.length) {
-      listEl.innerHTML = `<div class="empty">Tidak ada produk dalam kategori ini</div>`;
+      listEl.innerHTML = `<div class="empty">${tab === "data" ? 'Belum ada produk Paket Data. Klik tombol "Tarik Produk" di atas untuk menyinkronkan dari Digiflazz.' : 'Tidak ada produk dalam kategori ini'}</div>`;
       return;
     }
 

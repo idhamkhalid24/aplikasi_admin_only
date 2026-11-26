@@ -26,7 +26,7 @@ window.onunhandledrejection = function(event) {
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <script>
-    var v = "20261126_13"; window.__APP_VERSION__ = v;
+    var v = "20261126_14"; window.__APP_VERSION__ = v;
     document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
   </script>
 </head>
@@ -249,10 +249,11 @@ window.onunhandledrejection = function(event) {
         </div>
 
         <!-- Filter Tab Kategori Produk -->
-        <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <button type="button" class="btn primary" id="btnPriceTabPulsa" onclick="switchAdminPriceTab('pulsa')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;">Pulsa & Data</button>
-          <button type="button" class="btn" id="btnPriceTabPln" onclick="switchAdminPriceTab('pln')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Token PLN</button>
-          <button type="button" class="btn" id="btnPriceTabEmoney" onclick="switchAdminPriceTab('emoney')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">E-Money</button>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+          <button type="button" class="btn primary" id="btnPriceTabPulsa" onclick="switchAdminPriceTab('pulsa')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:#059669;color:#fff;border:none;">Pulsa</button>
+          <button type="button" class="btn" id="btnPriceTabData" onclick="switchAdminPriceTab('data')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Paket Data</button>
+          <button type="button" class="btn" id="btnPriceTabPln" onclick="switchAdminPriceTab('pln')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Token PLN</button>
+          <button type="button" class="btn" id="btnPriceTabEmoney" onclick="switchAdminPriceTab('emoney')" style="font-size:11px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">E-Money</button>
         </div>
 
         <!-- List Produk & Input Harga -->
@@ -523,7 +524,7 @@ window.onunhandledrejection = function(event) {
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    var v = "20261126_13"; window.__APP_VERSION__ = v;
+    var v = "20261126_14"; window.__APP_VERSION__ = v;
     document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
     document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
   </script>
