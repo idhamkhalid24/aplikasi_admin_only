@@ -864,7 +864,8 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function adminLitePaymentLabel(v){const m=normalizeAdminLitePaymentMethod(v);return m?ADMIN_LITE_PAYMENT_METHODS[m]:String(v||"").trim()}
   function txPaymentMethod(t={}){return normalizeAdminLitePaymentMethod(t.paymentMethod||t.payment_method||t.paymentLabel||t.payment_label||t.paymentType||t.payment_type||t.metodePembayaran||t.metode_pembayaran)||"cash"}
   function txPaymentLabel(t={}){const ch=String(t?.paymentChannel||"").toLowerCase(),pm=String(t?.paymentMethod||t?.payment_method||"").toLowerCase(),lbl=String(t?.paymentLabel||t?.payment_label||"").trim();if(ch==="edc"||pm==="transfer"||lbl.toLowerCase().includes("edc")||lbl.toLowerCase().includes("transfer bank"))return "EDC / Transfer";if(ch==="qris_barcode"||t?.qrisOrderId||lbl.toLowerCase()==="qris barcode")return "QRIS Barcode";return ADMIN_LITE_PAYMENT_METHODS[txPaymentMethod(t)]||"Cash"}
-  function txPaymentBadge(t={}){if(t?.isPpob===true||t?.type==="ppob"||t?.category==="ppob"||t?.source==="ppob_transaction")return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
+  function isAdminPpobTx(t={}){return Boolean(t&&(t.isPpob===true||t.type==="ppob"||t.category==="ppob"||t.source==="ppob_transaction"))}
+  function txPaymentBadge(t={}){if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
@@ -2743,20 +2744,24 @@ function openAdminLiteTxDetail(id){
   const t = findTxById(id);
   if(!t) return toast("Transaksi tidak ditemukan", true);
   const name = String(t.name||userName(t.user)||"-"),
+        isPpob = isAdminPpobTx(t),
         items = receiptProductItems(t.note),
-        pay = txPaymentLabel(t),
+        pay = isPpob ? "PPOB" : txPaymentLabel(t),
         dateStr = formatIndoDateLong(extractDateKey(t));
+  const detailContent = isPpob
+    ? '<div class="tiny">Detail PPOB</div>' +
+      '<div style="font-size:13.5px;font-weight:800;color:var(--text-main);margin-top:4px">' + esc(String(t.product_name || t.note || "Produk PPOB").replace(/^\[PPOB\]\s*/i, "")) + '</div>' +
+      '<div class="meta" style="margin-top:4px">No Tujuan: <b>' + esc(t.customer_no || "-") + '</b></div>' +
+      '<div class="meta" style="margin-top:2px">SN / Token: <b style="color:#059669;word-break:break-all">' + esc(t.sn || "-") + '</b></div>'
+    : '<div class="tiny">Daftar Barang</div>' + adminLiteProductDetailHtml(t.note||"Transaksi");
   const body = '<div class="card pad mb" style="box-shadow:none">' +
     '<div class="tiny">Total Bayar</div>' +
     '<div class="amt num">' + rp(t.amount) + '</div>' +
     '<div class="meta" style="margin-top:6px">' + esc(name) + ' - ' + txTimeLabel(t) + ' (' + dateStr + ') - ' + esc(pay) + '</div>' +
   '</div>' +
-  '<div class="card pad" style="box-shadow:none">' +
-    '<div class="tiny">Daftar Barang</div>' +
-    adminLiteProductDetailHtml(t.note||"Transaksi") +
-  '</div>';
+  '<div class="card pad" style="box-shadow:none">' + detailContent + '</div>';
   const footer = '<button class="btn full" onclick="closeDynamicSheet(\'adminLiteTxDetailModal\')"><i class="fas fa-arrow-left"></i> Kembali</button>';
-  openDynamicSheet("adminLiteTxDetailModal", "Detail Transaksi", name + " - " + txTimeLabel(t) + " - " + items.length + " item", body, footer);
+  openDynamicSheet("adminLiteTxDetailModal", "Detail Transaksi", name + " - " + txTimeLabel(t) + (isPpob ? " - PPOB" : " - " + items.length + " item"), body, footer);
 }
 window.openAdminLiteTxDetail = openAdminLiteTxDetail;
 
@@ -2779,13 +2784,31 @@ function getAdminTxTotalQty(note){
 
 renderTxList = function(list, withActions=true){
   if(!list.length) return '<div class="empty">Belum ada transaksi</div>';
-  return '<div class="list">' + list.map(t=>'<div class="item ' + (txPaymentMethod(t)==="qris_transfer"?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div><div class="meta" style="font-size:11px;margin-top:2px">' + (state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '') + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div></div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + (withActions?('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button><button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>'):('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>')) + '</div></div>').join("") + '</div>';
+  return '<div class="list">' + list.map(t=>{
+    const isPpob = isAdminPpobTx(t);
+    const datePrefix = state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '';
+    const ppobProdName = isPpob ? String(t.product_name || t.note || "Produk PPOB").replace(/^\[PPOB\]\s*/i, "").trim() : "";
+    const ppobTargetNo = isPpob && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
+    const metaHtml = isPpob
+      ? '<div class="meta" style="font-size:11px;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span>' + datePrefix + txTimeLabel(t) + '</span>' + txPaymentBadge(t) + '</div>' +
+        '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>'
+      : '<div class="meta" style="font-size:11px;margin-top:2px">' + datePrefix + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div>';
+    const detailBtnHtml = isPpob
+      ? ''
+      : '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button>';
+    const actionsHtml = withActions
+      ? ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div>' + detailBtnHtml + '<button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>')
+      : ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>');
+
+    return '<div class="item ' + (txPaymentMethod(t)==="qris_transfer"?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div>' + metaHtml + '</div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + actionsHtml + '</div></div>';
+  }).join("") + '</div>';
 };
 
 window.printReceiptFromTx = function(id){
   const t = findTxById(id);
   if(!t) return toast("Transaksi tidak ditemukan", true);
-  openReceiptPreview(receiptTextForTx(t), "Struk - " + dateId(extractDateKey(t)));
+  const text = isAdminPpobTx(t) ? receiptTextForPpob(t) : receiptTextForTx(t);
+  openReceiptPreview(text, "Struk - " + dateId(extractDateKey(t)));
 };
 
 function receiptTextForDateTransactions(list, dk){
