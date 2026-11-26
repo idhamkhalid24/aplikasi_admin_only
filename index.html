@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  alert("Error: " + msg + "\nLine: " + lineNo + "\nCol: " + columnNo + "\n" + (error && error.stack));
+  return false;
+};
+window.onunhandledrejection = function(event) {
+  alert("Promise Rejection: " + event.reason);
+};
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Admin Only</title>
+  
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Modern Premium Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    var v = "20261126_12"; window.__APP_VERSION__ = v;
+    document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
+  </script>
+</head>
+<body>
+<div id="app">
+  <div id="toast" class="toast"></div>
+  <div id="loading" class="loading"><div class="spin"></div></div>
+  <main id="view"></main>
+  
+  <button id="fab" class="fab hide" onclick="openTransactionModal()"><i class="fas fa-plus"></i></button>
+  
+  <nav id="tabs" class="tabs hide">
+    <button class="tab" data-page="home" onclick="go('home')"><i class="fas fa-gauge-high"></i><span>Home</span></button>
+    <button class="tab" data-page="trx" onclick="go('trx')"><i class="fas fa-receipt"></i><span>Trx</span></button>
+    <button class="tab" data-page="bonus" onclick="go('bonus')"><i class="fas fa-gift"></i><span>Bonus</span></button>
+    <button class="tab" data-page="ops" onclick="go('ops')"><i class="fas fa-list-check"></i><span>Ops</span></button>
+    <button class="tab" data-page="gajian" onclick="go('gajian')"><i class="fas fa-wallet"></i><span>Gajian</span></button>
+    <button class="tab" data-page="team" onclick="go('team')"><i class="fas fa-users"></i><span>User</span></button>
+  </nav>
+
+  <!-- Modals -->
+  <div id="trxModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="trxTitle">Transaksi</div><div class="meta">Cetak / simpan / batal seperti aplikasi printer</div></div>
+        <button class="btn icon" onclick="closeModal('trxModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="trxId">
+        <select id="trxUser" class="input"></select>
+        <input type="hidden" id="trxNote">
+        <div class="admin-trx-product-builder">
+          <div class="tiny">Rincian Barang</div>
+          <form class="admin-trx-product-entry" style="grid-template-columns: minmax(0,1fr) 50px auto !important; margin:0" onsubmit="event.preventDefault(); addAdminLiteProductItem(); return false;">
+            <input id="adminTrxProductInput" class="input" placeholder="Nama barang..." autocomplete="off" oninput="updateAdminLiteProductAddButton()" onkeydown="handleAdminLiteProductKey(event)">
+            <input id="adminTrxProductQty" class="input" type="number" inputmode="numeric" min="1" value="1" placeholder="Qty" style="text-align:center;padding:0 !important" onfocus="hideAdminTrxProductSuggest(); this.select()" onkeydown="handleAdminLiteProductKey(event)">
+            <button id="adminTrxProductAddBtn" type="submit" class="btn primary" disabled>+ Tambah</button>
+          </form>
+          <div id="adminTrxProductSuggest" class="admin-trx-product-suggest"></div>
+          <div class="meta" style="margin:7px 0 5px">Daftar Barang:</div>
+          <div id="adminTrxProductList" class="admin-trx-product-list"></div>
+        </div>
+        <input id="trxAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal Rp" oninput="formatMoneyInput(this)" style="text-align:right;font-size:24px;font-weight:800;height:64px;color:var(--primary);">
+        <div class="tx-note-mini"><i class="fas fa-info-circle"></i> Pilih <b>Simpan</b> untuk catat transaksi saja. Pilih <b>Cetak</b> untuk simpan sekaligus kirim struk ke printer Bluetooth Android.</div>
+        <div class="grid2">
+          <button class="btn red" onclick="closeModal('trxModal')" style="grid-column: 1 / -1;"><i class="fas fa-xmark"></i> Batal</button>
+          <button class="btn green" onclick="saveTransaction(true)"><i class="fas fa-print"></i> Cetak</button>
+          <button class="btn primary" onclick="saveTransaction(false)"><i class="fas fa-floppy-disk"></i> Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bonusModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Bonus Manual</div><div class="meta">Tambah / kurangi bonus secara kustom</div></div>
+        <button class="btn icon" onclick="closeModal('bonusModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <select id="bonusUser" class="input"></select>
+        <select id="bonusMode" class="input">
+          <option value="add">Tambah Bonus (+)</option>
+          <option value="subtract">Kurangi Bonus (-)</option>
+        </select>
+        <input id="bonusAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal bonus Rp" oninput="formatMoneyInput(this)" style="text-align:right;font-size:24px;font-weight:800;height:64px;">
+        <input id="bonusNote" class="input" placeholder="Catatan bonus / alasan penyesuaian">
+        <div class="tx-note-mini"><i class="fas fa-info-circle"></i> Kurangi Bonus hanya untuk koreksi. Kalau staff ambil bonus sebagian, pakai tombol Ambil Bonus.</div>
+        <button class="btn primary full" onclick="saveManualBonus()"><i class="fas fa-floppy-disk"></i> Simpan Bonus</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="userModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="userTitle">User</div><div class="meta">Manajemen akun ringan</div></div>
+        <button class="btn icon" onclick="closeModal('userModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input id="uUsername" class="input" placeholder="Username (huruf kecil & angka)">
+        <input id="uName" class="input" placeholder="Nama Lengkap Tampil">
+        <input id="uPin" class="input" type="tel" inputmode="numeric" placeholder="PIN Rahasia">
+        <select id="uRole" class="input">
+          <option value="staff">Staff Biasa</option>
+          <option value="harian">Karyawan Harian</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <select id="uActive" class="input">
+          <option value="true">Akun Aktif</option>
+          <option value="false">Dinonaktifkan</option>
+        </select>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(245,158,11,.32);border-radius:16px;background:rgba(245,158,11,.10);font-size:12px;line-height:1.35;color:var(--text-main)">
+          <input id="uDummy" type="checkbox" style="margin-top:3px;accent-color:#f59e0b">
+          <span><b>Akun Dummy / Mode Trial</b><br><span class="meta">Data transaksi, absen, dan bonus akun ini dicap trial dan tidak masuk laporan utama. Target trial bawaan Rp 10.000, bonus Rp 1.000.</span></span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(2,132,199,.32);border-radius:16px;background:rgba(2,132,199,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
+          <input id="uQrisAccess" type="checkbox" style="margin-top:3px;accent-color:#0284c7">
+          <span><b>Akses Pembayaran QRIS</b><br><span class="meta">Izinkan user ini melihat dan menggunakan fitur pembayaran QRIS di aplikasi kasir staf.</span></span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(234,88,12,.32);border-radius:16px;background:rgba(234,88,12,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
+          <input id="uFastCashierAccess" type="checkbox" style="margin-top:3px;accent-color:#ea580c">
+          <span><b>Akses Kasir Cepat (Toko Ramai)</b><br><span class="meta">Izinkan staf ini langsung masuk ke mode kasir cepat setelah absen (input nominal tanpa isi nama barang, langsung bayar Tunai/QRIS).</span></span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid rgba(5,150,105,.32);border-radius:16px;background:rgba(5,150,105,.08);font-size:12px;line-height:1.35;color:var(--text-main);margin-top:6px;">
+          <input id="uPpobAccess" type="checkbox" style="margin-top:3px;accent-color:#059669">
+          <span><b>Akses Jual PPOB (Pulsa, PLN, dll)</b><br><span class="meta">Izinkan user ini melayani penjualan produk digital PPOB (Pulsa, Paket Data, Token Listrik, E-Wallet) via Digiflazz.</span></span>
+        </label>
+        <div id="uDeviceLockContainer"></div>
+        <button class="btn primary full" onclick="saveUser()"><i class="fas fa-user-check"></i> Simpan Data User</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fastCashierAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses Kasir Cepat</div><div class="meta">Pilih staf untuk fitur cepat saat toko ramai</div></div>
+        <button class="btn icon" onclick="closeModal('fastCashierAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div id="fastCashierAccessList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="qrisAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses QRIS Kasir</div><div class="meta">Pilih staf yang diizinkan menggunakan QRIS</div></div>
+        <button class="btn icon" onclick="closeModal('qrisAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div id="qrisAccessList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div id="ppobPriceModal" class="modal">
+    <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column;">
+      <div class="sheetHead">
+        <div>
+          <div class="title" style="display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-tags" style="color:#059669;"></i> Kelola Harga Jual PPOB
+          </div>
+          <div class="meta">Atur margin untung, pembulatan harga, dan custom harga jual per produk</div>
+        </div>
+        <button class="btn icon" onclick="closeModal('ppobPriceModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form" style="overflow-y:auto;flex:1;padding-bottom:16px;">
+        <!-- Banner Saldo Digiflazz -->
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:12px 14px;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:#059669;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(5,150,105,0.25);">
+              <i class="fas fa-wallet" style="font-size:17px;"></i>
+            </div>
+            <div>
+              <div style="font-size:10.5px;font-weight:800;color:#065f46;letter-spacing:0.3px;">SALDO KULAKAN DIGIFLAZZ</div>
+              <div id="digiflazzLiveBalance" style="font-size:19px;font-weight:900;color:#047857;margin-top:1px;">Rp 195.299</div>
+              <div id="digiflazzBalanceTime" style="font-size:10px;color:#059669;">Update: Baru saja</div>
+            </div>
+          </div>
+          <button id="btnCheckDigiBalance" type="button" class="btn" style="background:#059669;color:#fff;border-radius:10px;font-weight:800;font-size:11.5px;padding:8px 12px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="fetchDigiflazzBalance()">
+            <i class="fas fa-rotate"></i> Cek Saldo
+          </button>
+        </div>
+
+        <!-- Banner Sinkronisasi Produk dari Digiflazz -->
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;background:#ecfdf5;border:1.5px solid #86efac;border-radius:14px;padding:11px 14px;gap:10px;">
+          <div>
+            <div style="font-size:12.5px;font-weight:900;color:#065f46;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-arrows-rotate" style="color:#059669;"></i> Sinkronkan Produk Digiflazz
+            </div>
+            <div style="font-size:10.5px;color:#047857;margin-top:2px;">Tarik produk & harga kulakan terbaru yang lu tambah/hapus di website Digiflazz</div>
+          </div>
+          <button id="btnSyncDigi" type="button" class="btn" style="background:#059669;color:#fff;border-radius:10px;font-weight:800;font-size:11.5px;padding:8px 12px;white-space:nowrap;display:flex;align-items:center;gap:6px;" onclick="syncDigiflazzProducts()">
+            Tarik Produk
+          </button>
+        </div>
+
+        <!-- Banner Pintas Setting IP Digiflazz -->
+        <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:14px;padding:10px 14px;gap:10px;">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:12px;font-weight:900;color:#1e3a8a;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-network-wired" style="color:#2563eb;"></i> IP Digiflazz: <span id="priceModalIpLabel" style="font-family:monospace;color:#1d4ed8;">157.85.208.5</span>
+            </div>
+            <div style="font-size:10px;color:#1e40af;margin-top:2px;">Jika IP internet berubah & transaksi/cek saldo gagal, samakan IP di sini</div>
+          </div>
+          <button type="button" class="btn" style="background:#2563eb;color:#fff;border-radius:10px;font-weight:800;font-size:11px;padding:7px 11px;white-space:nowrap;display:flex;align-items:center;gap:5px;" onclick="closeModal('ppobPriceModal'); openPpobIpModal()">
+            <i class="fas fa-gear"></i> Setting IP
+          </button>
+        </div>
+
+        <!-- Pengaturan Umum -->
+        <div class="card pad mb" style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;">
+          <div style="font-size:12px;font-weight:800;color:var(--text-main,#0f172a);margin-bottom:10px;">
+            <i class="fas fa-sliders" style="color:#059669;"></i> PENGATURAN HARGA UMUM
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Margin Untung Standar (Rp)</label>
+              <input id="ppobSettingMarkup" type="number" class="input" placeholder="1500" value="1500" style="font-weight:800;" oninput="recalcAdminPricePreview()">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Pembulatan Otomatis</label>
+              <select id="ppobSettingRounding" class="input" style="font-weight:800;" onchange="recalcAdminPricePreview()">
+                <option value="1000">Ke Rp 1.000 (Rekomendasi)</option>
+                <option value="500">Ke Rp 500</option>
+                <option value="0">Tanpa Pembulatan</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;">
+            <i class="fas fa-circle-info" style="color:#059669;"></i> Contoh: Modal Rp 5.255 + untung Rp 1.500 = Rp 6.755. Dibulatkan ke Rp 1.000 menjadi pas <b>Rp 7.000</b> di kasir.
+          </div>
+        </div>
+
+        <!-- Filter Tab Kategori Produk -->
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button type="button" class="btn primary" id="btnPriceTabPulsa" onclick="switchAdminPriceTab('pulsa')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;">Pulsa & Data</button>
+          <button type="button" class="btn" id="btnPriceTabPln" onclick="switchAdminPriceTab('pln')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">Token PLN</button>
+          <button type="button" class="btn" id="btnPriceTabEmoney" onclick="switchAdminPriceTab('emoney')" style="flex:1;font-size:11.5px;font-weight:800;padding:8px 4px;border-radius:10px;background:var(--card,#fff);border:1px solid var(--line);">E-Money</button>
+        </div>
+
+        <!-- List Produk & Input Harga -->
+        <div id="ppobPriceList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:12px;text-align:center;padding:16px;">Memuat daftar harga produk...</div>
+        </div>
+
+        <!-- Tombol Simpan -->
+        <div style="margin-top:16px;">
+          <button type="button" class="btn primary full" style="background:#059669;font-weight:800;border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="savePpobPriceSettings()">
+            <i class="fas fa-floppy-disk"></i> Simpan Pengaturan Harga
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ppobAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses PPOB Kasir</div><div class="meta">Pilih staf yang diizinkan menjual Pulsa, Paket Data, Token PLN & E-Wallet</div></div>
+        <button class="btn icon" onclick="closeModal('ppobAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div id="ppobAccessList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="color:var(--muted);font-size:13px;">Memuat user...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ppobIpModal" class="modal">
+    <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column;">
+      <div class="sheetHead">
+        <div>
+          <div class="title" style="display:flex;align-items:center;gap:7px;">
+            <i class="fas fa-network-wired" style="color:#2563eb;"></i> Setting IP Digiflazz (PPOB)
+          </div>
+          <div class="meta">Samakan IP di sini setiap kali IP internet berubah di Digiflazz</div>
+        </div>
+        <button class="btn icon" onclick="closeModal('ppobIpModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form" style="overflow-y:auto;flex:1;padding-bottom:16px;">
+        <!-- Box Deteksi Otomatis IP Publik -->
+        <div id="ppobIpStatusBox" style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:10.5px;font-weight:800;color:#1e40af;letter-spacing:0.3px;">IP INTERNET / PUBLIK TERDETEKSI SAAT INI</div>
+              <div id="detectedPublicIpText" style="font-size:20px;font-weight:900;color:#1d4ed8;font-family:monospace;margin-top:2px;">Mendeteksi...</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn" style="background:#fff;border:1px solid #93c5fd;color:#1d4ed8;font-size:11px;font-weight:800;padding:6px 10px;border-radius:10px;display:flex;align-items:center;gap:4px;" onclick="copyDetectedPpobIp()">
+                <i class="fas fa-copy"></i> Salin IP
+              </button>
+              <button id="btnDetectPpobIp" type="button" class="btn" style="background:#2563eb;color:#fff;font-size:11px;font-weight:800;padding:6px 10px;border-radius:10px;display:flex;align-items:center;gap:4px;" onclick="detectCurrentPpobIp(false)">
+                <i class="fas fa-arrows-rotate"></i> Cek Ulang
+              </button>
+            </div>
+          </div>
+
+          <div id="ppobDigiConnBadge" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #bfdbfe;font-size:11.5px;font-weight:700;color:#334155;line-height:1.4;">
+            <i class="fas fa-circle-info" style="color:#2563eb;"></i> Mengecek status koneksi ke Digiflazz...
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            <button type="button" class="btn" style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:800;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:center;gap:5px;" onclick="applyDetectedIpToForm()">
+              <i class="fas fa-wand-magic-sparkles"></i> Pakai IP Ini
+            </button>
+            <a href="https://member.digiflazz.com/buyer-area/connection/api" target="_blank" rel="noopener" class="btn" style="background:#059669;color:#fff;text-decoration:none;font-size:11px;font-weight:800;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:center;gap:5px;">
+              <i class="fas fa-up-right-from-square"></i> Buka Web Digiflazz
+            </a>
+          </div>
+        </div>
+
+        <!-- Daftar IP WiFi Aktif Masing-Masing Staff -->
+        <div class="card pad mb" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#065f46;display:flex;align-items:center;gap:6px;">
+                <i class="fas fa-users-viewfinder" style="color:#059669;"></i> IP WIFI STAFF DI TOKO (OTOMATIS)
+              </div>
+              <div style="font-size:10.5px;color:#047857;margin-top:2px;">Terbaca otomatis saat staf buka APK Kasir — tanpa perlu tanya staf!</div>
+            </div>
+            <button id="btnRefreshStaffIps" type="button" class="btn" style="background:#fff;border:1px solid #86efac;color:#065f46;font-size:11px;font-weight:800;padding:6px 10px;border-radius:10px;white-space:nowrap;display:flex;align-items:center;gap:4px;" onclick="refreshStaffIpList()">
+              <i class="fas fa-rotate"></i> Refresh
+            </button>
+          </div>
+
+          <div id="adminStaffIpList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+            <div style="font-size:11.5px;color:#047857;text-align:center;padding:8px;">Memuat IP staff...</div>
+          </div>
+
+          <button type="button" class="btn full" style="background:#059669;color:#fff;font-size:11.5px;font-weight:800;border-radius:10px;padding:9px 12px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="copyCombinedDigiIps()">
+            <i class="fas fa-copy"></i> Salin Gabungan IP (Rumah + Toko) ke Kolom & Clipboard
+          </button>
+        </div>
+
+        <!-- Input IP Utama (Digiflazz) -->
+        <div class="card pad mb" style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;">
+          <div style="font-size:12px;font-weight:900;color:var(--text-main,#0f172a);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-globe" style="color:#2563eb;"></i> 1. IP WHITELIST DIGIFLAZZ (UTAMA)
+          </div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Alamat IP yang Disamakan dengan Digiflazz</label>
+          <input id="ppobSettingPublicIp" type="text" class="input" placeholder="Contoh: 157.85.208.5" style="font-weight:800;font-family:monospace;font-size:15px;margin-bottom:6px;">
+          <div style="font-size:11px;color:var(--muted);line-height:1.45;">
+            <i class="fas fa-lightbulb" style="color:#f59e0b;"></i> <b>Cara pakai saat IP berubah:</b> Salin IP terdeteksi di atas &rarr; tempel di pengaturan <b>IP Static Digiflazz</b> &rarr; pastikan kolom ini sama &rarr; klik <b>Simpan</b>. Otomatis tersinkron ke Kasir & Admin!
+          </div>
+        </div>
+
+        <!-- Input IP Lokal WiFi / URL Server Proxy -->
+        <div class="card pad mb" style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:14px;">
+          <div style="font-size:12px;font-weight:900;color:var(--text-main,#0f172a);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-wifi" style="color:#059669;"></i> 2. IP WIFI LOKAL / SERVER PROXY (OPSIONAL)
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:6px;">
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">IP PC / URL Tunnel</label>
+              <input id="ppobSettingLocalIp" type="text" class="input" placeholder="192.168.1.100" style="font-weight:800;font-family:monospace;font-size:13.5px;">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Port Proxy</label>
+              <input id="ppobSettingPort" type="number" class="input" placeholder="3001" value="3001" style="font-weight:800;font-family:monospace;font-size:13.5px;">
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:var(--muted);line-height:1.4;">
+            IP lokal PC di jaringan WiFi (misal <code>192.168.1.100</code>) atau link HTTPS Tunnel / VPS jika ada. Kosongkan jika hanya memakai IP utama.
+          </div>
+        </div>
+
+        <div id="ppobIpLastSavedInfo" style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:10px;"></div>
+
+        <!-- Tombol Tes & Simpan -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button id="btnTestPpobIp" type="button" class="btn full" style="background:#eff6ff;border:1.5px solid #93c5fd;color:#1d4ed8;font-weight:800;border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="testPpobIpConnection()">
+            <i class="fas fa-plug-circle-check"></i> Tes Koneksi
+          </button>
+          <button type="button" class="btn primary full" style="background:#059669;font-weight:800;border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="savePpobIpSettings()">
+            <i class="fas fa-floppy-disk"></i> Simpan IP
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="opsAccessModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kelola Akses Operasional</div><div class="meta">Akses permanen sampai dicabut admin</div></div>
+        <button class="btn icon" onclick="closeModal('opsAccessModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Beri Akses ke Staff</div>
+        <select id="opsAccessUser" class="input"></select>
+        <button class="btn primary full" onclick="grantOpsAccess()"><i class="fas fa-check-circle"></i> Berikan Akses</button>
+        <div style="margin-top:16px;border-top:1.5px solid var(--line);padding-top:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Staff yang Punya Akses</div>
+          <div id="opsAccessList" style="display:flex;flex-direction:column;gap:8px;"><div style="color:var(--muted);font-size:13px;">Memuat...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="bonusControlModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Kontrol Bonus User</div><div class="meta" id="bcMeta">Atur rate persentase</div></div>
+        <button class="btn icon" onclick="closeModal('bonusControlModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="bcUsername">
+        <input id="bcTransactionPercent" class="input" type="number" step="0.01" placeholder="Bonus transaksi % (contoh 1.5)">
+        <input id="bcClosingMinute" class="input" type="tel" inputmode="numeric" placeholder="Bonus closing per menit Rp">
+        <button class="btn primary full" onclick="saveUserBonusControl()"><i class="fas fa-sliders"></i> Terapkan Pengaturan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="attendanceModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title" id="attTitle">Input Absen</div><div class="meta">Input jam masuk secara manual</div></div>
+        <button class="btn icon" onclick="closeModal('attendanceModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <input type="hidden" id="attId">
+        <select id="attUser" class="input"></select>
+        <input id="attDate" class="input" type="date">
+        <input id="attTime" class="input" type="time">
+        <button class="btn primary full" onclick="saveAdminAttendance()"><i class="fas fa-user-clock"></i> Simpan Kehadiran</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="drawerWithdrawalModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Tarik Uang Laci</div><div class="meta">Catat modal / kembalian kasir (Owner)</div></div>
+        <button class="btn icon" onclick="closeModal('drawerWithdrawalModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div class="tx-note-mini" style="margin-bottom:12px;background:#f8f9fa;color:#495057;border:1px dashed #dee2e6;">Masukkan nominal uang kembalian untuk besok yang disisihkan di laci. Sisa yang harus ditarik akan dihitung otomatis.</div>
+        
+        <input id="dwLeftAmount" class="input" type="tel" inputmode="numeric" placeholder="Nominal Uang Kembalian (Rp)" oninput="formatMoneyInput(this); if(window._calcAdminWithdrawal) window._calcAdminWithdrawal()" style="width:100%;box-sizing:border-box;font-size:18px;font-weight:800;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);outline:none;font-family:monospace;margin-bottom:10px">
+        
+        <input id="dwNote" class="input" placeholder="Catatan (opsional)" style="width:100%;box-sizing:border-box;font-size:14px;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);outline:none;margin-bottom:10px">
+        
+        <select id="dwAssignedUser" class="input" style="font-weight:bold;color:var(--primary);margin-bottom:12px;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;width:100%">
+          <option value="all">Tampilkan ke Semua Staf</option>
+        </select>
+        
+        <div style="background:#f8f9fa;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:12px;color:var(--text);margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--text-soft)">Cash fisik hari ini:</span>
+            <span style="font-weight:700" id="dwMathCashFisik">Rp 0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--text-soft)">Ditambah uang kemarin:</span>
+            <span style="font-weight:700" id="dwMathYdNominal">Rp 0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="color:var(--text-soft)">Dikurangi kembalian (sisa laci):</span>
+            <span style="font-weight:700;color:#e03131" id="dwMathKembalian">- Rp 0</span>
+          </div>
+          <div style="border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:800">Uang yang ditarik (Disetor):</span>
+            <span style="font-weight:900;font-size:14px;color:#0ca678" id="dwMathWithdrawn">Rp 0</span>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <button class="btn full" onclick="closeModal('drawerWithdrawalModal')">Batal</button>
+          <button class="btn green full" onclick="saveDrawerWithdrawal()">Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="productReportModal" class="modal">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div><div class="title">Produk Terlaris</div><div class="meta">Grafik penjualan produk dalam rentang waktu</div></div>
+        <button class="btn icon" onclick="closeModal('productReportModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="form">
+        <div class="grid2">
+          <div>
+            <div class="tiny" style="margin-bottom:4px">Dari Tanggal</div>
+            <input id="prStartDate" class="input" type="date">
+          </div>
+          <div>
+            <div class="tiny" style="margin-bottom:4px">Sampai Tanggal</div>
+            <input id="prEndDate" class="input" type="date">
+          </div>
+        </div>
+        <button class="btn primary full" onclick="loadProductReport()"><i class="fas fa-chart-bar"></i> Tampilkan Grafik</button>
+        <div id="prChartContainer" style="margin-top:20px; display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Kasir Staff memakai link GitHub Pages agar selalu mengikuti update kasir terbaru.
+     Tidak ada lagi template kasir lokal di file ini, supaya tidak bentrok dan ukuran file lebih ringan. -->
+
+<!-- SheetJS for Excel / XLS Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    var v = "20261126_12"; window.__APP_VERSION__ = v;
+    document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
+    document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
+  </script>
+
+</body>
+</html>
+
