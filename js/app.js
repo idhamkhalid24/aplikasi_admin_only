@@ -1829,11 +1829,15 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     setBusy(true);
     try {
       let result = null;
-      const syncHosts = getAdminPpobProxyHosts().map(h => `${h}/sync-products`);
-      for (const h of syncHosts) {
-        if (result && (result.ok || result.rc === "45")) break;
+      let anyReachable = false;
+      const hosts = getAdminPpobProxyHosts();
+      for (const h of hosts) {
+        if (result && (result.ok || String(result.rc || "") === "45" || result.error)) break;
         try {
-          const res = await fetch(h, { signal: AbortSignal.timeout(4500) });
+          const ping = await fetch(`${h}/ip-info`, { signal: AbortSignal.timeout(1800) }).catch(() => null);
+          if (!ping || !ping.ok) continue;
+          anyReachable = true;
+          const res = await fetch(`${h}/sync-products`, { signal: AbortSignal.timeout(22000) });
           if (res.ok) result = await res.json();
         } catch (errH) {}
       }
@@ -1843,8 +1847,12 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         await openPpobPriceModal();
       } else if (result && String(result.rc || "") === "45") {
         toast(`⚠️ ${result.error}. Samakan IP di menu Setting IP!`, true);
+      } else if (result && result.error) {
+        toast(result.error, true);
+      } else if (!anyReachable) {
+        toast("Proxy lokal PPOB (port 3001) tidak terjangkau dari browser ini. Pastikan node ppob_proxy.js aktif di PC toko & akses lewat PC/Wi-Fi toko.", true);
       } else {
-        toast(result?.error || "Gagal sinkron produk (Pastikan proxy aktif / batas 1x per 5 menit)", true);
+        toast("Gagal sinkron produk dari Digiflazz (cek koneksi atau tunggu batas 1x per 5 menit)", true);
       }
     } catch (err) {
       console.error(err);
