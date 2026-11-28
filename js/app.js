@@ -883,20 +883,33 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     if(raw==="gagal"||raw==="failed"||raw==="error"||(rc!==""&&rc!=="00"&&rc!=="03"))return"Gagal";
     return"Pending";
   }
+  function isAdminDigitalAwaitingPay(t={}){
+    if(!t)return false;
+    if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return false;
+    return getAdminDigitalStatus(t)==="Sukses"&&Boolean(t.paymentStatus&&t.paymentStatus!=="success");
+  }
   function isAdminDigitalUnsettled(t={}){
     if(!t)return false;
     if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return false;
-    return getAdminDigitalStatus(t)!=="Sukses";
+    return getAdminDigitalStatus(t)!=="Sukses"||isAdminDigitalAwaitingPay(t);
   }
   function adminSettledTxAmount(t={}){return isAdminDigitalUnsettled(t)?0:Number(t?.amount||0)}
   function adminDigitalStatusChip(t={}){
     if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return"";
+    if(isAdminDigitalAwaitingPay(t))return`<span class="chip warn" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">BELUM BAYAR</span>`;
     const st=getAdminDigitalStatus(t);
     if(st==="Sukses")return`<span class="chip ok" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">SUKSES</span>`;
     if(st==="Gagal")return`<span class="chip bad" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">GAGAL</span>`;
     return`<span class="chip warn" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">PENDING</span>`;
   }
-  function txPaymentBadge(t={}){const stChip=adminDigitalStatusChip(t);if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>${stChip}`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>${stChip}`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>${stChip}`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
+  function adminDigitalPayChip(t={}){
+    if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return"";
+    const ch=String(t?.paymentChannel||"").toLowerCase(),pm=String(t?.paymentMethod||"").toLowerCase(),lbl=String(t?.paymentLabel||"").toLowerCase();
+    if(ch==="qris_barcode"||t?.qrisOrderId||lbl.includes("qris"))return`<span class="chip" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">QRIS</span>`;
+    if(ch==="edc"||pm==="transfer"||lbl.includes("edc"))return`<span class="chip" style="background:#ffedd5;color:#c2410c;border:1px solid #fed7aa;padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">EDC</span>`;
+    return`<span class="chip" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">TUNAI</span>`;
+  }
+  function txPaymentBadge(t={}){const stChip=adminDigitalStatusChip(t),payChip=adminDigitalPayChip(t);if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>${payChip}${stChip}`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>${payChip}${stChip}`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>${payChip}${stChip}`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].filter(t=>!isAdminDigitalUnsettled(t)).sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
@@ -904,7 +917,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   async function copyReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.copyReceipt==="function"){window.Android.copyReceipt(text);return}if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);else{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove()}toast("Struk disalin")}catch(e){console.log(text);toast("Gagal salin struk",true)}}
   async function shareReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.shareReceipt==="function"){window.Android.shareReceipt(text);return}if(navigator.share){await navigator.share({title:receiptPreviewTitle,text});return}await copyReceiptText()}catch(e){if(String(e?.name||"")!=="AbortError")toast("Gagal bagikan struk",true)}}window.shareReceiptText=shareReceiptText;
   function directPrintReceiptText(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");nativePrintReceiptText()}
-  function receiptTextForPpob(tx){const storeName="ROCKY HIJAB",dateStr=dateId(String(tx?.dateKey||dateKey()).slice(0,10))+" "+txTimeLabel(tx),cashier=tx?.cashier_name||tx?.name||userName(tx?.user)||"Kasir",sep=receiptLine(),isPln=String(tx?.buyer_sku_code||tx?.note||"").toLowerCase().includes("pln"),st=getAdminDigitalStatus(tx),stLabel=st==="Sukses"?"LUNAS / SUKSES":(st==="Gagal"?"GAGAL / BATAL":"PROSES PENDING");return`${storeName}\n${sep}\nTanggal : ${dateStr}\nKasir   : ${cashier}\nNo Ref  : ${tx?.ref_id||tx?.id}\n${sep}\nProduk  : ${tx?.product_name||tx?.note}\nTujuan  : ${tx?.customer_no||"-"}\n${isPln?`TOKEN   : ${tx?.sn||"SEDANG DIPROSES"}`:`SN      : ${tx?.sn||"SEDANG DIPROSES"}`}\nStatus  : ${stLabel}\n${sep}\n${receiptSummaryLine("TOTAL",rp(tx?.price_sell||tx?.amount||0))}\n${receiptSummaryLine("BAYAR","TUNAI")}\n${sep}\n${isPln?"Masukkan 20 digit token di meteran\n":"Simpan struk sebagai bukti transaksi\n"}Terima kasih telah berbelanja\ndi Rocky Hijab\n\n\n`}
+  function receiptTextForPpob(tx){const storeName="ROCKY HIJAB",dateStr=dateId(String(tx?.dateKey||dateKey()).slice(0,10))+" "+txTimeLabel(tx),cashier=tx?.cashier_name||tx?.name||userName(tx?.user)||"Kasir",sep=receiptLine(),isPln=String(tx?.buyer_sku_code||tx?.note||"").toLowerCase().includes("pln"),st=getAdminDigitalStatus(tx),stLabel=st==="Sukses"?"LUNAS / SUKSES":(st==="Gagal"?"GAGAL / BATAL":"PROSES PENDING"),payStr=String(txPaymentLabel(tx)||"Tunai").toUpperCase();return`${storeName}\n${sep}\nTanggal : ${dateStr}\nKasir   : ${cashier}\nNo Ref  : ${tx?.ref_id||tx?.id}\n${sep}\nProduk  : ${tx?.product_name||tx?.note}\nTujuan  : ${tx?.customer_no||"-"}\n${isPln?`TOKEN   : ${tx?.sn||"SEDANG DIPROSES"}`:`SN      : ${tx?.sn||"SEDANG DIPROSES"}`}\nStatus  : ${stLabel}\n${sep}\n${receiptSummaryLine("TOTAL",rp(tx?.price_sell||tx?.amount||0))}\n${receiptSummaryLine("BAYAR",payStr)}\n${sep}\n${isPln?"Masukkan 20 digit token di meteran\n":"Simpan struk sebagai bukti transaksi\n"}Terima kasih telah berbelanja\ndi Rocky Hijab\n\n\n`}
   function printReceiptFromTx(id){const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const text=(t?.isPpob||t?.type==="ppob"||t?.category==="ppob")?receiptTextForPpob(t):receiptTextForTx(t);openReceiptPreview(text,`Struk - ${dateId(String(t.dateKey||dateKey()).slice(0,10))}`)}window.printReceiptFromTx=printReceiptFromTx;
   function printTodayTransactions(){const items=todayTx();if(!items.length)return toast("Belum ada transaksi hari ini",true);openReceiptPreview(receiptTextForTodayTransactions(),`Semua Transaksi - ${dateId(dateKey())}`)}window.printTodayTransactions=printTodayTransactions;
 
@@ -3522,15 +3535,19 @@ renderTxList = function(list, withActions=true){
     const isZid = isAdminZidStoreTx(t);
     const isPpob = isAdminPpobTx(t);
     const isDigital = isPpob || isZid;
+    const awaitingPay = isAdminDigitalAwaitingPay(t);
     const unsettled = isAdminDigitalUnsettled(t);
     const stDig = isDigital ? getAdminDigitalStatus(t) : "";
     const datePrefix = state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '';
     const ppobProdName = isDigital ? String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "").trim() : "";
     const ppobTargetNo = isDigital && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
+    const unsettledHint = awaitingPay
+      ? '💳 Produk Sukses — menunggu pembeli bayar QRIS/EDC'
+      : (stDig === "Gagal" ? '❌ Gagal (tidak masuk omset/laci)' : '⏳ Pending (ditahan s.d. Sukses)');
     const metaHtml = isDigital
       ? '<div class="meta" style="font-size:11px;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span>' + datePrefix + txTimeLabel(t) + '</span>' + txPaymentBadge(t) + '</div>' +
         '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>' +
-        (unsettled ? '<div style="margin-top:3px;font-size:10px;font-weight:800;color:' + (stDig === "Gagal" ? '#dc2626' : '#b45309') + ';">' + (stDig === "Gagal" ? '❌ Gagal (tidak masuk omset/laci)' : '⏳ Pending (ditahan s.d. Sukses)') + '</div>' : '')
+        (unsettled ? '<div style="margin-top:3px;font-size:10px;font-weight:800;color:' + (stDig === "Gagal" ? '#dc2626' : '#b45309') + ';">' + unsettledHint + '</div>' : '')
       : '<div class="meta" style="font-size:11px;margin-top:2px">' + datePrefix + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div>';
     const detailBtnHtml = isDigital
       ? (stDig === "Pending" ? '<button class="btn amber" style="min-height:34px;padding:0 8px;font-size:11px;border-radius:9px" onclick="checkAdminDigitalOrderStatus(\'' + esc(t.id) + '\')" title="Cek Status"><i class="fas fa-rotate"></i></button>' : '')
@@ -7523,7 +7540,7 @@ function isTransferTxEdc(t = {}) {
 }
 
 function isTransferTxNonCash(t = {}) {
-  if (!t || isDeleted(t) || isTrialRecord(t)) return false;
+  if (!t || isDeleted(t) || isTrialRecord(t) || isAdminDigitalUnsettled(t)) return false;
   return txPaymentMethod(t) === "qris_transfer" || t.isNonCashPayment === true;
 }
 
