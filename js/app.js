@@ -2073,6 +2073,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         const pubIp = proxyInfo.publicIp || proxyInfo.ispPublicIp || "";
         lastDetectedPpobInfo = {
           publicIp: pubIp,
+          reachedHost: proxyInfo.reachedHost || "",
           lanIp: proxyInfo.lanIp || "",
           port: Number(proxyInfo.port || 3001)
         };
@@ -2170,7 +2171,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     if (!lastDetectedPpobInfo.publicIp) {
       return toast("Klik Cek Ulang terlebih dahulu untuk mendeteksi IP!", true);
     }
-    if (pubInput) pubInput.value = lastDetectedPpobInfo.publicIp;
+    const nextPubVal = (lastDetectedPpobInfo.reachedHost && String(lastDetectedPpobInfo.reachedHost).startsWith("https://"))
+      ? `${lastDetectedPpobInfo.reachedHost},${lastDetectedPpobInfo.publicIp}`
+      : lastDetectedPpobInfo.publicIp;
+    if (pubInput) pubInput.value = nextPubVal;
     if (locInput && lastDetectedPpobInfo.lanIp && lastDetectedPpobInfo.lanIp !== "127.0.0.1") {
       locInput.value = lastDetectedPpobInfo.lanIp;
     }
