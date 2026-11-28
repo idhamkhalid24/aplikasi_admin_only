@@ -858,7 +858,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function manualTodayRows(){return visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&explicitRecordDateKey(b)===dateKey())}
   function manualBonusTodayForUser(username){const u=cleanUser(username);return manualTodayRows().filter(b=>cleanUser(b.user)===u).reduce((s,b)=>s+Number(b.amount||0),0)}
   function closingBonusStoredValueForUser(c,u){if(!c||!u||isDeleted(c)||c.closed!==true||c.canceled===true)return 0;const scope=String(c.scope||(c.user?"user":"global")).toLowerCase(),byUser=c.bonusByUser||{};if(scope==="global"){if(isClosingCanceledForUser(c,u))return 0;return Number(mapValueByUser(byUser,u)||0)}if(cleanUser(c.user)!==u)return 0;let val=Number(mapValueByUser(byUser,u)||0);if(val)return val;const perUser=c.bonusPerUser;if(perUser&&typeof perUser==="object")val=Number(mapValueByUser(perUser,u)||0);else val=Number(perUser||0);if(Number.isFinite(val)&&val)return val;val=Number(c.totalBonus||0);return Number.isFinite(val)?val:0}function closingBonusTodayForUser(username){const u=cleanUser(username),dk=dateKey();if(!u)return 0;let total=0;for(const c of state.closing){if(String(c.dateKey||"").slice(0,10)!==dk)continue;total+=closingBonusStoredValueForUser(c,u)}return moneyValue(total)}
-  function dailyBonusRows(){const dk=dateKey(),tx=todayTx();return realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>{const username=cleanUser(u.username),items=tx.filter(t=>cleanUser(t.user)===username),omzet=items.reduce((s,t)=>s+adminSettledTxAmount(t),0),trxBonus=items.filter(t=>!txIsDaily(t)).reduce((s,t)=>s+txBonusAmount(t),0),dailySalary=items.filter(txIsDaily).reduce((s,t)=>s+txBonusAmount(t),0),manualBonus=manualBonusTodayForUser(username),closingBonus=isDaily(u)?0:closingBonusTodayForUser(username),total=trxBonus+dailySalary+manualBonus+closingBonus;return{username,name:u.name||username,role:u.role||"staff",omzet,trxCount:items.length,trxBonus,dailySalary,manualBonus,closingBonus,total}}).sort((a,b)=>b.total-a.total||b.omzet-a.omzet||String(a.name).localeCompare(String(b.name)))}
+  function dailyBonusRows(){const dk=dateKey(),tx=todayTx().filter(t=>!isAdminDigitalUnsettled(t));return realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>{const username=cleanUser(u.username),items=tx.filter(t=>cleanUser(t.user)===username),omzet=items.reduce((s,t)=>s+adminSettledTxAmount(t),0),trxBonus=items.filter(t=>!txIsDaily(t)).reduce((s,t)=>s+txBonusAmount(t),0),dailySalary=items.filter(txIsDaily).reduce((s,t)=>s+txBonusAmount(t),0),manualBonus=manualBonusTodayForUser(username),closingBonus=isDaily(u)?0:closingBonusTodayForUser(username),total=trxBonus+dailySalary+manualBonus+closingBonus;return{username,name:u.name||username,role:u.role||"staff",omzet,trxCount:items.length,trxBonus,dailySalary,manualBonus,closingBonus,total}}).sort((a,b)=>b.total-a.total||b.omzet-a.omzet||String(a.name).localeCompare(String(b.name)))}
   function dailyBonusSummary(){const rows=dailyBonusRows(),staff=rows.reduce((s,r)=>s+r.trxBonus+r.closingBonus,0),harian=rows.reduce((s,r)=>s+r.dailySalary,0),manual=rows.reduce((s,r)=>s+r.manualBonus,0),total=rows.reduce((s,r)=>s+r.total,0),omzet=rows.reduce((s,r)=>s+r.omzet,0),active=rows.filter(r=>r.total||r.omzet||r.manualBonus).length;return{rows,staff,harian,manual,total,omzet,active}}
   function dailyBonusCard(){const s=dailyBonusSummary();return`<div class="card pad mb daily-bonus-card" onclick="openDailyBonusDetail()" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="tiny" style="color:var(--green)">Ringkasan Bonus Harian</div><div class="bonus-total num">${rp(s.total)}</div><div class="bonus-sub">${s.active} user punya aktivitas/bonus hari ini - klik untuk detail masing-masing user</div></div><span class="chip ok"><i class="fas fa-chevron-right"></i> Detail</span></div><div class="daily-bonus-break"><div class="daily-bonus-mini"><div class="tiny">Staff</div><b class="num">${rp(s.staff)}</b></div><div class="daily-bonus-mini"><div class="tiny">Harian</div><b class="num">${rp(s.harian)}</b></div><div class="daily-bonus-mini"><div class="tiny">Manual</div><b class="num">${rp(s.manual)}</b></div></div></div>`}
   function openDynamicSheet(id,title,subtitle,body,footer=""){const old=document.getElementById(id);if(old)rawCloseModal(id,{runCallback:true});const wrap=document.createElement("div");wrap.id=id;wrap.className="modal show";wrap.dataset.dynamicSheet="1";wrap.style.zIndex="160";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">${esc(title)}</div><div class="meta">${esc(subtitle||"")}</div></div><button class="btn icon" onclick="closeDynamicSheet('${id}')"><i class="fas fa-xmark"></i></button></div>${body}${footer}</div>`;document.body.appendChild(wrap);pushModalHistory(id);wrap.addEventListener("click",e=>{if(e.target===wrap)closeDynamicSheet(id)})}
@@ -909,7 +909,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     if(ch==="edc"||pm==="transfer"||lbl.includes("edc"))return`<span class="chip" style="background:#ffedd5;color:#c2410c;border:1px solid #fed7aa;padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">EDC</span>`;
     return`<span class="chip" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">TUNAI</span>`;
   }
-  function txPaymentBadge(t={}){const stChip=adminDigitalStatusChip(t),payChip=adminDigitalPayChip(t);if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>${payChip}${stChip}`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>${payChip}${stChip}`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>${payChip}${stChip}`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
+  function txPaymentBadge(t={}){const stChip=adminDigitalStatusChip(t),payChip=adminDigitalPayChip(t);if(isAdminZidStoreTx(t)||isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>${payChip}${stChip}`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function receiptTextForTodayTransactions(){const items=[...todayTx()].filter(t=>!isAdminDigitalUnsettled(t)).sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
@@ -3538,26 +3538,46 @@ renderTxList = function(list, withActions=true){
     const awaitingPay = isAdminDigitalAwaitingPay(t);
     const unsettled = isAdminDigitalUnsettled(t);
     const stDig = isDigital ? getAdminDigitalStatus(t) : "";
+    const isQrisCard = txPaymentMethod(t) === "qris_transfer";
     const datePrefix = state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '';
     const ppobProdName = isDigital ? String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "").trim() : "";
-    const ppobTargetNo = isDigital && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
-    const unsettledHint = awaitingPay
-      ? '💳 Produk Sukses — menunggu pembeli bayar QRIS/EDC'
-      : (stDig === "Gagal" ? '❌ Gagal (tidak masuk omset/laci)' : '⏳ Pending (ditahan s.d. Sukses)');
+    const amtStyle = unsettled ? 'text-decoration:line-through;opacity:0.6;' : '';
+    const borderStyle = isTxAfterLatestWithdrawal(t) ? 'border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;' : '';
+
+    const provTag = 'PPOB';
+    const provBg = '#2563eb';
+    const provBadge = '<span class="chip" style="background:' + provBg + ';color:#fff;border:none;padding:1px 6px;font-size:9px;font-weight:800;line-height:1.35;border-radius:999px;letter-spacing:0;flex-shrink:0;">' + provTag + '</span>';
+    const chLower = String(t.paymentChannel || '').toLowerCase();
+    const pmLower = String(t.paymentMethod || '').toLowerCase();
+    const payShort = (chLower === 'qris_barcode' || t.qrisOrderId) ? 'QRIS' : ((chLower === 'edc' || pmLower === 'transfer') ? 'EDC' : 'Tunai');
+    const digStatusText = awaitingPay ? 'BELUM BAYAR' : stDig.toUpperCase();
+    const digStatusColor = isQrisCard
+      ? '#fef08a'
+      : (awaitingPay || stDig === "Pending" ? '#d97706' : (stDig === "Gagal" ? '#dc2626' : '#16a34a'));
+
+    const nameHtml = isDigital
+      ? '<div class="name" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="font-size:13px;display:flex;align-items:center;gap:5px;min-width:0;cursor:pointer;" title="' + esc(ppobProdName) + '"><span style="flex-shrink:0;">' + esc(t.name||userName(t.user)) + '</span>' + provBadge + '<span style="font-weight:600;font-size:11.5px;opacity:0.82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">' + esc(ppobProdName) + '</span></div>'
+      : '<div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div>';
+
     const metaHtml = isDigital
-      ? '<div class="meta" style="font-size:11px;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span>' + datePrefix + txTimeLabel(t) + '</span>' + txPaymentBadge(t) + '</div>' +
-        '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>' +
-        (unsettled ? '<div style="margin-top:3px;font-size:10px;font-weight:800;color:' + (stDig === "Gagal" ? '#dc2626' : '#b45309') + ';">' + unsettledHint + '</div>' : '')
+      ? '<div class="meta" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">' + datePrefix + txTimeLabel(t) + ' - ' + payShort + ' - <b style="color:' + digStatusColor + ';">' + digStatusText + '</b></div>'
       : '<div class="meta" style="font-size:11px;margin-top:2px">' + datePrefix + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div>';
+
     const detailBtnHtml = isDigital
-      ? (stDig === "Pending" ? '<button class="btn amber" style="min-height:34px;padding:0 8px;font-size:11px;border-radius:9px" onclick="checkAdminDigitalOrderStatus(\'' + esc(t.id) + '\')" title="Cek Status"><i class="fas fa-rotate"></i></button>' : '')
+      ? (stDig === "Pending"
+        ? '<button class="btn amber" style="min-height:34px;padding:0 8px;font-size:11px;border-radius:9px" onclick="checkAdminDigitalOrderStatus(\'' + esc(t.id) + '\')" title="Cek Status"><i class="fas fa-rotate"></i></button>'
+        : '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail"><i class="fas fa-list"></i></button>')
       : '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button>';
-    const amtStyle = unsettled ? 'text-decoration:line-through;opacity:0.55;' : '';
+
+    const printBtnHtml = (!isDigital || (stDig === "Sukses" && !awaitingPay))
+      ? '<button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button>'
+      : '';
+
     const actionsHtml = withActions
-      ? ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0;' + amtStyle + '">' + rp(t.amount) + '</div>' + detailBtnHtml + '<button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>')
+      ? ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0;' + amtStyle + '">' + rp(t.amount) + '</div>' + detailBtnHtml + printBtnHtml + '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>')
       : ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;' + amtStyle + '">' + rp(t.amount) + '</div>');
 
-    return '<div class="item ' + (txPaymentMethod(t)==="qris_transfer"?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div>' + metaHtml + '</div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + actionsHtml + '</div></div>';
+    return '<div class="item ' + (isQrisCard ? "item-qris" : "") + '" style="align-items:center;padding:12px 14px;' + borderStyle + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0">' + nameHtml + metaHtml + '</div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + actionsHtml + '</div></div>';
   }).join("") + '</div>';
 };
 
@@ -4330,7 +4350,7 @@ window.loadProductReport = async function() {
 };
 
 renderHome=function(){
-  const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
+  const tToday=todayTx(),settledToday=tToday.filter(t=>!isAdminDigitalUnsettled(t)),totalToday=settledToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
   const bonus=dailyBonusSummary();
   const loaded=state.monthlyLoaded;
   const userLabel=state.user?.name||state.user?.username||'Admin';
@@ -4357,7 +4377,7 @@ renderHome=function(){
     ['Backup','Data','fa-database',"go('backupData')"],
     ['Keluar','Akun','fa-right-from-bracket',"logout()"]
   ];
-  return `<section class="ks-home"><div class="ks-top"><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} - ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div><div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${tToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
+  return `<section class="ks-home"><div class="ks-top"><div class="ks-today"><div class="ks-today-title"><i class="far fa-calendar"></i><span>Laporan Hari Ini</span></div><div class="ks-report-row"><i class="fas fa-cart-shopping"></i><span>Penjualan</span><span>:</span><b>${rp(totalToday)}</b></div><div class="ks-report-row"><i class="fas fa-money-bill-wave"></i><span>Cash Fisik</span><span>:</span><b class="green-money">${rp(cashFisik)}</b></div></div></div><div class="ks-content"><div class="ks-outlet"><div class="ks-logo-box"><div class="ks-logo-inner">RH</div></div><div class="ks-outlet-info"><h2>Rocky Hijab</h2><p><i class="fas fa-location-dot"></i><span>${esc(userLabel)} - ${dateKey()}</span></p></div><div class="ks-outlet-actions"><button class="ks-menu-btn" onclick="openKasminiMenu()" title="Menu"><i class="fas fa-bars"></i></button><button class="ks-edit" onclick="go('team')" title="User"><i class="fas fa-pen-to-square"></i></button></div></div><div class="ks-deduction-grid"><div class="ks-deduction-card"><div class="ks-deduction-label">OPRASIONAL</div><div class="ks-deduction-val num">${rp(ded.ops)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">QRIS</div><div class="ks-deduction-val num">${rp(ded.qris)}</div></div><div class="ks-deduction-card"><div class="ks-deduction-label">TABUNGAN</div><div class="ks-deduction-val num">${rp(ded.tabungan)}</div></div></div><div class="ks-menu-grid">${menus.map(m=>ksMenu(m[0],m[1],m[2],m[3])).join('')}</div><div class="card pad" style="margin-top:18px;border-radius:24px"><div class="grid3"><div><div class="tiny">Bonus Hari Ini</div><div class="amt num">${rp(bonus.total)}</div></div><div><div class="tiny">Trx Hari Ini</div><div class="amt num">${settledToday.length}</div></div><div><div class="tiny">Bulan Ini</div><div class="amt num">${loaded?rp(totalMonth):'Manual'}</div></div></div></div></div><button class="ks-bottom-transaction" onclick="openTransactionModal()"><i class="fas fa-cash-register"></i><span>Transaksi</span></button></section>`;
 };
 render=function(){
   if(!state.user)return showLogin();
@@ -4608,7 +4628,7 @@ function renderOnlineOrders(){
 }
 function staffTxTodayRows(){
   const me=cleanUser(state.user?.username||'');
-  return todayTx().filter(t=>!isDeleted(t) && cleanUser(t.user||'') && cleanUser(t.user)!==me);
+  return todayTx().filter(t=>!isDeleted(t) && !isAdminDigitalUnsettled(t) && cleanUser(t.user||'') && cleanUser(t.user)!==me);
 }
 function renderStaffTrxNotifCard(){
   const rows=staffTxTodayRows();
@@ -5699,7 +5719,7 @@ window.setDrawerDate = async function(val) {
     // fetch transaksi untuk tanggal ini
     const txQ2 = query(collection(db, 'transactions'), where('dateKey', '==', dk), limit(180));
     const txSnap = await getDocs(txQ2);
-    state.txForDrawerDate = txSnap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t));
+    state.txForDrawerDate = txSnap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => !t.deleted && !isTrialRecord(t) && !isAdminDigitalUnsettled(t));
 
     try {
       const { data } = await supabase
@@ -5796,16 +5816,17 @@ window.renderDrawerWithdrawalCard = function() {
     dws.push({ createdAtMs: res.created_at_ms, remainingAmount: res.amount, isReserve: true });
   }
 
-  const txList = dk === dateKey()
+  const txList = (dk === dateKey()
     ? visibleTx().filter(t => String(t.dateKey || '').slice(0, 10) === dk)
-    : (state.txForDrawerDate || []).filter(t => String(t.dateKey || '').slice(0, 10) === dk);
+    : (state.txForDrawerDate || []).filter(t => String(t.dateKey || '').slice(0, 10) === dk))
+    .filter(t => !isAdminDigitalUnsettled(t));
 
   // Hitung uang kemarin (ydNominal)
   const ydDataForEst = isToday ? state.adminYdDrawerData : state.ydDataForDrawerDate;
   let ydNominalForEst = 0;
   if (ydDataForEst) {
     const dws_yd = (ydDataForEst.dws || []).filter(w => !w.deleted);
-    const txListYd = (ydDataForEst.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+    const txListYd = (ydDataForEst.txs || []).filter(t => !t.deleted && !isTrialRecord(t) && !isAdminDigitalUnsettled(t));
     if (dws_yd.length) {
       let latestDw = dws_yd[0];
       for (const w of dws_yd) { if (Number(w.createdAtMs || 0) > Number(latestDw.createdAtMs || 0)) latestDw = w; }
@@ -6530,7 +6551,7 @@ function renderAdminSalesTextList() {
   const sales = {};
   
   for (const t of txs) {
-    if (t.deleted || t.status === "deleted" || t.pending) continue;
+    if (t.deleted || t.status === "deleted" || t.pending || isAdminDigitalUnsettled(t)) continue;
     const u = String(t.user_name || t.user || "Unknown").trim();
     const amt = Number(t.amount || 0);
     if (!sales[u]) sales[u] = 0;
