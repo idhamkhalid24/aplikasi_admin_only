@@ -1627,9 +1627,38 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     tab: 'pulsa',
     markup: 1500,
     roundUpTo: 1000,
+    priceBaseMode: 'nominal',
     customPrices: {},
     products: []
   };
+
+  function extractAdminPpobNominal(item) {
+    if (!item) return 0;
+    const cat = String(item.category || '').toLowerCase().trim();
+    if (item.package_code || cat === 'akrab' || cat === 'data' || cat.includes('kuota') || cat.includes('paket')) {
+      return 0;
+    }
+    const name = String(item.name || '');
+    const dotted = name.match(/(\d{1,3}(?:\.\d{3})+)(?!\s*(?:gb|mb|kb|tb|hari|hr|jam|menit|mnt))/i);
+    if (dotted) {
+      const val = Number(dotted[1].replace(/\./g, ''));
+      if (Number.isFinite(val) && val >= 500) return val;
+    }
+    const isNominalCat = cat === 'pulsa' || cat === 'pln' || cat === 'e-money' || cat === 'emoney' || cat.includes('wallet') || cat.includes('money') || cat.includes('listrik');
+    if (isNominalCat) {
+      const kMatch = name.match(/\b(\d{1,4})\s*k\b/i);
+      if (kMatch) {
+        const val = Number(kMatch[1]) * 1000;
+        if (Number.isFinite(val) && val >= 500) return val;
+      }
+      const plain = name.match(/\b(\d{4,7})\b(?!\s*(?:gb|mb|kb|tb|hari|hr|jam|menit|mnt))/i);
+      if (plain) {
+        const val = Number(plain[1]);
+        if (Number.isFinite(val) && val >= 1000 && !(val >= 2020 && val <= 2035)) return val;
+      }
+    }
+    return 0;
+  }
 
   let lastDetectedPpobInfo = {
     publicIp: '',
@@ -1799,6 +1828,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         state.ppobSettings = { ...state.ppobSettings, ...s };
         if (s.markup !== undefined) adminPpobPriceState.markup = Number(s.markup);
         if (s.roundUpTo !== undefined) adminPpobPriceState.roundUpTo = Number(s.roundUpTo);
+        adminPpobPriceState.priceBaseMode = s.priceBaseMode === 'modal' ? 'modal' : 'nominal';
         if (s.customPrices) adminPpobPriceState.customPrices = { ...s.customPrices };
       }
 
@@ -1807,8 +1837,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
 
       const markupInput = $("ppobSettingMarkup");
       const roundInput = $("ppobSettingRounding");
+      const baseInput = $("ppobSettingBaseMode");
       if (markupInput) markupInput.value = adminPpobPriceState.markup || 1500;
       if (roundInput) roundInput.value = String(adminPpobPriceState.roundUpTo !== undefined ? adminPpobPriceState.roundUpTo : 1000);
+      if (baseInput) baseInput.value = adminPpobPriceState.priceBaseMode || 'nominal';
 
       switchAdminPriceTab(adminPpobPriceState.tab || 'pulsa');
       setTimeout(() => fetchDigiflazzBalance(), 100);
@@ -2351,14 +2383,18 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     renderAdminPpobPriceList();
   };
 
-  function calculateAdminPreviewPrice(modalPrice, sku) {
+  function calculateAdminPreviewPrice(modalPrice, sku, item = null) {
     const custom = adminPpobPriceState.customPrices && Number(adminPpobPriceState.customPrices[sku] || 0);
     if (custom && custom > 0) return custom;
 
     const markup = Number($("ppobSettingMarkup")?.value !== undefined ? $("ppobSettingMarkup").value : adminPpobPriceState.markup);
     const roundTo = Number($("ppobSettingRounding")?.value !== undefined ? $("ppobSettingRounding").value : adminPpobPriceState.roundUpTo);
+    const baseMode = String($("ppobSettingBaseMode")?.value || adminPpobPriceState.priceBaseMode || 'nominal');
 
-    let price = Number(modalPrice || 0) + markup;
+    const prod = item || (adminPpobPriceState.products || []).find(x => x.sku === sku);
+    const nom = baseMode === 'nominal' ? extractAdminPpobNominal(prod) : 0;
+    const base = nom > 0 ? nom : Number(modalPrice || 0);
+    let price = base + markup;
     if (roundTo > 0) {
       price = Math.ceil(price / roundTo) * roundTo;
     }
@@ -2368,6 +2404,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.recalcAdminPricePreview = () => {
     adminPpobPriceState.markup = Number($("ppobSettingMarkup")?.value || 1500);
     adminPpobPriceState.roundUpTo = Number($("ppobSettingRounding")?.value || 0);
+    adminPpobPriceState.priceBaseMode = String($("ppobSettingBaseMode")?.value || 'nominal');
     renderAdminPpobPriceList();
   };
 
@@ -2384,7 +2421,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     if (badge && modalEl) {
       const modal = Number(modalEl.getAttribute("data-modal") || 0);
       const profit = n > 0 ? (n - modal) : (calculateAdminPreviewPrice(modal, sku) - modal);
-      badge.textContent = `Untung: Rp ${rp(profit)}`;
+      badge.textContent = `Untung: ${rp(profit)}`;
       badge.style.color = profit > 0 ? "#059669" : "#dc2626";
     }
   };
@@ -2407,7 +2444,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     listEl.innerHTML = items.map(p => {
       const modal = Number(p.price || 0);
       const custom = adminPpobPriceState.customPrices && adminPpobPriceState.customPrices[p.sku];
-      const previewPrice = calculateAdminPreviewPrice(modal, p.sku);
+      const previewPrice = calculateAdminPreviewPrice(modal, p.sku, p);
       const profit = previewPrice - modal;
 
       return `
@@ -2415,10 +2452,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
           <div style="min-width:0;flex:1;">
             <div style="font-size:13px;font-weight:800;color:var(--text-main,#0f172a);">${esc(p.name)}</div>
             <div id="modalPrice_${esc(p.sku)}" data-modal="${modal}" style="font-size:11px;color:var(--muted);margin-top:2px;">
-              ${esc(p.brand)} &bull; Modal: <b style="color:#0f172a;">Rp ${rp(modal)}</b>
+              ${esc(p.brand)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>
             </div>
             <div id="profitBadge_${esc(p.sku)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#059669' : '#dc2626'};margin-top:2px;">
-              Untung: Rp ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
+              Untung: ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
             </div>
           </div>
           <div style="width:130px;text-align:right;">
@@ -2436,9 +2473,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.savePpobPriceSettings = async () => {
     const markup = Number($("ppobSettingMarkup")?.value || 1500);
     const roundUpTo = Number($("ppobSettingRounding")?.value || 0);
+    const priceBaseMode = String($("ppobSettingBaseMode")?.value || adminPpobPriceState.priceBaseMode || 'nominal');
     const customPrices = adminPpobPriceState.customPrices || {};
 
-    const pin = await askPin(`Simpan Pengaturan Harga PPOB?\n\n- Margin: Rp ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke Rp ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
+    const pin = await askPin(`Simpan Pengaturan Harga PPOB?\n\n- Basis: ${priceBaseMode === 'nominal' ? 'Nominal Produk' : 'Harga Modal'}\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah!", true);
 
@@ -2447,6 +2485,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const payload = {
         markup,
         roundUpTo,
+        priceBaseMode,
         customPrices,
         updatedAt: serverTimestamp(),
         updatedAtMs: Date.now(),
@@ -2471,6 +2510,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     tab: 'akrab',
     markup: 1500,
     roundUpTo: 1000,
+    priceBaseMode: 'nominal',
     customPrices: {},
     products: [],
     akrabPackages: []
@@ -2596,12 +2636,16 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     return "lainnya";
   }
 
-  function calculateAdminZidStorePreviewPrice(modalPrice, code) {
+  function calculateAdminZidStorePreviewPrice(modalPrice, code, item = null) {
     const custom = adminZidStoreState.customPrices && Number(adminZidStoreState.customPrices[code] || 0);
     if (custom && custom > 0) return custom;
     const markup = Number($("zidstoreSettingMarkup")?.value !== undefined ? $("zidstoreSettingMarkup").value : adminZidStoreState.markup);
     const roundTo = Number($("zidstoreSettingRounding")?.value !== undefined ? $("zidstoreSettingRounding").value : adminZidStoreState.roundUpTo);
-    let price = Number(modalPrice || 0) + markup;
+    const baseMode = String($("zidstoreSettingBaseMode")?.value || adminZidStoreState.priceBaseMode || 'nominal');
+    const prod = item || (adminZidStoreState.akrabPackages || []).find(x => String(x.package_code || x.sku) === String(code)) || (adminZidStoreState.products || []).find(x => String(x.code || x.sku) === String(code));
+    const nom = baseMode === 'nominal' ? extractAdminPpobNominal(prod) : 0;
+    const base = nom > 0 ? nom : Number(modalPrice || 0);
+    let price = base + markup;
     if (roundTo > 0) price = Math.ceil(price / roundTo) * roundTo;
     return price;
   }
@@ -2630,6 +2674,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.recalcZidStorePricePreview = () => {
     adminZidStoreState.markup = Number($("zidstoreSettingMarkup")?.value || 1500);
     adminZidStoreState.roundUpTo = Number($("zidstoreSettingRounding")?.value || 0);
+    adminZidStoreState.priceBaseMode = String($("zidstoreSettingBaseMode")?.value || 'nominal');
     renderAdminZidStorePriceList();
   };
 
@@ -2684,7 +2729,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const code = String(p.package_code || p.code || p.sku || "");
       const modal = Number(p.price || 0);
       const custom = adminZidStoreState.customPrices && adminZidStoreState.customPrices[code];
-      const previewPrice = calculateAdminZidStorePreviewPrice(modal, code);
+      const previewPrice = calculateAdminZidStorePreviewPrice(modal, code, p);
       const profit = previewPrice - modal;
       const stockInfo = p.package_code ? ` &bull; Stok: <b style="color:${Number(p.stock || 0) > 0 ? '#059669' : '#dc2626'}">${Number(p.stock || 0)}</b>` : '';
 
@@ -2737,11 +2782,13 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         state.zidstoreSettings = { ...(state.zidstoreSettings || {}), ...s };
         if (s.markup !== undefined) adminZidStoreState.markup = Number(s.markup);
         if (s.roundUpTo !== undefined) adminZidStoreState.roundUpTo = Number(s.roundUpTo);
+        adminZidStoreState.priceBaseMode = s.priceBaseMode === 'modal' ? 'modal' : 'nominal';
         if (s.customPrices) adminZidStoreState.customPrices = { ...s.customPrices };
       }
 
       if ($("zidstoreSettingMarkup")) $("zidstoreSettingMarkup").value = adminZidStoreState.markup;
       if ($("zidstoreSettingRounding")) $("zidstoreSettingRounding").value = String(adminZidStoreState.roundUpTo !== undefined ? adminZidStoreState.roundUpTo : 1000);
+      if ($("zidstoreSettingBaseMode")) $("zidstoreSettingBaseMode").value = adminZidStoreState.priceBaseMode || 'nominal';
 
       switchAdminZidStoreTab(adminZidStoreState.tab || 'akrab');
       setTimeout(() => fetchZidStoreBalance(), 120);
@@ -2775,8 +2822,9 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.saveZidStorePriceSettings = async () => {
     const markup = Number($("zidstoreSettingMarkup")?.value || 1500);
     const roundUpTo = Number($("zidstoreSettingRounding")?.value || 0);
+    const priceBaseMode = String($("zidstoreSettingBaseMode")?.value || adminZidStoreState.priceBaseMode || 'nominal');
     const customPrices = adminZidStoreState.customPrices || {};
-    const pin = await askPin(`Simpan Pengaturan Harga ZidStore?\n\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
+    const pin = await askPin(`Simpan Pengaturan Harga ZidStore?\n\n- Basis: ${priceBaseMode === 'nominal' ? 'Nominal Produk' : 'Harga Modal'}\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah!", true);
     setBusy(true);
@@ -2784,6 +2832,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const payload = {
         markup,
         roundUpTo,
+        priceBaseMode,
         customPrices,
         updatedAt: serverTimestamp(),
         updatedAtMs: Date.now(),
