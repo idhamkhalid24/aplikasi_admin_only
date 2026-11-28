@@ -26,7 +26,7 @@ window.onunhandledrejection = function(event) {
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <script>
-    var v = "20261128_02"; window.__APP_VERSION__ = v;
+    var v = "20261128_04"; window.__APP_VERSION__ = v;
     document.write('<link rel="stylesheet" href="css/style.css?v=' + v + '">');
   </script>
 </head>
@@ -375,13 +375,31 @@ window.onunhandledrejection = function(event) {
               <option value="modal">Dari Harga Modal Kulakan + Margin</option>
             </select>
           </div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">Produk yang Tampil di Kasir</label>
+            <select id="zidstoreSettingKasirMode" class="input" style="font-weight:800;" onchange="onAdminZidStoreKasirModeChange()">
+              <option value="all">Tampilkan Semua (Kecuali yang Dimatikan)</option>
+              <option value="selected">Hanya Tampilkan yang Dipilih Admin (ON)</option>
+            </select>
+          </div>
           <div style="font-size:11px;color:var(--muted);line-height:1.4;">
-            <i class="fas fa-circle-info" style="color:#4f46e5;"></i> Pengaturan harga ZidStore terpisah dari Digiflazz. Kamu bisa ubah harga jual per produk di bawah.
+            <i class="fas fa-circle-info" style="color:#4f46e5;"></i> Pengaturan harga, pilihan produk tampil di Kasir, &amp; nama custom tersimpan terpisah dari Digiflazz.
           </div>
         </div>
 
-        <div style="margin-bottom:10px;">
-          <input id="zidstoreAdminSearch" type="text" class="input" placeholder="Cari nama produk / kode / brand ZidStore..." oninput="renderAdminZidStorePriceList()" style="font-size:12.5px;font-weight:700;border-radius:10px;">
+        <div style="margin-bottom:8px;">
+          <input id="zidstoreAdminSearch" type="text" class="input" placeholder="Cari nama produk / nama kasir / kode / brand..." oninput="renderAdminZidStorePriceList()" style="font-size:12.5px;font-weight:700;border-radius:10px;">
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <button type="button" id="btnZidFilterAll" class="btn" onclick="setAdminZidStoreListFilter(false)" style="font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:8px;background:#4f46e5;color:#fff;border:none;">Semua</button>
+            <button type="button" id="btnZidFilterVisible" class="btn" onclick="setAdminZidStoreListFilter(true)" style="font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:8px;background:var(--card,#fff);border:1px solid var(--line);">Tampil di Kasir</button>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <button type="button" class="btn" onclick="setAdminZidStoreTabVisibility(true)" style="font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:8px;background:#ecfdf5;color:#047857;border:1px solid #86efac;">ON Semua (Tab/Cari)</button>
+            <button type="button" class="btn" onclick="setAdminZidStoreTabVisibility(false)" style="font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:8px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;">OFF Semua (Tab/Cari)</button>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
@@ -645,7 +663,7 @@ window.onunhandledrejection = function(event) {
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
-    var v = "20261128_02"; window.__APP_VERSION__ = v;
+    var v = "20261128_04"; window.__APP_VERSION__ = v;
     document.write('<script type="module" src="js/app.js?v=' + v + '"><\/script>');
     document.write('<script src="js/extra.js?v=' + v + '"><\/script>');
   </script>

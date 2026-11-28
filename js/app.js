@@ -563,6 +563,7 @@ function normalizeWaNotifySettings(data) {
     // Hitung QRIS & Tabungan otomatis langsung dari transaksi hari ini secara LIVE
     let qrisAuto = 0, tabunganAuto = 0;
     for(const t of todayTx()){
+      if (isAdminDigitalUnsettled(t)) continue;
       const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
       if (p.includes("qris") || p.includes("transfer")) {
          qrisAuto += Number(t.amount || 0);
@@ -585,7 +586,7 @@ function normalizeWaNotifySettings(data) {
   function closingStatusLabelForUser(u){const st=todayClosingStatusForUser(u?.username),role=isDaily(u)?"HARIAN - ":"";if(st.closed)return`${role}${st.lockedByGlobal?"SUDAH CLOSING GLOBAL":"SUDAH CLOSING"}`;if(hasAttendanceToday(u?.username))return`${role}SUDAH ABSEN`;if(isDaily(u))return"HARIAN";return"BELUM ABSEN"}
   function closingStatusChipClass(u){const st=todayClosingStatusForUser(u?.username);if(st.closed)return"ok";if(hasAttendanceToday(u?.username)||isDaily(u))return"warn";return"bad"}
   function isRismaSpecialClosingUser(userOrUsername){const username=typeof userOrUsername==="object"?cleanUser(userOrUsername?.username||userOrUsername?.user||userOrUsername?.id):cleanUser(userOrUsername);return username==="risma"}
-  function hasRismaTransactionToday(){return todayTx().some(t=>cleanUser(t.user||t.username||t.kasir||t.createdBy||"")==="risma"&&Number(t.amount||0)>0)}
+  function hasRismaTransactionToday(){return todayTx().some(t=>!isAdminDigitalUnsettled(t)&&cleanUser(t.user||t.username||t.kasir||t.createdBy||"")==="risma"&&Number(t.amount||0)>0)}
   function isClosingAllowedWithoutAttendance(u){return isDaily(u)||(isRismaSpecialClosingUser(u)&&hasRismaTransactionToday())}
   closingTargetUsers=function(targetUsername=null){const all=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin"),eligible=all.filter(u=>isClosingAllowedWithoutAttendance(u)||hasAttendanceToday(u.username));return targetUsername?eligible.filter(u=>cleanUser(u.username)===cleanUser(targetUsername)):eligible};
   buildClosingBonusByUser=function(delay,targetUsername=null){const targetUsers=closingTargetUsers(targetUsername),bonusByUser={},bonusPerMinuteByUser={},bonusPerUser={};for(const u of targetUsers){const perMinute=getClosingMinute(u);bonusPerMinuteByUser[u.username]=perMinute;bonusPerUser[u.username]=delay*perMinute;bonusByUser[u.username]=delay*perMinute}const totalBonus=Object.values(bonusByUser).reduce((s,n)=>s+Number(n||0),0);return{users:targetUsers,targetUsers,bonusByUser,bonusPerMinuteByUser,bonusPerUser,totalBonus}};
@@ -857,7 +858,7 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function manualTodayRows(){return visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&explicitRecordDateKey(b)===dateKey())}
   function manualBonusTodayForUser(username){const u=cleanUser(username);return manualTodayRows().filter(b=>cleanUser(b.user)===u).reduce((s,b)=>s+Number(b.amount||0),0)}
   function closingBonusStoredValueForUser(c,u){if(!c||!u||isDeleted(c)||c.closed!==true||c.canceled===true)return 0;const scope=String(c.scope||(c.user?"user":"global")).toLowerCase(),byUser=c.bonusByUser||{};if(scope==="global"){if(isClosingCanceledForUser(c,u))return 0;return Number(mapValueByUser(byUser,u)||0)}if(cleanUser(c.user)!==u)return 0;let val=Number(mapValueByUser(byUser,u)||0);if(val)return val;const perUser=c.bonusPerUser;if(perUser&&typeof perUser==="object")val=Number(mapValueByUser(perUser,u)||0);else val=Number(perUser||0);if(Number.isFinite(val)&&val)return val;val=Number(c.totalBonus||0);return Number.isFinite(val)?val:0}function closingBonusTodayForUser(username){const u=cleanUser(username),dk=dateKey();if(!u)return 0;let total=0;for(const c of state.closing){if(String(c.dateKey||"").slice(0,10)!==dk)continue;total+=closingBonusStoredValueForUser(c,u)}return moneyValue(total)}
-  function dailyBonusRows(){const dk=dateKey(),tx=todayTx();return realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>{const username=cleanUser(u.username),items=tx.filter(t=>cleanUser(t.user)===username),omzet=items.reduce((s,t)=>s+Number(t.amount||0),0),trxBonus=items.filter(t=>!txIsDaily(t)).reduce((s,t)=>s+txBonusAmount(t),0),dailySalary=items.filter(txIsDaily).reduce((s,t)=>s+txBonusAmount(t),0),manualBonus=manualBonusTodayForUser(username),closingBonus=isDaily(u)?0:closingBonusTodayForUser(username),total=trxBonus+dailySalary+manualBonus+closingBonus;return{username,name:u.name||username,role:u.role||"staff",omzet,trxCount:items.length,trxBonus,dailySalary,manualBonus,closingBonus,total}}).sort((a,b)=>b.total-a.total||b.omzet-a.omzet||String(a.name).localeCompare(String(b.name)))}
+  function dailyBonusRows(){const dk=dateKey(),tx=todayTx();return realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin").map(u=>{const username=cleanUser(u.username),items=tx.filter(t=>cleanUser(t.user)===username),omzet=items.reduce((s,t)=>s+adminSettledTxAmount(t),0),trxBonus=items.filter(t=>!txIsDaily(t)).reduce((s,t)=>s+txBonusAmount(t),0),dailySalary=items.filter(txIsDaily).reduce((s,t)=>s+txBonusAmount(t),0),manualBonus=manualBonusTodayForUser(username),closingBonus=isDaily(u)?0:closingBonusTodayForUser(username),total=trxBonus+dailySalary+manualBonus+closingBonus;return{username,name:u.name||username,role:u.role||"staff",omzet,trxCount:items.length,trxBonus,dailySalary,manualBonus,closingBonus,total}}).sort((a,b)=>b.total-a.total||b.omzet-a.omzet||String(a.name).localeCompare(String(b.name)))}
   function dailyBonusSummary(){const rows=dailyBonusRows(),staff=rows.reduce((s,r)=>s+r.trxBonus+r.closingBonus,0),harian=rows.reduce((s,r)=>s+r.dailySalary,0),manual=rows.reduce((s,r)=>s+r.manualBonus,0),total=rows.reduce((s,r)=>s+r.total,0),omzet=rows.reduce((s,r)=>s+r.omzet,0),active=rows.filter(r=>r.total||r.omzet||r.manualBonus).length;return{rows,staff,harian,manual,total,omzet,active}}
   function dailyBonusCard(){const s=dailyBonusSummary();return`<div class="card pad mb daily-bonus-card" onclick="openDailyBonusDetail()" role="button" tabindex="0"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="tiny" style="color:var(--green)">Ringkasan Bonus Harian</div><div class="bonus-total num">${rp(s.total)}</div><div class="bonus-sub">${s.active} user punya aktivitas/bonus hari ini - klik untuk detail masing-masing user</div></div><span class="chip ok"><i class="fas fa-chevron-right"></i> Detail</span></div><div class="daily-bonus-break"><div class="daily-bonus-mini"><div class="tiny">Staff</div><b class="num">${rp(s.staff)}</b></div><div class="daily-bonus-mini"><div class="tiny">Harian</div><b class="num">${rp(s.harian)}</b></div><div class="daily-bonus-mini"><div class="tiny">Manual</div><b class="num">${rp(s.manual)}</b></div></div></div>`}
   function openDynamicSheet(id,title,subtitle,body,footer=""){const old=document.getElementById(id);if(old)rawCloseModal(id,{runCallback:true});const wrap=document.createElement("div");wrap.id=id;wrap.className="modal show";wrap.dataset.dynamicSheet="1";wrap.style.zIndex="160";wrap.innerHTML=`<div class="sheet"><div class="sheetHead"><div><div class="title">${esc(title)}</div><div class="meta">${esc(subtitle||"")}</div></div><button class="btn icon" onclick="closeDynamicSheet('${id}')"><i class="fas fa-xmark"></i></button></div>${body}${footer}</div>`;document.body.appendChild(wrap);pushModalHistory(id);wrap.addEventListener("click",e=>{if(e.target===wrap)closeDynamicSheet(id)})}
@@ -875,15 +876,35 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function isAdminZidStoreTx(t={}){return Boolean(t&&(t.provider==="zidstore"||t.isZidstore===true||t.type==="zidstore"||t.source==="zidstore_transaction"))}
   function isAdminZidStoreAkrabTx(t={}){return Boolean(isAdminZidStoreTx(t)&&(t.zidstoreKind==="akrab"||String(t.ppobCategory||t.category||"").toLowerCase()==="akrab"))}
   function isAdminPpobTx(t={}){return Boolean(!isAdminZidStoreTx(t)&&t&&(t.isPpob===true||t.type==="ppob"||t.category==="ppob"||t.source==="ppob_transaction"))}
-  function txPaymentBadge(t={}){if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
+  function getAdminDigitalStatus(t={}){
+    const raw=String(t?.status||"").toLowerCase().trim();
+    const rc=String(t?.rc||"").trim();
+    if(raw==="sukses"||raw==="success"||rc==="00")return"Sukses";
+    if(raw==="gagal"||raw==="failed"||raw==="error"||(rc!==""&&rc!=="00"&&rc!=="03"))return"Gagal";
+    return"Pending";
+  }
+  function isAdminDigitalUnsettled(t={}){
+    if(!t)return false;
+    if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return false;
+    return getAdminDigitalStatus(t)!=="Sukses";
+  }
+  function adminSettledTxAmount(t={}){return isAdminDigitalUnsettled(t)?0:Number(t?.amount||0)}
+  function adminDigitalStatusChip(t={}){
+    if(!isAdminPpobTx(t)&&!isAdminZidStoreTx(t))return"";
+    const st=getAdminDigitalStatus(t);
+    if(st==="Sukses")return`<span class="chip ok" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">SUKSES</span>`;
+    if(st==="Gagal")return`<span class="chip bad" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">GAGAL</span>`;
+    return`<span class="chip warn" style="padding:2px 6px;font-size:9px;font-weight:800;letter-spacing:0">PENDING</span>`;
+  }
+  function txPaymentBadge(t={}){const stChip=adminDigitalStatusChip(t);if(isAdminZidStoreAkrabTx(t))return`<span class="chip" style="background:#ea580c;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">AKRAB</span>${stChip}`;if(isAdminZidStoreTx(t))return`<span class="chip" style="background:#4f46e5;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">ZIDSTORE</span>${stChip}`;if(isAdminPpobTx(t))return`<span class="chip" style="background:#2563eb;color:#fff;border:none;padding:3px 7px;font-size:9px;font-weight:800;text-transform:none;letter-spacing:0">PPOB</span>${stChip}`;const method=txPaymentMethod(t),label=txPaymentLabel(t);return`<span class="chip ${method==="qris_transfer"?"warn":"ok"}" style="padding:3px 7px;font-size:9px;text-transform:none;letter-spacing:0">${esc(label)}</span>`}
   function receiptTextForTx(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk  : ${String(t?.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`}
-  function receiptTextForTodayTransactions(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
+  function receiptTextForTodayTransactions(){const items=[...todayTx()].filter(t=>!isAdminDigitalUnsettled(t)).sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    ${String(t.note||"Transaksi").trim()}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`}
   function openReceiptPreview(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");const body=`<div class="meta">Preview struk dulu. Bisa dibagikan atau langsung cetak ke printer Android.</div><div class="receipt-preview-box"><pre class="receipt-preview-text">${esc(receiptPreviewText)}</pre></div><div class="receipt-modal-actions"><button class="btn" onclick="shareReceiptText()"><i class="fas fa-share-nodes"></i> Bagikan</button><button class="btn primary" onclick="nativePrintReceiptText()"><i class="fas fa-print"></i> Cetak</button></div>`;openDynamicSheet("receiptPreviewModal",title,"Preview struk",body)}
   function nativePrintReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);if(window.Android&&typeof window.Android.printReceipt==="function"){window.Android.printReceipt(text);return}if(window.Android&&typeof window.Android.printPdf==="function"){window.Android.printPdf(receiptPreviewTitle||"Struk Transaksi",text);return}toast("Cetak Android aktif saat dibuka dari APK Android Studio",true)}window.nativePrintReceiptText=nativePrintReceiptText;
   async function copyReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.copyReceipt==="function"){window.Android.copyReceipt(text);return}if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);else{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove()}toast("Struk disalin")}catch(e){console.log(text);toast("Gagal salin struk",true)}}
   async function shareReceiptText(){const text=receiptPreviewText||"";if(!text)return toast("Struk kosong",true);try{if(window.Android&&typeof window.Android.shareReceipt==="function"){window.Android.shareReceipt(text);return}if(navigator.share){await navigator.share({title:receiptPreviewTitle,text});return}await copyReceiptText()}catch(e){if(String(e?.name||"")!=="AbortError")toast("Gagal bagikan struk",true)}}window.shareReceiptText=shareReceiptText;
   function directPrintReceiptText(text,title="Struk Transaksi"){receiptPreviewText=String(text||"");receiptPreviewTitle=String(title||"Struk Transaksi");nativePrintReceiptText()}
-  function receiptTextForPpob(tx){const storeName="ROCKY HIJAB",dateStr=dateId(String(tx?.dateKey||dateKey()).slice(0,10))+" "+txTimeLabel(tx),cashier=tx?.cashier_name||tx?.name||userName(tx?.user)||"Kasir",sep=receiptLine(),isPln=String(tx?.buyer_sku_code||tx?.note||"").toLowerCase().includes("pln");return`${storeName}\n${sep}\nTanggal : ${dateStr}\nKasir   : ${cashier}\nNo Ref  : ${tx?.ref_id||tx?.id}\n${sep}\nProduk  : ${tx?.product_name||tx?.note}\nTujuan  : ${tx?.customer_no||"-"}\n${isPln?`TOKEN   : ${tx?.sn||"SEDANG DIPROSES"}`:`SN      : ${tx?.sn||"SEDANG DIPROSES"}`}\nStatus  : ${tx?.status==="Sukses"?"LUNAS / SUKSES":"PROSES PENDING"}\n${sep}\n${receiptSummaryLine("TOTAL",rp(tx?.price_sell||tx?.amount||0))}\n${receiptSummaryLine("BAYAR","TUNAI")}\n${sep}\n${isPln?"Masukkan 20 digit token di meteran\n":"Simpan struk sebagai bukti transaksi\n"}Terima kasih telah berbelanja\ndi Rocky Hijab\n\n\n`}
+  function receiptTextForPpob(tx){const storeName="ROCKY HIJAB",dateStr=dateId(String(tx?.dateKey||dateKey()).slice(0,10))+" "+txTimeLabel(tx),cashier=tx?.cashier_name||tx?.name||userName(tx?.user)||"Kasir",sep=receiptLine(),isPln=String(tx?.buyer_sku_code||tx?.note||"").toLowerCase().includes("pln"),st=getAdminDigitalStatus(tx),stLabel=st==="Sukses"?"LUNAS / SUKSES":(st==="Gagal"?"GAGAL / BATAL":"PROSES PENDING");return`${storeName}\n${sep}\nTanggal : ${dateStr}\nKasir   : ${cashier}\nNo Ref  : ${tx?.ref_id||tx?.id}\n${sep}\nProduk  : ${tx?.product_name||tx?.note}\nTujuan  : ${tx?.customer_no||"-"}\n${isPln?`TOKEN   : ${tx?.sn||"SEDANG DIPROSES"}`:`SN      : ${tx?.sn||"SEDANG DIPROSES"}`}\nStatus  : ${stLabel}\n${sep}\n${receiptSummaryLine("TOTAL",rp(tx?.price_sell||tx?.amount||0))}\n${receiptSummaryLine("BAYAR","TUNAI")}\n${sep}\n${isPln?"Masukkan 20 digit token di meteran\n":"Simpan struk sebagai bukti transaksi\n"}Terima kasih telah berbelanja\ndi Rocky Hijab\n\n\n`}
   function printReceiptFromTx(id){const t=state.tx.find(x=>String(x.id)===String(id));if(!t)return toast("Transaksi tidak ditemukan",true);const text=(t?.isPpob||t?.type==="ppob"||t?.category==="ppob")?receiptTextForPpob(t):receiptTextForTx(t);openReceiptPreview(text,`Struk - ${dateId(String(t.dateKey||dateKey()).slice(0,10))}`)}window.printReceiptFromTx=printReceiptFromTx;
   function printTodayTransactions(){const items=todayTx();if(!items.length)return toast("Belum ada transaksi hari ini",true);openReceiptPreview(receiptTextForTodayTransactions(),`Semua Transaksi - ${dateId(dateKey())}`)}window.printTodayTransactions=printTodayTransactions;
 
@@ -919,11 +940,11 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   function renderRismaManualClosingPage(){return`<div class="wrap">${header("Arahan Closing Risma","Halaman khusus tujuan closing manual")}<div class="control-stack">${renderRismaManualClosingControl()}</div></div>`}
 
   function renderHome(){
-    const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+Number(t.amount||0),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
+    const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
     const monthRows=state.monthlyLoaded?visibleTx().filter(t=>String(t.monthKey||String(t.dateKey||"").slice(0,7))===monthKey()):[];
     const manualMonthRows=state.monthlyLoaded?visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&rowMonthKey(b)===monthKey()):[];
     const withdrawalMonth=state.monthlyLoaded?bonusWithdrawnMonth(null,monthKey()):0;
-    const totalMonth=monthRows.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    const totalMonth=monthRows.reduce((sum,t)=>sum+adminSettledTxAmount(t),0);
     const manualMonth=manualMonthRows.reduce((sum,b)=>sum+Number(b.amount||0),0);
     const bonusTrxMonth=monthRows.reduce((sum,t)=>sum+txBonusAmount(t),0);
     const closingMonth=state.monthlyLoaded?realActiveUsers().filter(isPayrollStaff).reduce((sum,u)=>sum+closingBonusMonthForUser(u.username,monthKey()),0):0;
@@ -990,7 +1011,7 @@ function renderTxList(list,withActions=true){if(!list.length)return`<div class="
   function bonusWithdrawalRowsForMonth(username=null,mk=monthKey()){const target=username?cleanUser(username):"";return visibleManual().filter(b=>isBonusWithdrawalRow(b)&&rowMonthKey(b)===mk&&(!target||cleanUser(b.user)===target)&&bonusWithdrawalAmount(b)>0)}
   function bonusWithdrawnMonth(username=null,mk=monthKey()){return bonusWithdrawalRowsForMonth(username,mk).reduce((s,b)=>s+bonusWithdrawalAmount(b),0)}
   function closingBonusMonthForUser(username,mk=monthKey()){const u=cleanUser(username);if(!u)return 0;let total=0;for(const c of state.closing){if(rowMonthKey(c)!==mk)continue;total+=closingBonusStoredValueForUser(c,u)}return moneyValue(total)}
-function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=monthKey(),staff=realActiveUsers().filter(isPayrollStaff);return staff.map(u=>{const username=cleanUser(u.username),txRows=visibleTx().filter(t=>cleanUser(t.user)===username&&rowMonthKey(t)===mk),attRows=state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&cleanUser(a.user)===username&&rowMonthKey(a)===mk),manualRows=visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&cleanUser(b.user)===username&&rowMonthKey(b)===mk),hadir=new Set(attRows.map(extractDateKey)).size,pendapatan=txRows.reduce((s,t)=>s+Number(t.amount||0),0),bonusTransaksi=txRows.reduce((s,t)=>s+txBonusAmount(t),0),bonusManual=manualRows.reduce((s,b)=>s+Number(b.amount||0),0),bonusClosing=closingBonusMonthForUser(username,mk),totalBonus=bonusTransaksi+bonusManual+bonusClosing,sudahDiambil=bonusWithdrawnMonth(username,mk),sisaBonus=Math.max(0,totalBonus-sudahDiambil);return{username,name:u.name||username,role:u.role||"staff",hadir,pendapatan,bonusTransaksi,bonusManual,bonusClosing,totalBonus,sudahDiambil,sisaBonus,trxCount:txRows.length}}).sort((a,b)=>b.sisaBonus-a.sisaBonus||b.totalBonus-a.totalBonus||b.pendapatan-a.pendapatan||String(a.name).localeCompare(String(b.name)))}
+function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=monthKey(),staff=realActiveUsers().filter(isPayrollStaff);return staff.map(u=>{const username=cleanUser(u.username),txRows=visibleTx().filter(t=>cleanUser(t.user)===username&&rowMonthKey(t)===mk),attRows=state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&cleanUser(a.user)===username&&rowMonthKey(a)===mk),manualRows=visibleManual().filter(b=>!isBonusWithdrawalRow(b)&&cleanUser(b.user)===username&&rowMonthKey(b)===mk),hadir=new Set(attRows.map(extractDateKey)).size,pendapatan=txRows.reduce((s,t)=>s+adminSettledTxAmount(t),0),bonusTransaksi=txRows.reduce((s,t)=>s+txBonusAmount(t),0),bonusManual=manualRows.reduce((s,b)=>s+Number(b.amount||0),0),bonusClosing=closingBonusMonthForUser(username,mk),totalBonus=bonusTransaksi+bonusManual+bonusClosing,sudahDiambil=bonusWithdrawnMonth(username,mk),sisaBonus=Math.max(0,totalBonus-sudahDiambil);return{username,name:u.name||username,role:u.role||"staff",hadir,pendapatan,bonusTransaksi,bonusManual,bonusClosing,totalBonus,sudahDiambil,sisaBonus,trxCount:txRows.length}}).sort((a,b)=>b.sisaBonus-a.sisaBonus||b.totalBonus-a.totalBonus||b.pendapatan-a.pendapatan||String(a.name).localeCompare(String(b.name)))}
   function renderPayroll(){const loaded=state.monthlyLoaded,rows=monthlyStaffPayrollRows(),sum=rows.reduce((a,r)=>({hadir:a.hadir+r.hadir,pendapatan:a.pendapatan+r.pendapatan,bonus:a.bonus+r.totalBonus,diambil:a.diambil+Number(r.sudahDiambil||0),sisa:a.sisa+Number(r.sisaBonus||0),trx:a.trx+r.trxCount}),{hadir:0,pendapatan:0,bonus:0,diambil:0,sisa:0,trx:0}),status=loaded?`<span class="monthly-status loaded"><i class="fas fa-check"></i> Bulanan loaded</span>`:`<span class="monthly-status light"><i class="fas fa-database"></i> Load manual</span>`,loadBtn=loaded?`<button class="btn amber" onclick="loadMonthlyLite(true)"><i class="fas fa-rotate"></i> Reload Bulanan</button>`:`<button class="btn primary" onclick="loadMonthlyLite(false)"><i class="fas fa-cloud-arrow-down"></i> Load Bulanan</button>`,body=!loaded?`<div class="empty">Data gajian staff belum dibaca otomatis supaya hemat read. Klik <b>Load Bulanan</b> untuk memuat transaksi, absen, closing, bonus manual, dan ambil bonus bulan ini.</div>`:(rows.length?`<div class="list">${rows.map(r=>`<div class="payroll-user-card"><div class="payroll-user-head"><div class="grow"><div class="name">${esc(r.name)}</div><div class="meta">@${esc(r.username)} - ${esc(r.role)} - ${r.trxCount} trx bulan ini</div></div><span class="chip ok">Staff</span></div><div class="payroll-grid"><div class="payroll-mini"><div class="tiny">Total Hadir</div><div class="amt num">${r.hadir} hari</div></div><div class="payroll-mini"><div class="tiny">Pendapatan</div><div class="amt num">${rp(r.pendapatan)}</div></div><div class="payroll-mini"><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(r.sisaBonus)}</div></div><div class="payroll-mini"><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(r.sudahDiambil)}</div></div></div><div class="meta">Bonus trx ${rp(r.bonusTransaksi)} - closing ${rp(r.bonusClosing)} - manual ${rp(r.bonusManual)} - total ${rp(r.totalBonus)}</div></div>`).join("")}</div>`:`<div class="empty">Belum ada user staff aktif. Karyawan harian dan admin tidak dimasukkan.</div>`);return`<div class="wrap">${header("Gajian Staff","Khusus staff bulanan - karyawan harian tidak masuk")}<div class="card pad mb payroll-top-card"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="title">Ringkasan ${monthKey()}</div><div class="meta">Data khusus staff. Admin dan karyawan harian otomatis dikecualikan.</div></div>${status}</div><div class="sep"></div><div class="grid3"><div><div class="tiny">Total Bonus</div><div class="amt num">${rp(sum.bonus)}</div></div><div><div class="tiny">Sudah Diambil</div><div class="amt num">${rp(sum.diambil)}</div></div><div><div class="tiny">Sisa Bonus</div><div class="amt num">${rp(sum.sisa)}</div></div></div><div class="row" style="margin-top:10px;justify-content:space-between;align-items:center"><div class="meta">${loaded?`Loaded ${new Date(state.monthlyLoadedAtMs||Date.now()).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})} - ${rows.length} staff - ${sum.trx} trx`:"Belum load bulanan"}</div>${loadBtn}</div></div>${body}</div>`}
 
   function isTargetAutoBonusRow(r){return String(r?.source||"")==="daily_target"||String(r?.type||"")==="daily_target_bonus"||String(r?.id||"").startsWith("targetbonus_")}
@@ -1090,7 +1111,7 @@ function monthlyStaffPayrollRows(){if(!state.monthlyLoaded)return[];const mk=mon
     if (!pending.length) return "";
     
     const tToday = todayTx();
-    const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    const totalToday = tToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0);
     const ded = financeDeductions();
     const currentCashFisik = Math.max(0, adminRoundRp(totalToday - ded.total));
 
@@ -2448,17 +2469,18 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
       const profit = previewPrice - modal;
 
       return `
-        <div style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:12px;padding:10px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
           <div style="min-width:0;flex:1;">
             <div style="font-size:13px;font-weight:800;color:var(--text-main,#0f172a);">${esc(p.name)}</div>
             <div id="modalPrice_${esc(p.sku)}" data-modal="${modal}" style="font-size:11px;color:var(--muted);margin-top:2px;">
-              ${esc(p.brand)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>
+              ${esc(p.brand)} &bull; ${esc(p.sku)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>
             </div>
-            <div id="profitBadge_${esc(p.sku)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#059669' : '#dc2626'};margin-top:2px;">
+            ${p.desc ? `<div style="font-size:10.5px;color:#475569;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px;margin-top:5px;white-space:pre-line;line-height:1.35;">${esc(p.desc)}</div>` : ''}
+            <div id="profitBadge_${esc(p.sku)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#059669' : '#dc2626'};margin-top:4px;">
               Untung: ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
             </div>
           </div>
-          <div style="width:130px;text-align:right;">
+          <div style="width:130px;text-align:right;flex-shrink:0;">
             <label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:2px;">Harga Jual (Rp)</label>
             <input type="number" class="input" style="font-size:13px;font-weight:800;text-align:right;padding:6px 8px;border-radius:10px;"
               value="${previewPrice}"
@@ -2511,6 +2533,11 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     markup: 1500,
     roundUpTo: 1000,
     priceBaseMode: 'nominal',
+    kasirFilterMode: 'all',
+    hiddenCodes: {},
+    selectedCodes: {},
+    customNames: {},
+    adminShowOnlyVisible: false,
     customPrices: {},
     products: [],
     akrabPackages: []
@@ -2678,13 +2705,117 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     renderAdminZidStorePriceList();
   };
 
-  window.handleAdminZidStoreCustomPriceInput = (code, val) => {
+  function isAdminZidStoreCodeVisible(code) {
+    const c = String(code || "").trim();
+    if (!c) return false;
+    if (adminZidStoreState.kasirFilterMode === 'selected') {
+      return Boolean(adminZidStoreState.selectedCodes && adminZidStoreState.selectedCodes[c]);
+    }
+    return !(adminZidStoreState.hiddenCodes && adminZidStoreState.hiddenCodes[c]);
+  }
+
+  function getFilteredAdminZidStoreItems() {
+    const tab = adminZidStoreState.tab || 'akrab';
+    const q = String($("zidstoreAdminSearch")?.value || "").trim().toLowerCase();
+    let items = tab === 'akrab'
+      ? (adminZidStoreState.akrabPackages || [])
+      : (adminZidStoreState.products || []).filter(p => getAdminZidStoreCategoryTab(p) === tab);
+
+    if (q) {
+      items = items.filter(p => {
+        const code = String(p.code || p.package_code || p.sku || "").trim();
+        const customName = code && adminZidStoreState.customNames ? String(adminZidStoreState.customNames[code] || "") : "";
+        return (
+          String(p.name || "").toLowerCase().includes(q) ||
+          customName.toLowerCase().includes(q) ||
+          code.toLowerCase().includes(q) ||
+          String(p.brand || "").toLowerCase().includes(q) ||
+          String(p.sub_category || "").toLowerCase().includes(q) ||
+          String(p.description || "").toLowerCase().includes(q)
+        );
+      });
+    }
+    return [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+  }
+
+  window.onAdminZidStoreKasirModeChange = () => {
+    const mode = String($("zidstoreSettingKasirMode")?.value || 'all') === 'selected' ? 'selected' : 'all';
+    adminZidStoreState.kasirFilterMode = mode;
+    renderAdminZidStorePriceList();
+  };
+
+  window.setAdminZidStoreListFilter = (onlyVisible) => {
+    adminZidStoreState.adminShowOnlyVisible = Boolean(onlyVisible);
+    const btnAll = $("btnZidFilterAll");
+    const btnVis = $("btnZidFilterVisible");
+    if (btnAll && btnVis) {
+      if (adminZidStoreState.adminShowOnlyVisible) {
+        btnAll.style.background = "var(--card,#fff)"; btnAll.style.color = "inherit"; btnAll.style.border = "1px solid var(--line)";
+        btnVis.style.background = "#4f46e5"; btnVis.style.color = "#fff"; btnVis.style.border = "none";
+      } else {
+        btnAll.style.background = "#4f46e5"; btnAll.style.color = "#fff"; btnAll.style.border = "none";
+        btnVis.style.background = "var(--card,#fff)"; btnVis.style.color = "inherit"; btnVis.style.border = "1px solid var(--line)";
+      }
+    }
+    renderAdminZidStorePriceList();
+  };
+
+  window.toggleAdminZidStoreVisible = (elOrCode) => {
+    const code = typeof elOrCode === 'string' ? elOrCode : String(elOrCode?.getAttribute('data-code') || '').trim();
+    if (!code) return;
+    if (!adminZidStoreState.hiddenCodes) adminZidStoreState.hiddenCodes = {};
+    if (!adminZidStoreState.selectedCodes) adminZidStoreState.selectedCodes = {};
+    const nextVis = !isAdminZidStoreCodeVisible(code);
+    if (adminZidStoreState.kasirFilterMode === 'selected') {
+      if (nextVis) adminZidStoreState.selectedCodes[code] = true;
+      else delete adminZidStoreState.selectedCodes[code];
+    } else {
+      if (nextVis) delete adminZidStoreState.hiddenCodes[code];
+      else adminZidStoreState.hiddenCodes[code] = true;
+    }
+    renderAdminZidStorePriceList();
+  };
+
+  window.setAdminZidStoreTabVisibility = (showBool) => {
+    const items = getFilteredAdminZidStoreItems();
+    if (!items.length) return toast("Tidak ada produk pada filter ini", true);
+    if (!adminZidStoreState.hiddenCodes) adminZidStoreState.hiddenCodes = {};
+    if (!adminZidStoreState.selectedCodes) adminZidStoreState.selectedCodes = {};
+    const mode = adminZidStoreState.kasirFilterMode || 'all';
+    let count = 0;
+    items.forEach(p => {
+      const code = String(p.package_code || p.code || p.sku || "").trim();
+      if (!code) return;
+      if (mode === 'selected') {
+        if (showBool) adminZidStoreState.selectedCodes[code] = true;
+        else delete adminZidStoreState.selectedCodes[code];
+      } else {
+        if (showBool) delete adminZidStoreState.hiddenCodes[code];
+        else adminZidStoreState.hiddenCodes[code] = true;
+      }
+      count++;
+    });
+    renderAdminZidStorePriceList();
+    toast(`${count} produk di-set ${showBool ? 'TAMPIL' : 'SEMBUNYI'} di Kasir (klik Simpan untuk menerapkan)`);
+  };
+
+  window.handleAdminZidStoreCustomNameInput = (elOrCode, val) => {
+    const code = typeof elOrCode === 'string' ? elOrCode : String(elOrCode?.getAttribute('data-code') || '').trim();
+    if (!code) return;
+    if (!adminZidStoreState.customNames) adminZidStoreState.customNames = {};
+    const clean = String(val || "").trim();
+    if (clean) adminZidStoreState.customNames[code] = clean;
+    else delete adminZidStoreState.customNames[code];
+  };
+
+  window.handleAdminZidStoreCustomPriceInput = (elOrCode, val) => {
+    const code = typeof elOrCode === 'string' ? elOrCode : String(elOrCode?.getAttribute('data-code') || '').trim();
     const n = Math.abs(Number(String(val || "").replace(/[^0-9]/g, "")));
     if (!adminZidStoreState.customPrices) adminZidStoreState.customPrices = {};
     if (n > 0) adminZidStoreState.customPrices[code] = n;
     else delete adminZidStoreState.customPrices[code];
-    const badge = $(`zidProfitBadge_${code}`);
-    const modalEl = $(`zidModalPrice_${code}`);
+    const badge = document.getElementById(`zidProfitBadge_${code}`);
+    const modalEl = document.getElementById(`zidModalPrice_${code}`);
     if (badge && modalEl) {
       const modal = Number(modalEl.getAttribute("data-modal") || 0);
       const profit = n > 0 ? (n - modal) : (calculateAdminZidStorePreviewPrice(modal, code) - modal);
@@ -2696,57 +2827,74 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
   window.renderAdminZidStorePriceList = () => {
     const listEl = $("zidstorePriceList");
     if (!listEl) return;
-    const tab = adminZidStoreState.tab || 'akrab';
-    const q = String($("zidstoreAdminSearch")?.value || "").trim().toLowerCase();
-
-    let items = tab === 'akrab'
-      ? (adminZidStoreState.akrabPackages || [])
-      : (adminZidStoreState.products || []).filter(p => getAdminZidStoreCategoryTab(p) === tab);
-
-    if (q) {
-      items = items.filter(p =>
-        String(p.name || "").toLowerCase().includes(q) ||
-        String(p.code || p.package_code || p.sku || "").toLowerCase().includes(q) ||
-        String(p.brand || "").toLowerCase().includes(q) ||
-        String(p.sub_category || "").toLowerCase().includes(q)
-      );
+    const q = String($("zidstoreAdminSearch")?.value || "").trim();
+    let items = getFilteredAdminZidStoreItems();
+    const visibleCountInTab = items.filter(p => isAdminZidStoreCodeVisible(p.package_code || p.code || p.sku)).length;
+    if ($("btnZidFilterVisible")) {
+      $("btnZidFilterVisible").textContent = `Tampil di Kasir (${visibleCountInTab})`;
+    }
+    if (adminZidStoreState.adminShowOnlyVisible) {
+      items = items.filter(p => isAdminZidStoreCodeVisible(p.package_code || p.code || p.sku));
     }
 
-    items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     const totalMatch = items.length;
     const sliced = items.slice(0, 120);
 
     if (!sliced.length) {
-      listEl.innerHTML = `<div class="empty">${q ? 'Tidak ada produk ZidStore yang cocok dengan pencarian' : 'Belum ada data di kategori ini. Klik "Tarik Produk" di atas.'}</div>`;
+      listEl.innerHTML = `<div class="empty">${adminZidStoreState.adminShowOnlyVisible ? 'Belum ada produk yang di-ON-kan di tab ini' : (q ? 'Tidak ada produk ZidStore yang cocok dengan pencarian' : 'Belum ada data di kategori ini. Klik "Tarik Produk" di atas.')}</div>`;
       return;
     }
 
     const headInfo = totalMatch > 120
       ? `<div style="font-size:11px;color:#4f46e5;font-weight:700;padding:4px 2px;">Menampilkan 120 dari ${totalMatch} produk. Gunakan kotak pencarian di atas untuk hasil lebih spesifik.</div>`
-      : '';
+      : `<div style="font-size:11px;color:var(--muted);font-weight:700;padding:2px;">Menampilkan ${totalMatch} produk (${visibleCountInTab} aktif di Kasir)</div>`;
 
     listEl.innerHTML = headInfo + sliced.map(p => {
       const code = String(p.package_code || p.code || p.sku || "");
       const modal = Number(p.price || 0);
       const custom = adminZidStoreState.customPrices && adminZidStoreState.customPrices[code];
+      const customName = adminZidStoreState.customNames && adminZidStoreState.customNames[code] ? String(adminZidStoreState.customNames[code]) : '';
+      const isVisible = isAdminZidStoreCodeVisible(code);
       const previewPrice = calculateAdminZidStorePreviewPrice(modal, code, p);
       const profit = previewPrice - modal;
       const stockInfo = p.package_code ? ` &bull; Stok: <b style="color:${Number(p.stock || 0) > 0 ? '#059669' : '#dc2626'}">${Number(p.stock || 0)}</b>` : '';
+      const descText = String(p.description || "").trim();
+      const descPreview = descText
+        ? `<details style="margin-top:5px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;">
+             <summary style="font-size:10.5px;font-weight:800;color:#4f46e5;cursor:pointer;">Keterangan Paket</summary>
+             <div style="font-size:10.5px;color:#475569;margin-top:4px;white-space:pre-line;line-height:1.35;">${esc(descText)}</div>
+           </details>`
+        : `<div style="font-size:10px;color:#94a3b8;margin-top:3px;">Tidak ada keterangan dari pusat ZidStore</div>`;
 
       return `
-        <div style="background:var(--bg,#f8fafc);border:1.5px solid var(--line,#e2e8f0);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="min-width:0;flex:1;">
-            <div style="font-size:13px;font-weight:800;color:var(--text-main,#0f172a);">${esc(p.name)}</div>
-            <div id="zidModalPrice_${esc(code)}" data-modal="${modal}" style="font-size:11px;color:var(--muted);margin-top:2px;">
-              ${esc(p.brand || p.sub_category || 'ZidStore')} &bull; ${esc(code)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>${stockInfo}
+        <div style="background:var(--bg,#f8fafc);border:1.5px solid ${isVisible ? '#c7d2fe' : 'var(--line,#e2e8f0)'};border-radius:12px;padding:10px 12px;opacity:${isVisible ? '1' : '0.72'};display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+            <div style="min-width:0;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:800;color:var(--text-main,#0f172a);">${esc(p.name)}</span>
+                ${customName ? `<span class="chip" style="font-size:9.5px;padding:1px 6px;background:#eef2ff;color:#4338ca;font-weight:800;">Kasir: ${esc(customName)}</span>` : ''}
+              </div>
+              <div id="zidModalPrice_${esc(code)}" data-modal="${modal}" style="font-size:11px;color:var(--muted);margin-top:2px;">
+                ${esc(p.brand || p.sub_category || 'ZidStore')} &bull; ${esc(code)} &bull; Modal: <b style="color:#0f172a;">${rp(modal)}</b>${stockInfo}
+              </div>
+              <div id="zidProfitBadge_${esc(code)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#4f46e5' : '#dc2626'};margin-top:2px;">
+                Untung: ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
+              </div>
+              ${descPreview}
             </div>
-            <div id="zidProfitBadge_${esc(code)}" style="font-size:10.5px;font-weight:800;color:${profit > 0 ? '#4f46e5' : '#dc2626'};margin-top:2px;">
-              Untung: ${rp(profit)} ${custom ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:#dbeafe;color:#1e40af;">Custom</span>' : '<span class="chip" style="font-size:9px;padding:1px 5px;background:#f1f5f9;color:#64748b;">Otomatis</span>'}
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+              <button type="button" data-code="${esc(code)}" onclick="toggleAdminZidStoreVisible(this)" style="font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:999px;cursor:pointer;border:1px solid ${isVisible ? '#86efac' : '#cbd5e1'};background:${isVisible ? '#dcfce7' : '#f1f5f9'};color:${isVisible ? '#166534' : '#64748b'};white-space:nowrap;">
+                ${isVisible ? 'Tampil Kasir: ON' : 'Tampil Kasir: OFF'}
+              </button>
+              <div style="width:125px;text-align:right;">
+                <label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:2px;">Harga Jual (Rp)</label>
+                <input type="number" class="input" data-code="${esc(code)}" style="font-size:13px;font-weight:800;text-align:right;padding:6px 8px;border-radius:10px;" value="${previewPrice}" onchange="handleAdminZidStoreCustomPriceInput(this, this.value)">
+              </div>
             </div>
           </div>
-          <div style="width:125px;text-align:right;">
-            <label style="font-size:10px;font-weight:700;color:var(--muted);display:block;margin-bottom:2px;">Harga Jual (Rp)</label>
-            <input type="number" class="input" style="font-size:13px;font-weight:800;text-align:right;padding:6px 8px;border-radius:10px;" value="${previewPrice}" onchange="handleAdminZidStoreCustomPriceInput('${esc(code)}', this.value)">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="font-size:10.5px;font-weight:700;color:var(--muted);white-space:nowrap;">Nama di Kasir:</label>
+            <input type="text" class="input" data-code="${esc(code)}" value="${esc(customName)}" placeholder="${esc(p.name)}" onchange="handleAdminZidStoreCustomNameInput(this, this.value)" style="font-size:11.5px;font-weight:700;padding:5px 8px;border-radius:8px;flex:1;">
           </div>
         </div>
       `;
@@ -2783,12 +2931,18 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         if (s.markup !== undefined) adminZidStoreState.markup = Number(s.markup);
         if (s.roundUpTo !== undefined) adminZidStoreState.roundUpTo = Number(s.roundUpTo);
         adminZidStoreState.priceBaseMode = s.priceBaseMode === 'modal' ? 'modal' : 'nominal';
+        adminZidStoreState.kasirFilterMode = s.kasirFilterMode === 'selected' ? 'selected' : 'all';
+        adminZidStoreState.hiddenCodes = s.hiddenCodes && typeof s.hiddenCodes === 'object' ? { ...s.hiddenCodes } : {};
+        adminZidStoreState.selectedCodes = s.selectedCodes && typeof s.selectedCodes === 'object' ? { ...s.selectedCodes } : {};
+        adminZidStoreState.customNames = s.customNames && typeof s.customNames === 'object' ? { ...s.customNames } : {};
         if (s.customPrices) adminZidStoreState.customPrices = { ...s.customPrices };
       }
 
       if ($("zidstoreSettingMarkup")) $("zidstoreSettingMarkup").value = adminZidStoreState.markup;
       if ($("zidstoreSettingRounding")) $("zidstoreSettingRounding").value = String(adminZidStoreState.roundUpTo !== undefined ? adminZidStoreState.roundUpTo : 1000);
       if ($("zidstoreSettingBaseMode")) $("zidstoreSettingBaseMode").value = adminZidStoreState.priceBaseMode || 'nominal';
+      if ($("zidstoreSettingKasirMode")) $("zidstoreSettingKasirMode").value = adminZidStoreState.kasirFilterMode || 'all';
+      setAdminZidStoreListFilter(Boolean(adminZidStoreState.adminShowOnlyVisible));
 
       switchAdminZidStoreTab(adminZidStoreState.tab || 'akrab');
       setTimeout(() => fetchZidStoreBalance(), 120);
@@ -2823,8 +2977,15 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     const markup = Number($("zidstoreSettingMarkup")?.value || 1500);
     const roundUpTo = Number($("zidstoreSettingRounding")?.value || 0);
     const priceBaseMode = String($("zidstoreSettingBaseMode")?.value || adminZidStoreState.priceBaseMode || 'nominal');
+    const kasirFilterMode = String($("zidstoreSettingKasirMode")?.value || adminZidStoreState.kasirFilterMode || 'all') === 'selected' ? 'selected' : 'all';
+    const hiddenCodes = adminZidStoreState.hiddenCodes || {};
+    const selectedCodes = adminZidStoreState.selectedCodes || {};
+    const customNames = adminZidStoreState.customNames || {};
     const customPrices = adminZidStoreState.customPrices || {};
-    const pin = await askPin(`Simpan Pengaturan Harga ZidStore?\n\n- Basis: ${priceBaseMode === 'nominal' ? 'Nominal Produk' : 'Harga Modal'}\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Produk Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
+    const visSummary = kasirFilterMode === 'selected'
+      ? `Hanya ${Object.keys(selectedCodes).length} produk terpilih`
+      : `Semua kecuali ${Object.keys(hiddenCodes).length} produk disembunyikan`;
+    const pin = await askPin(`Simpan Pengaturan ZidStore?\n\n- Basis: ${priceBaseMode === 'nominal' ? 'Nominal Produk' : 'Harga Modal'}\n- Margin: ${rp(markup)}\n- Pembulatan: ${roundUpTo > 0 ? 'Ke ' + rp(roundUpTo) : 'Tanpa pembulatan'}\n- Tampil di Kasir: ${visSummary}\n- Nama Custom: ${Object.keys(customNames).length} produk\n- Harga Custom: ${Object.keys(customPrices).length} produk\n\nMasukkan PIN admin:`);
     if (!pin) return;
     if (String(pin) !== String(state.user.pin)) return toast("PIN salah!", true);
     setBusy(true);
@@ -2833,6 +2994,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         markup,
         roundUpTo,
         priceBaseMode,
+        kasirFilterMode,
+        hiddenCodes,
+        selectedCodes,
+        customNames,
         customPrices,
         updatedAt: serverTimestamp(),
         updatedAtMs: Date.now(),
@@ -2840,9 +3005,10 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
         updatedByName: state.user.name || state.user.username
       };
       await setDoc(doc(db, "closings", "__zidstore_settings"), payload, { merge: true });
+      state.zidstoreSettings = { ...(state.zidstoreSettings || {}), ...payload };
       finishLocalWrite();
       closeModal("zidstorePriceModal");
-      toast("✓ Pengaturan harga ZidStore berhasil disimpan!");
+      toast("✓ Pengaturan harga & tampilan Kasir ZidStore berhasil disimpan!");
     } catch (e) {
       toast("Gagal simpan harga ZidStore: " + (e.message || e), true);
     } finally {
@@ -2850,35 +3016,142 @@ Masukkan PIN admin:`);if(!pin)return;if(String(pin)!==String(state.user.pin))ret
     }
   };
 
-  window.checkAdminZidStoreOrderStatus = async (txId) => {
+  window.checkAdminDigitalOrderStatus = async (txId, { silent = false } = {}) => {
     const t = findTxById(txId);
-    if (!t) return toast("Transaksi tidak ditemukan", true);
-    const identifier = String(t.zidstoreOrderId || t.ref_id || t.id || "").trim();
-    const kind = isAdminZidStoreAkrabTx(t) ? 'akrab' : 'ppob';
-    setBusy(true);
+    if (!t) {
+      if (!silent) toast("Transaksi tidak ditemukan", true);
+      return null;
+    }
+    const isZid = isAdminZidStoreTx(t);
+    const prevStatus = getAdminDigitalStatus(t);
+    if (!silent) setBusy(true);
     try {
-      const res = await callAdminZidStoreBackend('/zidstore-order-status', 'POST', { kind, identifier });
-      if (!res || !res.ok || !res.data) {
-        return toast(res?.error || "Gagal cek status order ZidStore", true);
+      let mapped = prevStatus;
+      let nextSn = String(t.sn || "");
+      let nextMsg = String(t.message || "");
+      let nextModal = Number(t.price_modal || 0);
+
+      if (isZid) {
+        const identifier = String(t.zidstoreOrderId || t.ref_id || t.id || "").trim();
+        const kind = isAdminZidStoreAkrabTx(t) ? 'akrab' : 'ppob';
+        const res = await callAdminZidStoreBackend('/zidstore-order-status', 'POST', { kind, identifier });
+        if (!res || !res.ok || !res.data) {
+          if (!silent) toast(res?.error || "Gagal cek status order ZidStore", true);
+          return null;
+        }
+        const d = res.data;
+        const stLower = String(d.status || "").toLowerCase();
+        mapped = stLower === 'success' ? 'Sukses' : (stLower === 'failed' ? 'Gagal' : 'Pending');
+        nextSn = String(d.sn || t.sn || "");
+        nextMsg = String(d.message || t.message || "");
+        if (Number(d.price || 0) > 0) nextModal = Number(d.price);
+      } else {
+        const sku = String(t.buyer_sku_code || t.sku || "").trim();
+        const customerNo = String(t.customer_no || "").trim();
+        const refId = String(t.ref_id || t.id || "").trim();
+        if (!sku || !customerNo || !refId) {
+          if (!silent) toast("Data ref_id / SKU / tujuan Digiflazz tidak lengkap", true);
+          return null;
+        }
+        const hosts = [...getAdminPpobProxyHosts(), 'https://rocky-notif.pages.dev'];
+        const payload = { buyer_sku_code: sku, customer_no: customerNo, ref_id: refId, testing: Boolean(t.is_testing) };
+        let res = null;
+        for (const base of hosts) {
+          try {
+            const path = base.includes('pages.dev') ? '/ppob-order-status' : '/ppob-order-status';
+            const r = await fetch(`${base}${path}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Notify-Secret': ROCKY_ADMIN_NOTIFY_SECRET },
+              body: JSON.stringify({ ...payload, secret: ROCKY_ADMIN_NOTIFY_SECRET }),
+              signal: AbortSignal.timeout(8000)
+            });
+            if (r.ok) {
+              const j = await r.json();
+              if (j && (j.data || j.mapped_status || j.ok)) { res = j; break; }
+            }
+          } catch (e) {}
+        }
+        if (!res || !res.data) {
+          if (!silent) toast("Gagal cek status order Digiflazz (proxy/worker tidak merespons)", true);
+          return null;
+        }
+        const d = res.data?.data || res.data || {};
+        const stLower = String(d.status || "").toLowerCase().trim();
+        const rc = String(d.rc || "").trim();
+        mapped = res.mapped_status || ((stLower === 'sukses' || stLower === 'success' || rc === '00')
+          ? 'Sukses'
+          : ((stLower === 'gagal' || stLower === 'failed' || stLower === 'error' || (rc !== '' && rc !== '00' && rc !== '03')) ? 'Gagal' : 'Pending'));
+        nextSn = String(d.sn || t.sn || "");
+        nextMsg = String(d.message || t.message || "");
+        if (Number(d.price || 0) > 0) nextModal = Number(d.price);
+        if (typeof d.buyer_last_saldo === 'number') {
+          state.digiflazzBalance = { deposit: Number(d.buyer_last_saldo), updatedAtMs: Date.now() };
+          setDoc(doc(db, "closings", "__ppob_balance"), { id: "__ppob_balance", deposit: Number(d.buyer_last_saldo), updatedAtMs: Date.now() }, { merge: true }).catch(() => {});
+        }
       }
-      const d = res.data;
-      const stLower = String(d.status || "").toLowerCase();
-      const mapped = stLower === 'success' ? 'Sukses' : (stLower === 'failed' ? 'Gagal' : 'Pending');
+
+      const sell = Number(t.price_sell || t.amount || 0);
+      const nextProfit = nextModal > 0 && sell > 0 ? Math.max(0, sell - nextModal) : Number(t.profit || 0);
       const patch = {
         status: mapped,
-        sn: String(d.sn || t.sn || ""),
-        message: String(d.message || t.message || ""),
+        sn: nextSn,
+        message: nextMsg,
+        price_modal: nextModal || Number(t.price_modal || 0),
+        profit: nextProfit,
+        settledAtMs: mapped === 'Sukses' ? Number(t.settledAtMs || Date.now()) : (t.settledAtMs || null),
         updatedAtMs: Date.now()
       };
       await setDoc(doc(db, "transactions", String(t.id)), patch, { merge: true, localDoc: t });
+      supabase.from("ppob_transactions").update({ status: mapped, sn: nextSn, message: nextMsg, price_modal: patch.price_modal, profit: nextProfit }).eq("ref_id", String(t.ref_id || t.id)).then(() => {}).catch(() => {});
       localMerge("tx", String(t.id), patch);
+      Object.keys(state.trxDateCache || {}).forEach(dk => {
+        if (Array.isArray(state.trxDateCache[dk])) {
+          state.trxDateCache[dk] = state.trxDateCache[dk].map(x => String(x.id) === String(t.id) ? { ...x, ...patch } : x);
+        }
+      });
+      Object.keys(state.trxMonthCache || {}).forEach(mk => {
+        if (Array.isArray(state.trxMonthCache[mk])) {
+          state.trxMonthCache[mk] = state.trxMonthCache[mk].map(x => String(x.id) === String(t.id) ? { ...x, ...patch } : x);
+        }
+      });
       finishLocalWrite();
-      toast(`Status ZidStore: ${mapped}${patch.sn ? ' • SN: ' + patch.sn : ''}`);
-      openAdminLiteTxDetail(String(t.id));
+      if (!silent) {
+        toast(`Status ${isZid ? 'ZidStore' : 'Digiflazz'}: ${mapped}${nextSn ? ' • SN: ' + nextSn : ''}`, mapped === 'Gagal');
+        if ($("adminLiteTxDetailModal")?.classList.contains("show")) openAdminLiteTxDetail(String(t.id));
+        else render();
+      }
+      return { mapped, patch };
     } catch (e) {
-      toast("Gagal cek status: " + (e.message || e), true);
+      if (!silent) toast("Gagal cek status: " + (e.message || e), true);
+      return null;
     } finally {
-      setBusy(false);
+      if (!silent) setBusy(false);
+    }
+  };
+  window.checkAdminZidStoreOrderStatus = (txId) => window.checkAdminDigitalOrderStatus(txId);
+
+  let _adminLastPendingCheckAt = 0;
+  window.checkAllAdminPendingDigitalOrders = async (silent = false) => {
+    if (silent && Date.now() - _adminLastPendingCheckAt < 20000) return;
+    _adminLastPendingCheckAt = Date.now();
+    const pendingList = todayTx().filter(t => (isAdminPpobTx(t) || isAdminZidStoreTx(t)) && getAdminDigitalStatus(t) === 'Pending');
+    if (!pendingList.length) {
+      if (!silent) toast("Tidak ada transaksi digital Pending hari ini");
+      return;
+    }
+    if (!silent) setBusy(true);
+    let updatedCount = 0;
+    try {
+      for (const t of pendingList.slice(0, 15)) {
+        const res = await window.checkAdminDigitalOrderStatus(t.id, { silent: true });
+        if (res && res.mapped !== 'Pending') updatedCount++;
+      }
+      if (!silent) {
+        toast(updatedCount ? `✓ ${updatedCount} transaksi Pending terupdate!` : `Masih Pending (${pendingList.length} transaksi)`, false);
+      }
+      if (updatedCount || !silent) render();
+    } finally {
+      if (!silent) setBusy(false);
     }
   };
   function renderClosingStatusList(){const global=getTodayGlobalClosing(),globalSelected=state.closingTarget==="global",users=realActiveUsers().filter(u=>String(u.role||"").toLowerCase()!=="admin");const globalRow=`<div class="closing-option-row ${globalSelected?"selected":""}" onclick="setClosingTarget('global')"><div class="grow"><div class="closing-title">Semua / Global</div><div class="closing-meta">${global?"SUDAH CLOSING":"PILIH UNTUK CLOSING SEMUA USER VALID"}</div></div><div class="closing-right"><span class="chip ${global?"ok":"warn"}">${global?"Sudah Closing":"Global"}</span><span class="closing-radio ${globalSelected?"on":""}"></span></div></div>`;const userRows=users.map(u=>{const selected=cleanUser(state.closingTarget)===cleanUser(u.username),status=closingStatusLabelForUser(u),chip=closingStatusChipClass(u);return`<div class="closing-option-row ${selected?"selected":""}" onclick="setClosingTarget('${esc(u.username)}')"><div class="grow"><div class="closing-title">${esc(u.name||u.username)} (@${esc(u.username)})</div><div class="closing-meta">${esc(status)}</div></div><div class="closing-right"><span class="chip ${chip}">${esc(status.replace("HARIAN - ",""))}</span><span class="closing-radio ${selected?"on":""}"></span></div></div>`}).join("");return`<div class="closing-status-list">${globalRow}${userRows||`<div class="empty">Belum ada user closing</div>`}</div>`}
@@ -2965,7 +3238,7 @@ function receiptProductItems(note){return adminLiteProductItemsFromText(note,"Tr
 function receiptProductNumbered(note,indent=""){const sep=receiptLine();return receiptProductItems(note).flatMap(x=>[`${indent}> ${x}`,`${indent}${sep}`]).join("\n")}
 function receiptSummaryLine(label,value,indent=""){const s=String(label||"-").slice(0,12).padEnd(11," ");return`${indent}${s} : ${String(value??"").trim()}`}
 receiptTextForTx=function(t){const kasir=t?.name||userName(t?.user)||state.user?.name||state.user?.username||"-",pay=txPaymentLabel(t);return`ROCKY HIJAB\n${receiptLine()}\nTanggal : ${dateId(String(t?.dateKey||dateKey()).slice(0,10))} ${txTimeLabel(t)}\nKasir   : ${kasir}\nProduk:\n${receiptProductNumbered(t.note)}\n\n${receiptSummaryLine("Total Bayar",rp(t?.amount||0))}\n${receiptSummaryLine("Bayar",pay)}\n${receiptLine()}\nTerima kasih\n\n\n`};
-receiptTextForTodayTransactions=function(){const items=[...todayTx()].sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    Produk:\n${receiptProductNumbered(t.note,"    ")}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL BAYAR",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`};
+receiptTextForTodayTransactions=function(){const items=[...todayTx()].filter(t=>!isAdminDigitalUnsettled(t)).sort((a,b)=>txTimeMs(a)-txTimeMs(b)),total=items.reduce((s,t)=>s+Number(t.amount||0),0),rows=items.map((t,i)=>`${String(i+1).padStart(2,"0")}. ${txTimeLabel(t)} - ${String(t.name||userName(t.user)||"-")}\n    Produk:\n${receiptProductNumbered(t.note,"    ")}\n${receiptSummaryLine("Total Bayar",rp(t.amount),"    ")}\n${receiptSummaryLine("Bayar",txPaymentLabel(t),"    ")}`).join("\n\n");return`ROCKY HIJAB\nTRANSAKSI HARI INI\n${receiptLine()}\nTanggal : ${dateId(dateKey())}\nAdmin   : ${state.user?.name||state.user?.username||"-"}\nJumlah  : ${items.length} trx\n${receiptLine()}\n${rows}\n${receiptLine()}\n${receiptSummaryLine("TOTAL BAYAR",rp(total))}\n${receiptLine()}\nTerima kasih\n\n\n`};
 
 /* === TRANSAKSI PER TANGGAL & BULAN ROCKY ADMIN === */
 const INDO_DAYS = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
@@ -3204,13 +3477,16 @@ function openAdminLiteTxDetail(id){
         items = receiptProductItems(t.note),
         pay = isAkrab ? "ZidStore Akrab" : (isZid ? "ZidStore PPOB" : (isPpob ? "PPOB" : txPaymentLabel(t))),
         dateStr = formatIndoDateLong(extractDateKey(t));
+  const stDigital = isDigital ? getAdminDigitalStatus(t) : "";
+  const stColor = stDigital === "Sukses" ? "#059669" : (stDigital === "Gagal" ? "#dc2626" : "#d97706");
   const detailContent = isDigital
-    ? '<div class="tiny">Detail ' + (isZid ? 'ZidStore' : 'PPOB') + '</div>' +
+    ? '<div class="tiny" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>Detail ' + (isZid ? 'ZidStore' : 'PPOB Digiflazz') + '</span>' + adminDigitalStatusChip(t) + '</div>' +
       '<div style="font-size:13.5px;font-weight:800;color:var(--text-main);margin-top:4px">' + esc(String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "")) + '</div>' +
       '<div class="meta" style="margin-top:4px">No Tujuan: <b>' + esc(t.customer_no || "-") + '</b></div>' +
-      '<div class="meta" style="margin-top:2px">Status: <b>' + esc(t.status || "Pending") + '</b></div>' +
+      '<div class="meta" style="margin-top:2px">Status Pusat: <b style="color:' + stColor + '">' + esc(stDigital) + '</b>' + (stDigital !== "Sukses" ? ' <span style="font-size:10px;color:#b45309;">(Belum masuk omset/laci)</span>' : '') + '</div>' +
       '<div class="meta" style="margin-top:2px">SN / Token: <b style="color:#059669;word-break:break-all">' + esc(t.sn || "-") + '</b></div>' +
-      (isZid && String(t.status || "").toLowerCase() !== "sukses" ? '<div style="margin-top:10px"><button type="button" class="btn primary full" style="background:#4f46e5" onclick="checkAdminZidStoreOrderStatus(\'' + esc(t.id) + '\')"><i class="fas fa-rotate"></i> Cek Status / SN ZidStore</button></div>' : '')
+      (t.message ? '<div class="meta" style="margin-top:2px">Info Server: <b>' + esc(t.message) + '</b></div>' : '') +
+      (stDigital !== "Sukses" ? '<div style="margin-top:10px"><button type="button" class="btn primary full" style="background:' + (isZid ? '#4f46e5' : '#059669') + '" onclick="checkAdminDigitalOrderStatus(\'' + esc(t.id) + '\')"><i class="fas fa-rotate"></i> Cek Status / SN ' + (isZid ? 'ZidStore' : 'Digiflazz') + '</button></div>' : '')
     : '<div class="tiny">Daftar Barang</div>' + adminLiteProductDetailHtml(t.note||"Transaksi");
   const body = '<div class="card pad mb" style="box-shadow:none">' +
     '<div class="tiny">Total Bayar</div>' +
@@ -3246,19 +3522,23 @@ renderTxList = function(list, withActions=true){
     const isZid = isAdminZidStoreTx(t);
     const isPpob = isAdminPpobTx(t);
     const isDigital = isPpob || isZid;
+    const unsettled = isAdminDigitalUnsettled(t);
+    const stDig = isDigital ? getAdminDigitalStatus(t) : "";
     const datePrefix = state.page === "rekapTrx" && t.dateKey ? formatIndoDateShort(extractDateKey(t)) + ' ' : '';
     const ppobProdName = isDigital ? String(t.product_name || t.note || "Produk Digital").replace(/^\[(PPOB|ZIDSTORE|AKRAB)\]\s*/i, "").trim() : "";
     const ppobTargetNo = isDigital && t.customer_no && !ppobProdName.includes(String(t.customer_no)) ? ' &bull; ' + esc(t.customer_no) : '';
     const metaHtml = isDigital
       ? '<div class="meta" style="font-size:11px;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span>' + datePrefix + txTimeLabel(t) + '</span>' + txPaymentBadge(t) + '</div>' +
-        '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>'
+        '<div onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" style="margin-top:4px;font-size:11.5px;font-weight:800;color:var(--text-main,#0f172a);line-height:1.25;white-space:normal;word-break:break-word;cursor:pointer;">' + esc(ppobProdName) + (ppobTargetNo ? '<span style="font-weight:600;color:var(--muted,#64748b);font-size:10.5px;">' + ppobTargetNo + '</span>' : '') + '</div>' +
+        (unsettled ? '<div style="margin-top:3px;font-size:10px;font-weight:800;color:' + (stDig === "Gagal" ? '#dc2626' : '#b45309') + ';">' + (stDig === "Gagal" ? '❌ Gagal (tidak masuk omset/laci)' : '⏳ Pending (ditahan s.d. Sukses)') + '</div>' : '')
       : '<div class="meta" style="font-size:11px;margin-top:2px">' + datePrefix + txTimeLabel(t) + ' - ' + receiptProductItems(t.note).length + ' item - ' + txPaymentLabel(t) + '</div>';
     const detailBtnHtml = isDigital
-      ? ''
+      ? (stDig === "Pending" ? '<button class="btn amber" style="min-height:34px;padding:0 8px;font-size:11px;border-radius:9px" onclick="checkAdminDigitalOrderStatus(\'' + esc(t.id) + '\')" title="Cek Status"><i class="fas fa-rotate"></i></button>' : '')
       : '<button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="openAdminLiteTxDetail(\'' + esc(t.id) + '\')" title="Detail">' + (()=>{const tq=getAdminTxTotalQty(t.note);return tq>0?('<span style="font-weight:900;font-size:13px">' + tq + '</span>'):'<i class="fas fa-list"></i>'})() + '</button>';
+    const amtStyle = unsettled ? 'text-decoration:line-through;opacity:0.55;' : '';
     const actionsHtml = withActions
-      ? ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0">' + rp(t.amount) + '</div>' + detailBtnHtml + '<button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>')
-      : ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap">' + rp(t.amount) + '</div>');
+      ? ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;min-width:0;' + amtStyle + '">' + rp(t.amount) + '</div>' + detailBtnHtml + '<button class="btn green" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="printReceiptFromTx(\'' + esc(t.id) + '\')" title="Cetak"><i class="fas fa-print"></i></button><button class="btn" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="editTransaction(\'' + esc(t.id) + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;padding:0 8px;font-size:12px;border-radius:9px" onclick="deleteTransaction(\'' + esc(t.id) + '\')" title="Hapus"><i class="fas fa-trash"></i></button>')
+      : ('<div class="amt num" style="font-size:13.5px;font-weight:800;white-space:nowrap;' + amtStyle + '">' + rp(t.amount) + '</div>');
 
     return '<div class="item ' + (txPaymentMethod(t)==="qris_transfer"?"item-qris":"") + '" style="align-items:center;padding:12px 14px;' + (isTxAfterLatestWithdrawal(t)?"border:1px solid #ff4d4d !important;box-shadow:0 0 5px rgba(255,77,77,0.2) !important;":"") + '"><div class="ico" style="width:38px;height:38px;flex:0 0 38px;font-size:15px;border-radius:12px"><i class="fas fa-receipt"></i></div><div class="grow" style="min-width:0"><div class="name" style="font-size:13px">' + esc(t.name||userName(t.user)) + '</div>' + metaHtml + '</div><div style="display:flex;align-items:center;gap:7px;flex-shrink:0">' + actionsHtml + '</div></div>';
   }).join("") + '</div>';
@@ -3267,12 +3547,16 @@ renderTxList = function(list, withActions=true){
 window.printReceiptFromTx = function(id){
   const t = findTxById(id);
   if(!t) return toast("Transaksi tidak ditemukan", true);
-  const text = (isAdminPpobTx(t) || isAdminZidStoreTx(t)) ? receiptTextForPpob(t) : receiptTextForTx(t);
+  const isDig = isAdminPpobTx(t) || isAdminZidStoreTx(t);
+  if (isDig && getAdminDigitalStatus(t) === "Gagal") {
+    return toast("Transaksi digital GAGAL — tidak dapat dicetak sebagai struk berhasil", true);
+  }
+  const text = isDig ? receiptTextForPpob(t) : receiptTextForTx(t);
   openReceiptPreview(text, "Struk - " + dateId(extractDateKey(t)));
 };
 
 function receiptTextForDateTransactions(list, dk){
-  const items = [...list].sort((a,b)=>txTimeMs(a)-txTimeMs(b));
+  const items = [...list].filter(t => !isAdminDigitalUnsettled(t)).sort((a,b)=>txTimeMs(a)-txTimeMs(b));
   const total = items.reduce((s,t)=>s+Number(t.amount||0),0);
   const totalCash = items.reduce((s,t)=>{
     const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
@@ -3297,16 +3581,17 @@ window.printTodayTransactions = function(){
 };
 
 function receiptTextForMonthSummary(monthList, mk){
-  const total = monthList.reduce((s,t)=>s+Number(t.amount||0),0);
-  const totalCash = monthList.reduce((s,t)=>{
+  const settled = monthList.filter(t => !isAdminDigitalUnsettled(t));
+  const total = settled.reduce((s,t)=>s+Number(t.amount||0),0);
+  const totalCash = settled.reduce((s,t)=>{
     const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
-  const totalQty = monthList.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  const totalQty = settled.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
   
   const dayMap = {};
-  monthList.forEach(t => {
+  settled.forEach(t => {
     const dk = extractDateKey(t);
     if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
     const amt = Number(t.amount||0);
@@ -3474,13 +3759,14 @@ function renderTrxDateView(){
   }
   
   const list = getActiveTrxDateList();
-  const total = list.reduce((s,t)=>s+Number(t.amount||0), 0);
-  const totalCash = list.reduce((s,t)=>{
+  const settled = list.filter(t => !isAdminDigitalUnsettled(t));
+  const total = settled.reduce((s,t)=>s+Number(t.amount||0), 0);
+  const totalCash = settled.reduce((s,t)=>{
     const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
-  const totalQty = list.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  const totalQty = settled.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
   
   const statusBar = '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px">' +
     '<div class="meta" style="font-size:11px;font-weight:700;color:var(--success)">' +
@@ -3498,7 +3784,7 @@ function renderTrxDateView(){
     '<div class="meta" style="margin-top:6px">Cetak struk ringkasan & seluruh transaksi tanggal ini.</div>' +
   '</div>') : "";
   
-  const ppobItems = list.filter(t => t.isPpob === true || t.type === 'ppob' || t.category === 'ppob');
+  const ppobItems = list.filter(t => isAdminPpobTx(t) && !isAdminDigitalUnsettled(t));
   const ppobOmset = ppobItems.reduce((s,t)=>s+Number(t.amount||t.price_sell||0),0);
   const ppobModal = ppobItems.reduce((s,t)=>s+Number(t.price_modal||0),0);
   const ppobProfit = ppobItems.reduce((s,t)=>s+Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))),0);
@@ -3605,16 +3891,17 @@ function renderTrxMonthView(){
   }
   
   const monthList = getActiveTrxMonthList();
-  const total = monthList.reduce((s,t)=>s+Number(t.amount||0), 0);
-  const totalCash = monthList.reduce((s,t)=>{
+  const settledMonth = monthList.filter(t => !isAdminDigitalUnsettled(t));
+  const total = settledMonth.reduce((s,t)=>s+Number(t.amount||0), 0);
+  const totalCash = settledMonth.reduce((s,t)=>{
     const isQ = txPaymentMethod(t)==="qris_transfer" || t.isNonCashPayment===true;
     return s + (isQ ? 0 : Number(t.amount||0));
   }, 0);
   const totalQris = total - totalCash;
-  const totalQty = monthList.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
+  const totalQty = settledMonth.reduce((s,t)=>s+getAdminTxTotalQty(t.note), 0);
   
   const dayMap = {};
-  monthList.forEach(t => {
+  settledMonth.forEach(t => {
     const dk = extractDateKey(t);
     if(!dayMap[dk]) dayMap[dk] = { dateKey: dk, total: 0, count: 0, qty: 0, cash: 0, qris: 0 };
     const amt = Number(t.amount||0);
@@ -3675,7 +3962,7 @@ function renderTrxMonthView(){
     }
   }
   
-  const ppobMonthList = monthList.filter(t => t.isPpob === true || t.type === 'ppob' || t.category === 'ppob');
+  const ppobMonthList = monthList.filter(t => isAdminPpobTx(t) && !isAdminDigitalUnsettled(t));
   const ppobMonthOmset = ppobMonthList.reduce((s,t)=>s+Number(t.amount||t.price_sell||0),0);
   const ppobMonthModal = ppobMonthList.reduce((s,t)=>s+Number(t.price_modal||0),0);
   const ppobMonthProfit = ppobMonthList.reduce((s,t)=>s+Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))),0);
@@ -3746,20 +4033,23 @@ function renderTrxMonthView(){
 
 renderTrx = function(){
   const list = todayTx(),
-        total = list.reduce((s,t) => s + Number(t.amount||0), 0);
-  const ppobList = list.filter(t => isAdminPpobTx(t));
+        settledList = list.filter(t => !isAdminDigitalUnsettled(t)),
+        total = settledList.reduce((s,t) => s + Number(t.amount||0), 0);
+  const pendingDigital = list.filter(t => (isAdminPpobTx(t) || isAdminZidStoreTx(t)) && getAdminDigitalStatus(t) === "Pending");
+  const pendingBanner = pendingDigital.length ? `<div class="card pad mb" style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="min-width:0;"><div style="font-size:12px;font-weight:900;color:#92400e;">⏳ ${pendingDigital.length} Transaksi Digital Masih PENDING</div><div style="font-size:11px;color:#b45309;margin-top:2px;">Belum masuk ke omset &amp; hitungan laci sebelum status Sukses.</div></div><button type="button" class="btn amber" style="font-size:11px;font-weight:800;padding:8px 10px;white-space:nowrap;" onclick="checkAllAdminPendingDigitalOrders(false)"><i class="fas fa-rotate"></i> Cek Semua</button></div>` : "";
+  const ppobList = settledList.filter(t => isAdminPpobTx(t));
   const ppobOmset = ppobList.reduce((s,t) => s + Number(t.amount||t.price_sell||0), 0);
   const ppobModal = ppobList.reduce((s,t) => s + Number(t.price_modal||0), 0);
   const ppobProfit = ppobList.reduce((s,t) => s + Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))), 0);
-  const ppobCard = ppobList.length ? `<div class="card pad mb" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-bolt"></i></div><div><div style="font-weight:800;font-size:13px;color:#166534;">DIGIFLAZZ PPOB HARI INI</div><div class="meta" style="font-size:11px;">${ppobList.length} transaksi • Non-bonus staf</div></div></div><span class="chip ok" style="font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Omzet PPOB</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(ppobOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Modal Digiflazz</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(ppobModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#16a34a;font-weight:900;">${rp(ppobProfit)}</div></div></div></div>` : "";
-  const zidList = list.filter(t => isAdminZidStoreTx(t));
+  const ppobCard = ppobList.length ? `<div class="card pad mb" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-bolt"></i></div><div><div style="font-weight:800;font-size:13px;color:#166534;">DIGIFLAZZ PPOB HARI INI</div><div class="meta" style="font-size:11px;">${ppobList.length} transaksi sukses • Non-bonus staf</div></div></div><span class="chip ok" style="font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Omzet PPOB</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(ppobOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Modal Digiflazz</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(ppobModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #dcfce7;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#16a34a;font-weight:900;">${rp(ppobProfit)}</div></div></div></div>` : "";
+  const zidList = settledList.filter(t => isAdminZidStoreTx(t));
   const zidOmset = zidList.reduce((s,t) => s + Number(t.amount||t.price_sell||0), 0);
   const zidModal = zidList.reduce((s,t) => s + Number(t.price_modal||0), 0);
   const zidProfit = zidList.reduce((s,t) => s + Number(t.profit||Math.max(0, (t.amount||t.price_sell||0) - (t.price_modal||0))), 0);
-  const zidCard = zidList.length ? `<div class="card pad mb" style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store"></i></div><div><div style="font-weight:800;font-size:13px;color:#312e81;">ZIDSTORE (PPOB &amp; AKRAB) HARI INI</div><div class="meta" style="font-size:11px;">${zidList.length} transaksi • Non-bonus staf</div></div></div><span class="chip" style="background:#4f46e5;color:#fff;font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Omzet ZidStore</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(zidOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Modal ZidStore</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(zidModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#4f46e5;font-weight:900;">${rp(zidProfit)}</div></div></div></div>` : "";
-  const printAll = list.length ? `<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${list.length} transaksi hari ini dalam 1 struk.</div></div>` : "";
+  const zidCard = zidList.length ? `<div class="card pad mb" style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:16px;"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-store"></i></div><div><div style="font-weight:800;font-size:13px;color:#312e81;">ZIDSTORE (PPOB &amp; AKRAB) HARI INI</div><div class="meta" style="font-size:11px;">${zidList.length} transaksi sukses • Non-bonus staf</div></div></div><span class="chip" style="background:#4f46e5;color:#fff;font-size:10px;">Laba Bersih</span></div><div class="grid3" style="gap:8px;text-align:center;"><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Omzet ZidStore</div><div class="amt num" style="font-size:13.5px;color:var(--text-main);">${rp(zidOmset)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Modal ZidStore</div><div class="amt num" style="font-size:13.5px;color:#dc2626;">${rp(zidModal)}</div></div><div style="background:#fff;border-radius:10px;padding:8px 6px;border:1px solid #e0e7ff;"><div class="tiny" style="color:var(--muted);">Keuntungan</div><div class="amt num" style="font-size:13.5px;color:#4f46e5;font-weight:900;">${rp(zidProfit)}</div></div></div></div>` : "";
+  const printAll = settledList.length ? `<div class="card pad mb trx-print-card"><button class="btn primary full" onclick="printTodayTransactions()"><i class="fas fa-print"></i> Cetak Semua Transaksi Hari Ini</button><div class="meta" style="margin-top:6px">Cetak ${settledList.length} transaksi lunas/sukses hari ini dalam 1 struk.</div></div>` : "";
   const drawerCard = (typeof window.renderDrawerWithdrawalCard === 'function') ? window.renderDrawerWithdrawalCard() : '';
-  return `<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Data</div><div class="amt num">${list.length}</div></div></div></div>${ppobCard}${zidCard}${printAll}${renderTxList(list,true)}</div>`;
+  return `<div class="wrap">${header("Transaksi","Riwayat transaksi - cetak simpan batal")}${drawerCard}${pendingBanner}<div class="card pad mb"><div class="grid2"><div><div class="tiny">Total Hari Ini</div><div class="amt num">${rp(total)}</div></div><div><div class="tiny">Jumlah Sukses / Data</div><div class="amt num">${settledList.length} / ${list.length}</div></div></div></div>${ppobCard}${zidCard}${printAll}${renderTxList(list,true)}</div>`;
 };
 
 function renderTrxReportPage(){
@@ -4023,12 +4313,12 @@ window.loadProductReport = async function() {
 };
 
 renderHome=function(){
-  const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+Number(t.amount||0),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
+  const tToday=todayTx(),totalToday=tToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0),ded=financeDeductions(),cashFisik=Math.max(0,adminRoundRp(totalToday-ded.total));
   const bonus=dailyBonusSummary();
   const loaded=state.monthlyLoaded;
   const userLabel=state.user?.name||state.user?.username||'Admin';
   const monthRows=loaded?visibleTx().filter(t=>String(t.monthKey||String(t.dateKey||"").slice(0,7))===monthKey()):[];
-  const totalMonth=monthRows.reduce((sum,t)=>sum+Number(t.amount||0),0);
+  const totalMonth=monthRows.reduce((sum,t)=>sum+adminSettledTxAmount(t),0);
   const onlineUnread=onlineOrdersUnreadCount();
   const unlockPending=pendingUnlockCount();
   const unlockTotal=unlockRequestRows().length;
@@ -4377,6 +4667,9 @@ refreshAll = async function(force=false){
   startOnlineOrderRealtime();
   startTransactionsRealtime();
   await loadOnlineOrders(false);
+  if (typeof window.checkAllAdminPendingDigitalOrders === 'function') {
+    setTimeout(() => window.checkAllAdminPendingDigitalOrders(true), 500);
+  }
 };
 window.refreshAll = refreshAll;
 
@@ -4423,7 +4716,7 @@ const __origRenderStaffTrxNotifCard = renderStaffTrxNotifCard;
 renderStaffTrxNotifCard = function(){
   const rows = staffTxTodayRows();
   if(!rows.length) return '';
-  const total = rows.reduce((s,t)=>s+Number(t.amount||0),0);
+  const total = rows.reduce((s,t)=>s+adminSettledTxAmount(t),0);
   const last = rows[0];
   const unseen = staffTxUnseenRows();
   const badgeCount = unseen.length;
@@ -4542,7 +4835,7 @@ function adminTargetScheduleRows(){const map=new Map();(state.targetSettingRows|
 function renderAdminTargetScheduleList(){const rows=adminTargetScheduleRows().slice(0,12);if(!rows.length)return`<div class="card pad" style="box-shadow:none"><div class="tiny">Jadwal Target Tersimpan</div><div class="meta" style="margin-top:6px">Belum ada jadwal target bertanggal.</div></div>`;return`<div class="card pad" style="box-shadow:none"><div class="tiny">Jadwal Target Tersimpan</div><div style="display:grid;gap:7px;margin-top:8px">${rows.map(r=>{const dk=adminNormalizeTargetDateKey(r.effectiveDate||r.dateKey,''),rowId=String(r.id||adminTargetSettingDocId(dk)).replace(/[^a-zA-Z0-9_-]/g,'');return`<div style="display:grid;grid-template-columns:minmax(62px,.75fr) minmax(0,1fr) minmax(0,1fr) auto auto;gap:6px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface)"><b style="font-size:11px;white-space:nowrap">${displayDateKey(dk)}</b><span class="meta" style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px">Target ${rp(r.targetAmount)}</span><span class="meta" style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px">Bonus ${rp(r.bonusAmount)}</span><button class="btn" style="min-height:34px;width:34px;height:34px;padding:0;border-radius:10px;flex-shrink:0" title="Edit target tanggal ini" onclick="editAdminTargetSchedule('${dk}')"><i class="fas fa-pen"></i></button><button class="btn red" style="min-height:34px;width:34px;height:34px;padding:0;border-radius:10px;flex-shrink:0" title="Hapus target tanggal ini" onclick="deleteAdminTargetSchedule('${dk}','${rowId}')"><i class="fas fa-trash"></i></button></div>`}).join('')}</div><div class="meta" style="margin-top:7px">Tanggal yang belum diset akan memakai target terakhir sebelumnya.</div></div>`}
 
 function adminTargetSettings(dk=dateKey()){const d=state.targetSettings||{};return adminNormalizeTargetSettings(d,dk)}
-function adminTargetTxRows(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),activeSet=new Set(realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>cleanUser(u.username||u.id)).filter(Boolean));return todayTx().filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))))}
+function adminTargetTxRows(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),activeSet=new Set(realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>cleanUser(u.username||u.id)).filter(Boolean));return todayTx().filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&!isAdminDigitalUnsettled(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))))}
 function adminDailyTargetSummary(dk=dateKey()){const d=String(dk||dateKey()).slice(0,10),settings=adminTargetSettings(d),targetAmount=Math.max(1,Number(settings.targetAmount||ADMIN_DAILY_TARGET_AMOUNT)),rows=adminTargetTxRows(d),totalAmount=rows.reduce((s,t)=>s+Number(t.amount||0),0),progressPercent=Number(((totalAmount/targetAmount)*100).toFixed(2));return{dateKey:d,targetSettingDate:settings.effectiveDate||settings.dateKey||d,targetAmount,totalAmount,progressPercent,reached:totalAmount>=targetAmount,remainingAmount:Math.max(0,targetAmount-totalAmount),bonusAmount:Number(settings.bonusAmount||0)}}
 function adminTargetRewardPlan(dk=dateKey()){
   const d=String(dk||dateKey()).slice(0,10),attUsers=new Set(state.att.filter(a=>!isDeleted(a)&&!isTrialRecord(a)&&extractDateKey(a)===d).map(a=>cleanUser(a.user)).filter(Boolean));
@@ -4623,7 +4916,7 @@ async function adminReevaluateDailyTarget(d) {
     const att = attSnap.docs.map(x=>({id:x.id,...x.data()}));
     
     const activeSet = new Set(realActiveUsers().filter(u=>String(u.role||'').toLowerCase()!=='admin').map(u=>cleanUser(u.username||u.id)).filter(Boolean));
-    const validTx = tx.filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))));
+    const validTx = tx.filter(t=>!isDeleted(t)&&!isTrialRecord(t)&&!isAdminDigitalUnsettled(t)&&String(t.dateKey||'').slice(0,10)===d&&(!activeSet.size||activeSet.has(cleanUser(t.user))));
     const totalAmount = validTx.reduce((sum,t)=>sum+Number(t.amount||0),0);
     
     const settings = adminNormalizeTargetSettings(state.targetSettingRows?.find(r=>r.effectiveDate===d||r.dateKey===d)||adminPickTargetSettings(state.targetSettingRows||[],d)||{}, d);
@@ -5172,7 +5465,7 @@ window.openDrawerWithdrawalModal = async () => {
 
     // Hitung matematika laci persis seperti di renderHome dan staf
     const tToday = todayTx();
-    const totalToday = tToday.reduce((sum,t)=>sum+Number(t.amount||0),0);
+    const totalToday = tToday.reduce((sum,t)=>sum+adminSettledTxAmount(t),0);
     const ded = financeDeductions();
     const cashFisik = adminRoundRp(totalToday - ded.total);
     
@@ -5180,7 +5473,7 @@ window.openDrawerWithdrawalModal = async () => {
     const ydData = state.adminYdDrawerData;
     if (ydData) {
       const dws = (ydData.dws || []).filter(w => !w.deleted);
-      const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+      const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t) && !isAdminDigitalUnsettled(t));
       if (dws.length) {
         let latestDw = dws[0];
         for (const w of dws) { if (Number(w.createdAtMs || 0) > Number(latestDw.createdAtMs || 0)) latestDw = w; }
@@ -5334,7 +5627,7 @@ window.calculateDrawerEstimate = function(dk = dateKey()) {
   if (!dws.length) {
     let cashSum = 0;
     for (const t of txList) {
-      if (!isDeleted(t) && !isTrialRecord(t)) {
+      if (!isDeleted(t) && !isTrialRecord(t) && !isAdminDigitalUnsettled(t)) {
         const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
         if (!p.includes("qris") && !p.includes("transfer")) cashSum += Number(t.amount || 0);
       }
@@ -5354,7 +5647,7 @@ window.calculateDrawerEstimate = function(dk = dateKey()) {
   let cashTxAfterWithdrawal = 0;
   for (const t of txList) {
     const txTime = Number(t.createdAtMs || 0);
-    if (txTime > latestTime && !isDeleted(t) && !isTrialRecord(t)) {
+    if (txTime > latestTime && !isDeleted(t) && !isTrialRecord(t) && !isAdminDigitalUnsettled(t)) {
       const p = String(t.paymentMethod || t.paymentLabel || t.payment || "").toLowerCase();
       if (!p.includes("qris") && !p.includes("transfer")) {
         cashTxAfterWithdrawal += Number(t.amount || 0);
@@ -5697,7 +5990,7 @@ window.renderDrawerWithdrawalCard = function() {
       let ydNominal = 0;
       if (ydData) {
         const dws = (ydData.dws || []).filter(w => !w.deleted);
-        const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t));
+        const txListYd = (ydData.txs || []).filter(t => !t.deleted && !isTrialRecord(t) && !isAdminDigitalUnsettled(t));
         if (dws.length) {
           let latestDw = dws[0];
           for (const w of dws) { if ((w.createdAtMs || 0) > (latestDw.createdAtMs || 0)) latestDw = w; }
